@@ -1,0 +1,5 @@
+# ignore node
+node_modules
+z_unused
+bin/**/*
+package-lock.json

@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "CompileAndCopy",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: CompileAndCopy",
+			"detail": "compile to a single file and copy to DOpus script addins directory"
+		}
+	]
+}
