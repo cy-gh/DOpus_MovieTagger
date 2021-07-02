@@ -61,14 +61,6 @@ Number.prototype.convertToDateComponents = function(asUTC?: boolean) {
         return n < 10 ? '0' + n.toString() : n.toString()
     }
     const oDate     = new Date(this.valueOf());
-    // const vYear     =                     (asUTC ? oDate.getUTCFullYear() : oDate.getFullYear()).toString();
-    // const vMonth    = autoZeroPadLeft(1 + (asUTC ? oDate.getUTCMonth()    : oDate.getMonth()));
-    // const vDay      = autoZeroPadLeft(     asUTC ? oDate.getUTCDate()     : oDate.getDate());
-    // const vHours    = autoZeroPadLeft(     asUTC ? oDate.getUTCHours()    : oDate.getHours());
-    // const vMinutes  = autoZeroPadLeft(     asUTC ? oDate.getUTCMinutes()  : oDate.getMinutes());
-    // const vSeconds  = autoZeroPadLeft(     asUTC ? oDate.getUTCSeconds()  : oDate.getSeconds());
-    // const vMilliS   = ((asUTC ? oDate.getUTCMilliseconds() : oDate.getMilliseconds()) / 1000).toFixed(3).slice(2, 5);
-    // const vTimezone = oDate.getTimezoneOffset().toString();
     return <DateComponents>{
         year     :                     (asUTC ? oDate.getUTCFullYear() : oDate.getFullYear()).toString(),
         month    : autoZeroPadLeft(1 + (asUTC ? oDate.getUTCMonth()    : oDate.getMonth())),
@@ -105,7 +97,7 @@ Number.prototype.formatAsDateDOpus = function () {
  * similar to formatAsDateDOpus()
  * Note that, this works only for DOpusDate not JS Date!
  */
-function DateToDOpusFormat(oItemDate: DOpusDate) {
+function DateToDOpusFormat(oItemDate: Date) {
     return doh.dc.date(oItemDate).format('D#yyyy-MM-dd T#HH:mm:ss');
 }
 

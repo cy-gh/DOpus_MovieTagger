@@ -1,4 +1,3 @@
-///<reference path='./libDOpusHelper.ts' />
 ///<reference path='./libGlobal.ts' />
 
 /*

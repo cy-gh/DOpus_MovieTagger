@@ -4,6 +4,7 @@
   ],
   "exclude": [
     "z_unused/**/*.spec.ts",
+    "z_unused/*",
     "z_unused/**/*"
   ],
   "compilerOptions": {

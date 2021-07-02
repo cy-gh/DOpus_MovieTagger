@@ -187,11 +187,7 @@ namespace doh {
     export function loadResources(resourceName: string) {
         scr.loadResources(resourceName);
     }
-    // /** @param {string} path @returns {Result.<number, boolean>} file size on success */
-    // export function getFileSize(path: string): Result<number, boolean> {
-    //     var oItem = getItem(path);
-    //     return oItem ? ResultOk(parseInt(''+oItem.size, 10)) : ResultErr(true);
-    // }
+    // removed the earlier Result dependency
     /** @param {string} path @returns {number|boolean} file size on success */
     export function getFileSize(path: string): number|false {
         var oItem = getItem(path);

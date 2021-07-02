@@ -52,25 +52,22 @@ namespace g {
      * @param {any} okValue value on success
      * @param {any} errValue value on error/failure
      */
-    export class Result<T, E> implements IResult<T, E> {
-        ok: any;
-        err: any;
+    export class Result<S, E> implements IResult<S, E> {
+        ok   : S|false;
+        err  : E|true;
         stack: any[];
-        constructor(okValue: T, errValue: E) {
-            if (okValue !== undefined)
-                this.ok = okValue;
-            if (errValue !== undefined)
-                this.err = errValue;
+        constructor(oOKValue: S, oErrValue: E) {
+            this.ok    = typeof oOKValue !== undefined ? oOKValue : false;
+            this.err   = typeof oErrValue!== undefined ? oErrValue : true;
             this.stack = [];
         }
         // note this one does not allow any falsy value for OK at all
-        isOk() { return !!this.ok; }
+        isOk()     { return !!this.ok; }
         // note this one allows falsy values - '', 0, {}, []... - for OK - USE SPARINGLY
-        isValid() { return !this.err; }
-        isErr() { return !!this.err; }
+        isValid()  { return !this.err; }
+        isErr()    { return !!this.err; }
         toString() { return JSON.stringify(this, null, 4); }
     }
-
 
 
     /*
@@ -294,6 +291,8 @@ namespace g {
         // Using DOpus.delay(1) unfortunately did not help, because I suspect,
         // once DOpus executes delay() the OS sends the script to a much longer sleep
         // than we intend, only 1 millisecs.
+        // The md5 calculation keeps the CPU just enough occupied
+        // to make it wait longer than 1 ms, so that the generated number is guaranteed to be unique.
         var _now = now();
         if (simple) {
             // now() + '_' + Math.floor(1000 + Math.random() * 8999);

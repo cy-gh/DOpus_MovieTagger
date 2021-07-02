@@ -14,6 +14,17 @@ interface DateComponents {
     timezone?   : string
 }
 
+
+interface IResult<S,E> {
+    ok: S|false;
+    err: E|true;
+    stack: Array<any>;
+    isOk(): boolean;
+    isValid(): boolean;
+    isErr(): boolean;
+}
+
+
 interface Date {
 	/**
      * turns timestamp to ISO like "20210119-182416" format
@@ -87,14 +98,4 @@ interface String {
      *
      */
     trim(): string;
-}
-
-interface IResult<T,E> {
-    ok: T;
-    err: E;
-    stack: Array<any>;
-    // new <T, E>(oOKValue: T, oErrValue: E): IResult;
-    isOk: () => boolean;
-    isValid: () => boolean;
-    isErr: () => boolean;
 }

@@ -5,11 +5,13 @@
 /* eslint indent: [2, 4, {"SwitchCase": 1}] */
 ///<reference path='./_DOpusDefinitions.d.ts' />
 ///<reference path='./_Helpers.d.ts' />
+///<reference path='./_IMemCache.d.ts' />
 ///<reference path='./libs/libDOpusHelper.ts' />
 ///<reference path='./libs/libExceptions.ts' />
 ///<reference path='./libs/libLogger.ts' />
 ///<reference path='./libs/formatters.ts' />
 ///<reference path='./libs/libGlobal.ts' />
+
 
 
 // use CTRL-SHIFT-B to build - you must have npx.cmd in your path
@@ -59,6 +61,46 @@ function OnInit(initData: DOpusScriptInitData) {
     } catch(e) {
         DOpus.output(JSON.stringify(e, null, 4));
     }
+    class cache implements IMemCache {
+        public id: string;
+
+        constructor(id: string) {
+            this.id = id;
+        }
+        enable(): void {
+            throw new Error("Method not implemented.");
+        }
+        disable(): void {
+            throw new Error("Method not implemented.");
+        }
+        isEnabled(id?: string): boolean {
+            throw new Error("Method not implemented.");
+        }
+        getCache(id?: string): IResult<DOpusMap, boolean> {
+            throw new Error("Method not implemented.");
+        }
+        clearCache(id?: string): void {
+            throw new Error("Method not implemented.");
+        }
+        getCacheCount(id?: string): IResult<number, boolean> {
+            throw new Error("Method not implemented.");
+        }
+        getCacheVar(k: any, id?: string): IResult<any, boolean> {
+            throw new Error("Method not implemented.");
+        }
+        setCacheVar(k: any, v: any, id?: string): IResult<any, boolean> {
+            throw new Error("Method not implemented.");
+        }
+        delCacheVar(k: any, id?: string): IResult<any, boolean> {
+            throw new Error("Method not implemented.");
+        }
+
+    }
+    let c = new cache('test');
+    c.id = 'foo';
+
+    // let adsStream = new ads.Stream('SHA1');
+    // DOpus.output(adsStream.hasHashStream(doh.getItem('Y:\\simple.txt')));
 
     DOpus.output('script finished');
 

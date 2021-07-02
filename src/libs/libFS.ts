@@ -2,7 +2,7 @@
 ///<reference path='./libExceptions.ts' />
 ///<reference path='./libLogger.ts' />
 
-namespace libFS {
+namespace fs {
 
     const myName = 'FS';
     const logger = libLogger.logger;
