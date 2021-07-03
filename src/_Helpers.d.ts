@@ -26,10 +26,10 @@ interface IResult<S,E> {
 
 
 interface Date {
-	/**
+    /**
      * turns timestamp to ISO like "20210119-182416" format
      */
-	formatAsDateTimeCompact(): string;
+    formatAsDateTimeCompact(): string;
 }
 
 interface Number {
@@ -50,26 +50,26 @@ interface Number {
      * @param decimal how many decimals
      */
     formatAsSize(unit?: sizeUnit, decimal?: number): string;
-	/**
+    /**
      * turns milliseconds to rounded seconds
      */
-	formatAsDuration(): string;
-	/**
+    formatAsDuration(): string;
+    /**
      * converts timestamps to time format
      */
     formatAsHms(): string;
-	/**
+    /**
      * turns timestamp to ISO "2021-01-19T18:24:16.123Z" format
      */
     formatAsDateISO(): string;
-	/**
+    /**
      * turns timestamp to ISO like "20210119-182416" format
      */
-	formatAsDateTimeCompact(): string;
-	/**
+    formatAsDateTimeCompact(): string;
+    /**
      * turns timestamp to DOpus "D2021-01-19 T18:24:16" format
      */
-	formatAsDateDOpus(): string;
+    formatAsDateDOpus(): string;
 }
 
 interface String {
