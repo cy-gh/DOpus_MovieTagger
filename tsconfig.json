@@ -1,11 +1,11 @@
 {
   "include": [
-    "src/**/*"
+    "src/**/*",
   ],
   "exclude": [
     "z_unused/**/*.spec.ts",
     "z_unused/*",
-    "z_unused/**/*"
+    "z_unused/**/*",
   ],
   "compilerOptions": {
     /* Visit https://aka.ms/tsconfig.json to read more about this file */

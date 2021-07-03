@@ -1,10 +1,11 @@
 ///<reference path='./libDOpusHelper.ts' />
 ///<reference path='./libExceptions.ts' />
 ///<reference path='./libLogger.ts' />
+///<reference path='./libStopwatch.ts' />
 
 namespace fs {
 
-    const myName = 'FS';
+    const myName = 'fs';
     const logger = libLogger.logger;
 
     // blob.copyFrom() and stringTools.decode() use different names

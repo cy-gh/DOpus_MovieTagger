@@ -255,7 +255,7 @@ namespace g {
      * @param {string=} buttons e.g. 'OK', 'OK|CANCEL'...
      * @returns {number} number of button the user clicked 1, 2, 3... 0 if cancelled
      */
-    function showMessageDialog(dialog: DOpusDialog | null, msg: string, title?: string | undefined, buttons?: string | undefined): number {
+    export function showMessageDialog(dialog: DOpusDialog | null, msg: string, title?: string | undefined, buttons?: string | undefined): number {
         var dlgConfirm = dialog || doh.dlg();
         dlgConfirm.message = msg;
         dlgConfirm.title = title || '';

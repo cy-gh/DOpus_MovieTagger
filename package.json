@@ -18,7 +18,6 @@
     "url": "https://github.com/cy-gh/DOpus_MovieTagger/issues"
   },
   "homepage": "https://github.com/cy-gh/DOpus_MovieTagger#readme",
-  "devDependencies": {
-  },
+  "devDependencies": {},
   "dependencies": {}
 }
