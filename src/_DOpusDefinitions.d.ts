@@ -5275,10 +5275,10 @@ interface DOpusOtherMeta {
  */
 interface DOpusPath extends String {
 
-    /**
-     * Returns the full path as a string.
-     */
-    toString(): string;
+    // /**
+    //  * Returns the full path as a string.
+    //  */
+    // toString(): string;
 
     /** only for tsc compatibility reasons */
     split(): string[];

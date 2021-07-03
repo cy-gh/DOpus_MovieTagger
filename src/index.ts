@@ -15,27 +15,27 @@
 ///<reference path='./libs/libFS.ts' />
 ///<reference path='./libs/libConfigAccess.ts' />
 
-
-// namespace config {
-//     export enum TYPE {
-//         PHONENUM = 'PHONENUM'
-//     }
-//     var isValidOrig = user.isValid;
-//     user.isValid = function (val: any, type: config.TYPE) {
-//         switch(type) {
-//             case config.TYPE.PHONENUM:
-//                 DOpus.output('running extended method');
-//                 var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
-//                 return rePN.test(val);
-//             default:
-//                 return isValidOrig(val, type);
-//         }
-//     }
-//     // user.isValid = isValidExt;
-// }
-
 // use CTRL-SHIFT-B to build - you must have npx.cmd in your path
 
+
+
+namespace config {
+    export enum TYPE {
+        PHONENUM = 'PHONENUM'
+    }
+    const isValidOrig = user.isValid;
+    user.isValid = function (val: any, type: config.TYPE) {
+        switch(type) {
+            case config.TYPE.PHONENUM:
+                DOpus.output('running extended method');
+                var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
+                return rePN.test(val);
+            default:
+                return isValidOrig(val, type);
+        }
+    }
+    // user.isValid = isValidExt;
+}
 
 
 
@@ -57,16 +57,25 @@
 type globalType = {
     [k: string]: any
 }
-var cfg = config.user;
-var ext = config.ext;
 var logger = libLogger.logger;
 var Global:globalType = {};
 Global['SCRIPT_NAME'] = 'cuMovieTagger';
+var cfg = config.user;
+var ext = config.ext;
 
+function setupConfigVars(initData: DOpusScriptInitData)
 // CONFIG - DEFAULT VALUES
 {
 
-    cfg.addNumber('DEBUG_LEVEL', logger.getLevel(), 'DEBUG_LEVEL');
+    cfg.setInitData(initData);
+
+    cfg.addNumber(
+        'DEBUG_LEVEL',
+        logger.getLevel(),
+        'DEBUG_LEVEL',
+        'TEST GROUP',
+        'How much information should be put to DOpus output window - Beware of anything above & incl. NORMAL, it might crash your DOpus!\nSome crucial messages or commands like Dump ADS, Dump MediaInfo, Estimate Bitrate are not affected'
+        );
 
     /**
      * Name of the ADS stream, can be also used via "dir /:" or "type file:stream_name" commands
@@ -93,7 +102,7 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
      */
     // config.addPath('mediainfo_path', '%gvdTool%\\MMedia\\MediaInfo\\MediaInfoXXX.exe', 'MEDIAINFO_PATH');
     // do not use addPath() but use addValueWithBinding() with bypass=true - otherwise people will get an error on initial installation
-    cfg.addValueWithBinding('mediainfo_path', '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe', config.TYPE.PATH, 'MEDIAINFO_PATH', true);
+    cfg.addValueWithBinding('mediainfo_path', '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe', config.TYPE.PATH, 'MEDIAINFO_PATH', undefined, undefined, true);
     // config.addString('ref_mediainfo_download_url', 'https://mediaarea.net/en/MediaInfo/Download/Windows', 'REF_MEDIAINFO_DOWNLOAD_URL');
 
     /**
@@ -150,7 +159,9 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
     // get list of all columns with ^\s+col(?!\.name).+$\n in a decent editor
     var fields_base_reference, fields_essential = [], fields_optional = [], fields_verbose = [], fields_other = [];
     // fields_base_reference = {
-    fields_base_reference = function(){return{
+    // fields_base_reference = function(){return{
+    fields_base_reference = `
+    {
         // This is just the help variable for your reference
         // (this is not valid JSON but makes it possible for me to show you more info)
         //
@@ -205,18 +216,16 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
 
         "MExt_ADSDataFormatted"           : "verbose",
         "MExt_ADSDataRaw"                 : "verbose"
-
-        // do not put , in the last line
-    }
-    }.toString().slice(17, -3);
+    }`;
     cfg.addString('fields_base_reference', fields_base_reference.normalizeLeadingWhiteSpace(), 'REF_ALL_AVAILABLE_FIELDS');
+
     fields_base_reference = JSON.parse(fields_base_reference);
     for (var f in fields_base_reference) {
         switch(fields_base_reference[f]) {
-            case 'essential':    fields_essential.push(f); break;
-            case 'optional':    fields_optional.push(f); break;
-            case 'other':        fields_other.push(f); break;
-            case 'verbose':        fields_verbose.push(f); break;
+            case 'essential': fields_essential.push(f); break;
+            case 'optional':  fields_optional.push(f); break;
+            case 'other':     fields_other.push(f); break;
+            case 'verbose':   fields_verbose.push(f); break;
         }
     };
     cfg.addArray('fields_essential', fields_essential, 'TOGGLEABLE_FIELDS_ESSENTIAL');
@@ -237,7 +246,9 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
      *
      * ADJUST AS YOU SEE FIT
      */
-    var lookup_resolutions = function(){return{
+    // var lookup_resolutions = function(){return{
+    var lookup_resolutions = `
+    {
         // This is just the help variable for your reference
         // (this is not valid JSON but makes it possible for me to show you more info)
         //
@@ -255,14 +266,14 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
         "4320":     "4320p"
 
         // do not put , in the last line
-    }
-    }.toString().slice(17, -3);
+    }`;
     JSON.stringify(JSON.parse(lookup_resolutions)); // test parseability on script load, do not remove
     cfg.addString('ref_lookup_resolutions', lookup_resolutions.normalizeLeadingWhiteSpace(), 'REF_LOOKUP_RESOLUTIONS');
     cfg.addPOJO('lookup_resolutions', JSON.parse(lookup_resolutions), 'LOOKUP_RESOLUTIONS');
 
 
-    var lookup_duration_groups = function(){return{
+    var lookup_duration_groups = `
+    {
         // This is just the help variable for your reference
         // (this is not valid JSON but makes it possible for me to show you more info)
         //
@@ -289,10 +300,8 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
         "7200":     "Over 1.5h",
         "10800":    "Over 2h",
         "999999":   "Over 3h"
-
         // do not put , in the last line
-    }
-    }.toString().slice(17, -3);
+    }`;
     JSON.stringify(JSON.parse(lookup_duration_groups)); // test parseability on script load, do not remove
     cfg.addString('ref_lookup_duration_groups', lookup_duration_groups.normalizeLeadingWhiteSpace(), 'REF_LOOKUP_DURATION_GROUPS');
     cfg.addPOJO('lookup_duration_groups', JSON.parse(lookup_duration_groups), 'LOOKUP_DURATION_GROUPS');
@@ -307,7 +316,9 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
      * and how different encoders encode the videos, muxers set FourCC codes and other metainfo
      * you might not always see what you see in another program, e.g. AviDemux might show it as DIVX and another program as MP42, etc.
      */
-    var lookup_codecs = function(){return{
+    // var lookup_codecs = function(){return{
+    var lookup_codecs = `
+    {
         // This is just the help variable for your reference
         // (this is not valid JSON but makes it possible for me to show you more info)
         //
@@ -516,8 +527,8 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
         "WAVPACK"                                                : ["WavPack", "WV"]
 
         // do not put , in the last line
-    }
-    }.toString().slice(17, -3);
+    }`;
+    // }.toString().slice(17, -3);
     JSON.stringify(JSON.parse(lookup_codecs)); // test parseability on script load, do not remove
     cfg.addString('ref_lookup_codecs', lookup_codecs.normalizeLeadingWhiteSpace(), 'REF_LOOKUP_CODECS');
     cfg.addPOJO('lookup_codecs', JSON.parse(lookup_codecs), 'LOOKUP_CODECS');
@@ -564,7 +575,9 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
      *
      * ADJUST AS YOU SEE FIT
      */
-    var lookup_channels = function(){return{
+    // var lookup_channels = function(){return{
+    var lookup_channels = `
+    {
         // This is just the help variable for your reference
         // (this is not valid JSON but makes it possible for me to show you more info)
         //
@@ -592,8 +605,8 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
         "9": "7.2"
 
         // do not put , in the last line
-    }
-    }.toString().slice(17, -3);
+    }`;
+    // }.toString().slice(17, -3);
     JSON.stringify(JSON.parse(lookup_channels)); // test parseability on script load, do not remove
     cfg.addString('ref_lookup_channels', lookup_channels.normalizeLeadingWhiteSpace(), 'REF_LOOKUP_CHANNELS');
     cfg.addPOJO('lookup_channels', JSON.parse(lookup_channels), 'LOOKUP_CHANNELS');
@@ -617,7 +630,9 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
     var config_file_dir_raw = '/dopusdata\\Script AddIns';
     var config_file_dir_resolved = DOpus.fsUtil().resolve(config_file_dir_raw) + '\\';
     var config_file_name = Global.SCRIPT_NAME + '.json';
-    var config_file_contents = function(){return{
+    // var config_file_contents = function(){return{
+    var config_file_contents = `
+    {
         // To customize the column headers
         // create a file with the name: ${config_file_name}
         // under: ${config_file_dir_raw}
@@ -651,8 +666,8 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
             // do not put , in the last line
         }
         // do not put , in the last line
-    }
-    }.toString().slice(17, -3)
+    }`
+    // }.toString().slice(17, -3)
     .substituteVars();
     JSON.stringify(JSON.parse(config_file_contents)); // test parseability on script load, do not remove
     cfg.addString('ref_config_file', config_file_contents.normalizeLeadingWhiteSpace(), 'REF_CONFIG_FILE');
@@ -667,7 +682,9 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
      *
      * ADJUST AS YOU SEE FIT
      */
-    var name_cleanup = function(){return{
+    // var name_cleanup = function(){return{
+    var name_cleanup = `
+    {
         // This is just the help variable for your reference
         // (this is not valid JSON but makes it possible for me to show you more info)
         //
@@ -691,8 +708,8 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
         "extOnly": [
         ]
         // do not put , in the last line
-    }
-    }.toString().slice(17, -3);
+    }`;
+    // }.toString().slice(17, -3);
     JSON.stringify(JSON.parse(name_cleanup)); // test parseability on script load, do not remove
     cfg.addString('ref_name_cleanup', name_cleanup.normalizeLeadingWhiteSpace(), 'REF_NAME_CLEANUP');
     cfg.addPOJO('name_cleanup', JSON.parse(name_cleanup), 'NAME_CLEANUP');
@@ -703,8 +720,17 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
     cfg.addString('config_file_dir_resolved', config_file_dir_resolved, '');
     cfg.addString('config_file_name', config_file_name, '');
 
+
+
+config
+
     // do not touch this!
-    ext.addPOJO('ext_config_pojo');
+    // ext.setInitData(initData).addPOJO('ext_config_pojo');
+
+
+    cfg.finalize();
+    // ext.finalize();
+
 }
 
 
@@ -730,13 +756,13 @@ function OnInit(initData: DOpusScriptInitData) {
     var oItem = doh.fsu.getItem('Y:\\VeraCrypt.rar');
     var id = oItem.modify;
     logger.force('id: ' + id);
-    var d = new Date('2021-06-28 T18:09:04.206Z');
-    // var d1 = doh.dc.date('D2021-06-28 T18:09:04');
-    // var d2 = doh.dc.date('2021-06-28 T18:09:04.206Z');
-    // var d3 = doh.dc.date(d.getTime());
-    var d1 = doh.dc.date(id);
-    var d2 = doh.dc.date(new Date());
-    var d3 = doh.dc.date(new Date().valueOf());
+    // var d = new Date('2021-06-28 T18:09:04.206Z');
+    // // var d1 = doh.dc.date('D2021-06-28 T18:09:04');
+    // // var d2 = doh.dc.date('2021-06-28 T18:09:04.206Z');
+    // // var d3 = doh.dc.date(d.getTime());
+    // var d1 = doh.dc.date(id);
+    // var d2 = doh.dc.date(new Date());
+    // var d3 = doh.dc.date(new Date().valueOf());
 
     // logger.sforce('d1: ' + d1);
     // logger.sforce('d2: ' + d2);
@@ -760,10 +786,45 @@ function OnInit(initData: DOpusScriptInitData) {
     // var res = urlTools.getFromURLRaw('https://avatars.githubusercontent.com/u/71272476?v=4');
     // fs.saveFile('Y:\\cyghss.png', (<IDownloadedFile>res.ok).content);
 
-    // DOpus.output('pn: ' + config.TYPE.PHONENUM);
-    // DOpus.output('pn: ' + config.TYPE[config.TYPE.PHONENUM]);
-    // DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
-    // DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
+    DOpus.output('pn: ' + config.TYPE.PHONENUM);
+    DOpus.output('pn: ' + config.TYPE[config.TYPE.PHONENUM]);
+    DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
+    DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
+
+
+
+    // config.user.setInitData(initData);
+    // DOpus.output('setupConfigVars: ' + initData.file);
+
+    // config.user.addNumber(
+    //     'DEBUG_LEVEL',
+    //     logger.getLevel(),
+    //     'DEBUG_LEVEL',
+    //     'TEST GROUP',
+    //     'How much information should be put to DOpus output window - Beware of anything above & incl. NORMAL, it might crash your DOpus!\nSome crucial messages or commands like Dump ADS, Dump MediaInfo, Estimate Bitrate are not affected'
+    //     );
+
+    // config.user.setInitData(initData);
+
+    // config.user.addNumber(
+    //     'DEBUG_LEVEL2',
+    //     logger.getLevel(),
+    //     'DEBUG_LEVEL2',
+    //     'TEST GROUP',
+    //     'How much information should be put to DOpus output window - Beware of anything above & incl. NORMAL, it might crash your DOpus!\nSome crucial messages or commands like Dump ADS, Dump MediaInfo, Estimate Bitrate are not affected'
+    //     );
+
+    setupConfigVars(initData);
+
+    // config.user.addString('test', 'this is the default value', 'TEST_FOR_DOPUS');
+
+    // DOpus.output(sprintfjs.sprintf(
+    //     'name: %s, type: %s, binding: %s',
+    //     'test',
+    //     config.user.getValue('test'),
+    //     config.user.getBinding('test')
+    // ));
+
 
     enum foo {
         bar = 'barString',

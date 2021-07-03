@@ -12,7 +12,7 @@ interface String {
 
 // methods for pseudo-HEREDOCs
 String.prototype.normalizeLeadingWhiteSpace = function () {
-    return this.replace(/^\t\t/mg, '  ').replace(/^\t/mg, '');
+    return this.replace(/^\t\t|\s{8}/mg, '  ').replace(/^\t|\s{4}/mg, '');
 };
 String.prototype.substituteVars = function () {
     return this.replace(/\${([^}]+)}/g, function (match, p1) {
@@ -23,7 +23,101 @@ String.prototype.substituteVars = function () {
 };
 
 
-
+/**
+ * # How to use:
+ *
+ * Write any top-level functions callable from OnInit(), e.g.
+ * ```typescript
+ *   function setupConfigVars(initData: DOpusScriptInitData) {
+ *     // more to this below
+ *   }
+ * ```
+ *
+ * in OnInit() call it with the scriptInitData you get automatically from DOpus, e.g.
+ * ```typescript
+ *   setupConfigVars(initData);
+ * ```
+ *
+ * Your method should look like this
+ * ```typescript
+ *   //
+ *   // config.user: UI-configured settings
+ *   //
+ *   config.user.setInitData(initData);
+ *   // ...
+ *   config.user.addNumber(...)
+ *   config.user.addString(...)
+ *   // ...
+ *   // required for setting up the config UI groups & descriptions
+ *   config.user.finalize();
+ *
+ *   //
+ *   // config.ext: Externally configured settings
+ *   //
+ *   config.ext.setInitData(initData);
+ *   config.ext.addPOJO('ext_config_pojo', objYourPOJO);
+ *   // or shorter
+ *   config.ext.setInitData(initData).addPOJO('ext_config_pojo', objYourPOJO);
+ *   // config.ext.finalize() is not unnecessary and will throw exception if called
+ * ```
+ *
+ * The order in which you call config.user and config.ext methods doesn't matter.
+ *
+ * Of course, you can do it all in your OnInit() method directly.
+ *
+ *
+ * # How to add new object types
+ *
+ * Object types supported by the configuration are not necessarily limited to JS object types,
+ * one could easily extend the keys of the TYPES enum,
+ * add the proper check to validation method and use the new type.
+ *
+ * ## Ugly alternative
+ * You could do it by directly modifying the library file,
+ * which would be the uglier method but it is possible.
+ *
+ * E.g. a phone number could be implemented by adding
+ * ```typescript
+ *   TYPE.phonenum = 'PHONENUM'
+ * ```
+ *
+ * to the enum and in validation method adding a new branch:
+ * ```typescript
+ *   var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
+ *   return rePN.test(inputPhoneNum);
+ * ```
+ *
+ * ## Smarter alternative
+ *
+ * However, the library file does not have to be changed to extend the enum. One can do this:
+ *
+ * ```typescript
+ * // add this in your calling .ts file
+ *
+ * namespace config {
+ *   export enum TYPE {
+ *     PHONENUM = 'PHONENUM',
+ *   }
+ *   const isValidOrig = user.isValid; // necessary to avoid recursion
+ *   user.isValid = function(val: any, type: config.TYPE) {
+ *     const rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
+ *     switch(type) {
+ *       case config.TYPE.PHONENUM:
+ *         return rePN.test(val);
+ *       default:
+ *         return isValidOrig(val, type);
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * Now you can directly use the existing types plus the new one:
+ *
+ * ```typescript
+ * DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
+ * DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
+ * ```
+ */
 namespace config {
 
     /**
@@ -34,24 +128,28 @@ namespace config {
      * add the proper check to validation method and use the new type.
      *
      * E.g. a phone number could be implemented as
-     * TYPE.phonenum = 'PHONENUM'
+     * ```typescript
+     *   TYPE.phonenum = 'PHONENUM'
+     * ```
      *
      * and in validation method:
-     * var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
-     * return rePN.test(inputPhoneNum);
+     * ```typescript
+     *   var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
+     *   return rePN.test(inputPhoneNum);
+     * ```
      *
      * In fact, this file does not have to be changed
      * to extend the enum. One can do this:
-     * ```
+     * ```typescript
      * namespace config {
      *   export enum TYPE {
      *     PHONENUM = 'PHONENUM',
      *   }
      *   var isValidOrig = user.isValid;
      *   user.isValid = function(val: any, type: config.TYPE) {
+     *     const rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
      *     switch(type) {
      *       case config.TYPE.PHONENUM:
-     *         const rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
      *         return rePN.test(val);
      *       default:
      *         return isValidOrig(val, type);
@@ -61,12 +159,13 @@ namespace config {
      * ```
      * and now you can directly use the existing types
      * plus the new one:
-     * ```
+     * ```typescript
      * DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
      * DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
      * ```
      *
      */
+
     export enum TYPE {
         BOOLEAN = 'BOOLEAN',
         STRING = 'STRING',
@@ -93,7 +192,7 @@ namespace config {
         /** one of the supported types */
         type: config.TYPE,
         /** this is the name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
-        binding: string,
+        binding?: string,
         /** the group in the script config screen */
         group?: string,
         /** this is the description shown in the script config screen */
@@ -102,6 +201,7 @@ namespace config {
     type ConfigItems = {
         [key: string]: ConfigValue
     }
+
 
 
     class Base {
@@ -115,9 +215,54 @@ namespace config {
         private _count = 0;
         private _error_mode = ERROR_MODE.ERROR;
         private items: ConfigItems = {};
+        private initData: DOpusScriptInitData | undefined;
 
-        constructor() {
-            // nothing yet
+        constructor(initData?: DOpusScriptInitData) {
+        }
+
+        /**
+         *
+         * @param {DOpusScriptInitData} initData got from DOpus OnInit() method
+         * @returns {this} for method chaining
+         */
+        setInitData(initData: DOpusScriptInitData): this {
+            this.initData = initData;
+            return this;
+        }
+        finalize() {
+            if (typeof this.initData === 'undefined') {
+                DOpus.output('initdata: ' + this.initData);
+                // TODO
+                // throw new exc.DeveloperStupidityException('InitData has not been set, call setInitData() before calling this', this.addValueWithBinding);
+                this.showError('InitData has not been set, call setInitData() before calling this');
+            }
+            var config_groups = DOpus.create().map();
+            var config_desc   = DOpus.create().map();
+
+            for (const key in this.items) {
+                const val:ConfigValue = this.items[key];
+                DOpus.output(libSprintfjs.sprintf(
+                    'key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
+                    key,
+                    val.type,
+                    ' ' || val.val,
+                    val.default,
+                    val.group,
+                    val.desc
+                ));
+                // this.initData.config[key] = val.val;
+                // @ts-ignore
+                this.initData.config[key] = val.type === TYPE.JSON ? JSON.stringify(val.val, null, 4).replace(/\n/mg, "\r\n") : val.val;
+                config_groups.set(val.binding, val.group);
+                config_desc.set(val.binding, val.desc);
+            }
+            // @ts-ignore
+            this.initData.config_groups = config_groups;
+            // @ts-ignore
+            this.initData.config_desc   = config_desc;
+            // this.initData.config[key] = val;
+            // this.initData?.config_groups.set(binding, group);
+            // this.initData?.config_desc.set(binding, group);
         }
 
         // internal method called by OnInit()
@@ -167,7 +312,8 @@ namespace config {
                 case TYPE.NUMBER:
                     return typeof val === 'number';
                 case TYPE.PATH:
-                    return typeof val === 'string' && DOpus.fsUtil().exists(DOpus.fsUtil().resolve(val).toString());
+                    // does not work - return typeof val === 'string' && DOpus.fsUtil().exists(DOpus.fsUtil().resolve(val).toString());
+                    return typeof val === 'string' && DOpus.fsUtil().exists(''+DOpus.fsUtil().resolve(val));
                 case TYPE.ARRAY:
                     return typeof val === 'object' && val.length >= 0;
                 case TYPE.POJO:
@@ -197,15 +343,24 @@ namespace config {
         }
 
         /**
-         *
          * @param {string} key config key
          * @param {boolean} val boolean
-         * @param {string} bindTo Script.config value to bind to
          * @param {config.TYPE} type value type
+         * @param {string?} binding Script.config value to bind to
+         * @param {string?} group group name on the configuration screen
+         * @param {string?} desc description at the bottom of the configuration screen
          * @param {boolean=false} bypassValidation bypass validation
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addValueWithBinding(key: string, val: any, type: config.TYPE, bindTo?: string, bypassValidation = false) {
+        addValueWithBinding(key: string, val: any, type: config.TYPE, binding?: string, group?: string, desc?: string, bypassValidation = false) {
+            if (typeof this.initData === 'undefined') {
+                DOpus.output('initdata: ' + this.initData + ', key: ' + key + ', val: ' + val);
+                // TODO
+                // throw new exc.DeveloperStupidityException('InitData has not been set, call setInitData() before calling this', this.addValueWithBinding);
+                this.showError('InitData has not been set, call setInitData() before calling this');
+            } else {
+                DOpus.output('initdata: ' + this.initData.file + ', key: ' + key + ', val: ' + val);
+            }
             if (this.items.hasOwnProperty(key)) {
                 return this.showError(key + ' already exists');
             }
@@ -213,7 +368,11 @@ namespace config {
                 return this.showError('type ' + type + ' does not accept given value ' + val);
             }
             this._count++;
-            this.items[key] = <ConfigValue>{ val: val, type: type, binding: bindTo };
+            this.items[key] = <ConfigValue>{ val: val, type: type, binding: binding, group: group, desc: desc  };
+
+            // this.initData.config[key] = val;
+            // this.initData?.config_groups.set(binding, group);
+            // this.initData?.config_desc.set(binding, group);
             return true;
         }
         /**
@@ -232,8 +391,9 @@ namespace config {
             }
 
             var valueToProbe;
-            if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof Script.config[this.items[key].binding] !== 'undefined') {
-                valueToProbe = Script.config[this.items[key].binding];
+            // if (autoGetDOpusValue && typeof Script.config !== undefined && typeof Script.config[this.items[key].binding] !== undefined) {
+            if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof this.items[key].binding !== 'undefined') {
+                valueToProbe = Script.config[<string>this.items[key].binding];
                 if (typeof valueToProbe === 'undefined' || valueToProbe === null) {
                     return this.showError('Script config has no value for ' + key + ', check the binding: ' + this.items[key].binding);
                 }
@@ -392,34 +552,42 @@ namespace config {
             return JSON.stringify(vals, null, 4);
         }
 
-
+        /*
+            'SHORTCUTS' for the binding type
+        */
 
         /**
          * @param {string} key config key
          * @param {boolean} val boolean
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addBoolean(key: string, val: boolean, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.BOOLEAN, bindTo);
+        addBoolean(key: string, val: boolean, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.BOOLEAN, bindTo, group, desc);
         }
         /**
          * @param {string} key config key
          * @param {string} val string
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addString(key: string, val: string, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.STRING, bindTo);
+        addString(key: string, val: string, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.STRING, bindTo, group, desc);
         }
         /**
          * @param {string} key config key
          * @param {number} val number (int, float...)
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addNumber(key: string, val: number, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.NUMBER, bindTo);
+        addNumber(key: string, val: number, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.NUMBER, bindTo, group, desc);
         }
         /**
          * given path is auto-resolved & checked for existence
@@ -427,86 +595,117 @@ namespace config {
          * @param {string} key config key
          * @param {string} val path
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addPath(key: string, val: string, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.PATH, bindTo);
+        addPath(key: string, val: string, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.PATH, bindTo, group, desc);
         }
         /**
          * @param {string} key config key
          * @param {array} val array
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addArray(key: string, val: Array<any>, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.ARRAY, bindTo);
+        addArray(key: string, val: Array<any>, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.ARRAY, bindTo, group, desc);
         }
         /**
          * @param {string} key config key
          * @param {object} val POJO, object without functions
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addPOJO(key: string, val: object, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.POJO, bindTo);
+        addPOJO(key: string, val: object, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.POJO, bindTo, group, desc);
         }
         /**
          * @param {string} key config key
          * @param {object} val object
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addObject(key: string, val: object, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.OBJECT, bindTo);
+        addObject(key: string, val: object, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.OBJECT, bindTo, group, desc);
         }
         /**
          * @param {string} key config key
          * @param {regexp} val regexp
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addRegexp(key: string, val: RegExp, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.REGEXP, bindTo);
+        addRegexp(key: string, val: RegExp, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.REGEXP, bindTo, group, desc);
         }
         /**
          * @param {string} key config key
          * @param {string} val JSON
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addJSON(key: string, val: string, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.JSON, bindTo);
+        addJSON(key: string, val: string, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.JSON, bindTo, group, desc);
         }
         /**
          * @param {string} key config key
          * @param {function} val function
          * @param {string} bindTo Script.config value to bind to
+         * @param {string=} group group name on the configuration screen
+         * @param {string=} desc description at the bottom of the configuration screen
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addFunction(key: string, val: Function, bindTo: string) {
-            return this.addValueWithBinding(key, val, config.TYPE.FUNCTION, bindTo);
+        addFunction(key: string, val: Function, bindTo: string, group?: string, desc?: string) {
+            return this.addValueWithBinding(key, val, config.TYPE.FUNCTION, bindTo, group, desc);
         }
-
-
 
     }
 
-    export class User extends Base {
+
+    // not public, access via singleton below
+    class User extends Base {
         constructor() {
             super();
         }
     }
 
-    export class ScriptExt extends Base {
+
+    // not public, access via singleton below
+    class ScriptExt extends Base {
         constructor() {
             super();
         }
         addPOJO(key: string) {
-            return super.addValueWithBinding(key, {}, config.TYPE.POJO, undefined);
+            // note there is no binding type, group, desc necessary for this method
+            return super.addValueWithBinding(key, {}, config.TYPE.POJO);
+        }
+        finalize() {
+            throw new Error('This method should not be called for external files');
         }
     }
 
+
+    /**
+     * Singleton access to user configurable parameters
+     * i.e. via DOpus settings screen.
+     */
     export const user = new Base();
+    /**
+     * Singleton access to external configuration,
+     * i.e. JSON-based config files accessible during script initialization
+     * but without GUI.
+     */
     export const ext = new ScriptExt();
+
 
 }
