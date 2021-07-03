@@ -70,7 +70,7 @@ namespace fs {
         const fnName = g.funcNameExtractor(arguments.callee, myName);
 
         // if (path.length > 240 && path.indexOf('\\\\?\\') === -1) {
-        // 	path   = '\\\\?\\' + path;
+        //   path   = '\\\\?\\' + path;
         // }
 
         // wa: wa - create a new file, always. If the file already exists it will be overwritten. (This is the default.)
@@ -106,9 +106,9 @@ namespace fs {
      * @example
      * var X = FS.fileTail('Y:\\MyFile.txt', 15000, 1000);
      * do {
-     * 	var linesRead = X.read();
-     * 	if (!linesRead.isOK()) continue;
-     * 	logger.sforce('lines: %s', linesRead.ok);
+     *   var linesRead = X.read();
+     *   if (!linesRead.isOK()) continue;
+     *   logger.sforce('lines: %s', linesRead.ok);
      * } while(linesRead.isValid());
      *
      * // do not use while(Result.isOK()), use isValid() instead,
@@ -221,9 +221,9 @@ namespace fs {
                 driveType = res.ok.trim().replace(/.*\{MediaType=([^}]+)\}.*/mg, '$1').trim();
                 logger.sforce('%s -- Detemined disk type for %s is %s', fnName, driveLetter, driveType);
                 // if (driveType === 'HDD' && command.maxcount > REDUCE_THREADS_ON_HDD_TO) {
-                // 	var driveDetectMsg = libSprintfjs.sprintf('This drive seems to be an %s.\n\nThe script will automatically reduce the number of threads to avoid disk thrashing.\nOld # of Threads: %d\nNew # of Threads	: %d\n\nIf you press Cancel, the old value will be used instead.\nIs this drive type correct?', driveType, command.maxcount, REDUCE_THREADS_ON_HDD_TO);
-                // 	var result = showMessageDialog(cmdData.func.dlg(), driveDetectMsg, 'Drive Type detection', 'OK|Cancel');
-                // 	if (result && command.maxcount > 1) command.maxcount = REDUCE_THREADS_ON_HDD_TO;
+                //   var driveDetectMsg = libSprintfjs.sprintf('This drive seems to be an %s.\n\nThe script will automatically reduce the number of threads to avoid disk thrashing.\nOld # of Threads: %d\nNew # of Threads : %d\n\nIf you press Cancel, the old value will be used instead.\nIs this drive type correct?', driveType, command.maxcount, REDUCE_THREADS_ON_HDD_TO);
+                //   var result = showMessageDialog(cmdData.func.dlg(), driveDetectMsg, 'Drive Type detection', 'OK|Cancel');
+                //   if (result && command.maxcount > 1) command.maxcount = REDUCE_THREADS_ON_HDD_TO;
                 // }
             }
         }

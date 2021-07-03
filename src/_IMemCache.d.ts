@@ -36,14 +36,14 @@ interface IMemCache {
     /**
      * Clears cache
      * @param {string?} id
-     * */
+     */
     clearCache(id?: string): void;
 
     /**
      *
      * @param {string?} id
      * @returns {Result.<number, boolean>} number of items in the cache
-     * */
+     */
     getCacheCount(id?: string): IResult<number, boolean>;
 
     /**

@@ -43,12 +43,12 @@
 
 // // internal method called by OnInit()
 // function addToConfigVar(initData: DOpusScriptInitData, group: string, name: string, desc: string, value: any) {
-// 	var cfg                     = cfg.getBinding(name);;
-// 	initData.config[cfg]		= value || cfg.get(name);
-// 	// initData.config_desc(cfg)	= desc;
-// 	// initData.config_groups(cfg)	= group;
-// 	initData.config_desc.set(cfg, desc);
-// 	initData.config_groups.set(cfg, group);
+//     var cfg                     = cfg.getBinding(name);;
+//     initData.config[cfg]        = value || cfg.get(name);
+//     // initData.config_desc(cfg)    = desc;
+//     // initData.config_groups(cfg)    = group;
+//     initData.config_desc.set(cfg, desc);
+//     initData.config_groups.set(cfg, group);
 // }
 
 
@@ -131,8 +131,8 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
      *
      * - caching disabled or file is not in cache => read from disk
      * - file is already in cache => check file's last modification time against the timestamp in cached info
-     * 								   if different => read from disk
-     *   							   if same => use cache
+     *                                 if different => read from disk
+     *                                 if same => use cache
      * - UPDATE command executed (regardless of file was in cache or not) => add to/update cache
      * - file is already in cache but DELETE command is executed => remove from cache
      *
@@ -213,10 +213,10 @@ Global['SCRIPT_NAME'] = 'cuMovieTagger';
     fields_base_reference = JSON.parse(fields_base_reference);
     for (var f in fields_base_reference) {
         switch(fields_base_reference[f]) {
-            case 'essential':	fields_essential.push(f); break;
-            case 'optional':	fields_optional.push(f); break;
-            case 'other':		fields_other.push(f); break;
-            case 'verbose':		fields_verbose.push(f); break;
+            case 'essential':    fields_essential.push(f); break;
+            case 'optional':    fields_optional.push(f); break;
+            case 'other':        fields_other.push(f); break;
+            case 'verbose':        fields_verbose.push(f); break;
         }
     };
     cfg.addArray('fields_essential', fields_essential, 'TOGGLEABLE_FIELDS_ESSENTIAL');

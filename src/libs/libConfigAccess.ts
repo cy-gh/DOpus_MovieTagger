@@ -12,14 +12,14 @@ interface String {
 
 // methods for pseudo-HEREDOCs
 String.prototype.normalizeLeadingWhiteSpace = function () {
-	return this.replace(/^\t\t/mg, '  ').replace(/^\t/mg, '');
+    return this.replace(/^\t\t/mg, '  ').replace(/^\t/mg, '');
 };
 String.prototype.substituteVars = function () {
-	return this.replace(/\${([^}]+)}/g, function (match, p1) {
-		return typeof eval(p1) !== 'undefined'
-			? eval(p1)
-			: 'undefined';
-	});
+    return this.replace(/\${([^}]+)}/g, function (match, p1) {
+        return typeof eval(p1) !== 'undefined'
+            ? eval(p1)
+            : 'undefined';
+    });
 };
 
 
@@ -68,20 +68,20 @@ namespace config {
      *
      */
     export enum TYPE {
-        BOOLEAN  = 'BOOLEAN',
-        STRING   = 'STRING',
-        NUMBER   = 'NUMBER',
-        PATH     = 'PATH',
-        ARRAY    = 'ARRAY',
-        POJO     = 'POJO',
-        OBJECT   = 'OBJECT',
-        REGEXP   = 'REGEXP',
-        JSON     = 'JSON',
+        BOOLEAN = 'BOOLEAN',
+        STRING = 'STRING',
+        NUMBER = 'NUMBER',
+        PATH = 'PATH',
+        ARRAY = 'ARRAY',
+        POJO = 'POJO',
+        OBJECT = 'OBJECT',
+        REGEXP = 'REGEXP',
+        JSON = 'JSON',
         FUNCTION = 'FUNCTION',
     }
     export enum ERROR_MODE {
-        NONE   = 'NONE',
-        ERROR  = 'ERROR',
+        NONE = 'NONE',
+        ERROR = 'ERROR',
         DIALOG = 'DIALOG',
     }
 
@@ -112,9 +112,9 @@ namespace config {
         // config.addSimple('i', false, config.type.NUMBER, false);
         // var dlg;
 
-        private _count				= 0;
-        private _error_mode   		= ERROR_MODE.ERROR;
-        private items:ConfigItems 	= {};
+        private _count = 0;
+        private _error_mode = ERROR_MODE.ERROR;
+        private items: ConfigItems = {};
 
         constructor() {
             // nothing yet
@@ -124,9 +124,9 @@ namespace config {
         addToConfigVar(initData: DOpusScriptInitData, group: string, name: string, desc: string, value: any) {
             throw new Error("config.addToConfigVar() - Not implemented yet");
             // var cfg                     = this.getBinding(name);;
-            // initData.config[cfg]		= value || this.getValue(name);
-            // // initData.config_desc(cfg)	= desc;
-            // // initData.config_groups(cfg)	= group;
+            // initData.config[cfg]        = value || this.getValue(name);
+            // // initData.config_desc(cfg) = desc;
+            // // initData.config_groups(cfg) = group;
             // initData.config_desc.set(cfg, desc);
             // initData.config_groups.set(cfg, group);
         }
@@ -146,9 +146,9 @@ namespace config {
             return this._error_mode;
         }
         showError(msg: string): false {
-            switch(this._error_mode) {
-                case ERROR_MODE.NONE:   return false;				// you can use this as: if(!addBoolean(...)) {/*error*/}
-                case ERROR_MODE.ERROR:  throw new Error(msg);		// mainly for development
+            switch (this._error_mode) {
+                case ERROR_MODE.NONE: return false;           // you can use this as: if(!addBoolean(...)) {/*error*/}
+                case ERROR_MODE.ERROR: throw new Error(msg);  // mainly for development
                 case ERROR_MODE.DIALOG: { g.showMessageDialog(null, msg); return false; }
             }
         }
@@ -159,7 +159,7 @@ namespace config {
          * @returns {boolean} true if value is accepted
          */
         isValid(val: any, type: TYPE): boolean {
-            switch(type) {
+            switch (type) {
                 case TYPE.BOOLEAN:
                     return typeof val === 'boolean';
                 case TYPE.STRING:
@@ -185,9 +185,9 @@ namespace config {
                     if (typeof val !== 'string' && typeof val !== 'object') {
                         return false;
                     }
-                    try { eval('new RegExp(' + val + ');'); return true; } catch(e) { return false }
+                    try { eval('new RegExp(' + val + ');'); return true; } catch (e) { return false }
                 case TYPE.JSON:
-                    try { JSON.parse(val); return true; } catch(e) { return false; }
+                    try { JSON.parse(val); return true; } catch (e) { return false; }
                 case TYPE.FUNCTION:
                     return typeof val === 'function';
                 default:
@@ -251,36 +251,36 @@ namespace config {
             }
             return valueToProbe;
         }
-        safeConvertToRegexp(testString: string): RegExp|undefined {
+        safeConvertToRegexp(testString: string): RegExp | undefined {
             var res;
             if (typeof testString === 'string') {
-                try { res = eval('new RegExp(' + testString + ');') } catch(e) {}
+                try { res = eval('new RegExp(' + testString + ');') } catch (e) { }
             }
             return res;
         }
-        safeConvertToJSON(testString: string): Object|undefined {
+        safeConvertToJSON(testString: string): Object | undefined {
             var res;
             if (typeof testString === 'string') {
-                try { res = JSON.parse(testString); } catch(e) {}
+                try { res = JSON.parse(testString); } catch (e) { }
             }
             return res;
         }
 
         convert(val: any, type: config.TYPE) {
-            switch(type) {
+            switch (type) {
                 case TYPE.ARRAY:
                 case TYPE.OBJECT:
-                case TYPE.POJO:		return this.safeConvertToJSON(val);
-                case TYPE.PATH:		return DOpus.fsUtil().resolve(val) + '';
-                case TYPE.REGEXP:	return this.safeConvertToRegexp(val);
-                default:			return val;
+                case TYPE.POJO: return this.safeConvertToJSON(val);
+                case TYPE.PATH: return DOpus.fsUtil().resolve(val) + '';
+                case TYPE.REGEXP: return this.safeConvertToRegexp(val);
+                default: return val;
             }
         }
         /**
          * @param {string} key config key
          * @returns {config.TYPE|false} type of value
          */
-        getType(key: string): config.TYPE|false {
+        getType(key: string): config.TYPE | false {
             if (!this.items[key]) {
                 return this.showError(key + ' does not exist');
             }
@@ -291,7 +291,7 @@ namespace config {
          * @param {string} key config key
          * @returns {string|false} bound Script.config key
          */
-        getBinding(key: string): string|false {
+        getBinding(key: string): string | false {
             if (!this.items[key]) {
                 return this.showError(key + ' does not exist');
             }
@@ -301,7 +301,7 @@ namespace config {
          * @param {string} bindTo bound config variable name
          * @returns {string|false} key name if found, false if not
          */
-        findBinding(bindTo: string): string|false {
+        findBinding(bindTo: string): string | false {
             for (var k in this.items) {
                 if (this.items[k].binding === bindTo) {
                     return k;
@@ -323,19 +323,19 @@ namespace config {
             // DOpus.Output('this.items[key].type: ' + this.items[key].type);
             // var _tmp;
             // if (this.items[key].type === SUPPORTED_TYPES.REGEXP && typeof val === 'string') {
-            // 	DOpus.Output('regexp requested');
-            // 	_tmp = SafeRegexpConvert(val);
-            // 	if (_tmp === false) {
-            // 		return this.showError(key + ' must have type ' + this.items[key].type + ', given value cannot be parsed as such');
-            // 	}
-            // 	val = _tmp;
+            //  DOpus.Output('regexp requested');
+            //  _tmp = SafeRegexpConvert(val);
+            //  if (_tmp === false) {
+            //   return this.showError(key + ' must have type ' + this.items[key].type + ', given value cannot be parsed as such');
+            //  }
+            //  val = _tmp;
             // } else if (this.items[key].type === SUPPORTED_TYPES.JSON && typeof val === 'string') {
-            // 	DOpus.Output('json requested');
-            // 	_tmp = SafeJSONConvert(val);
-            // 	if (_tmp === false) {
-            // 		return this.showError(key + ' must have type ' + this.items[key].type + ', given value cannot be parsed as such');
-            // 	}
-            // 	val = _tmp;
+            //  DOpus.Output('json requested');
+            //  _tmp = SafeJSONConvert(val);
+            //  if (_tmp === false) {
+            //   return this.showError(key + ' must have type ' + this.items[key].type + ', given value cannot be parsed as such');
+            //  }
+            //  val = _tmp;
             // }
             // this.items[key].val = val;
             this.items[key].val = val;
@@ -372,13 +372,13 @@ namespace config {
         /**
          * @returns {number} number of elements in the config
          */
-        getCount (): number {
+        getCount(): number {
             return this._count;
         }
         /**
          * @returns {Array<string>} keys in the config
          */
-        getKeys (): Array<string> {
+        getKeys(): Array<string> {
             var keys = [];
             for (var k in this.items) keys.push(k);
             return keys;
@@ -386,8 +386,8 @@ namespace config {
         /**
          * @returns {string} stringified config
          */
-        toString (): string {
-            var vals:{[k: string]: any} = {};
+        toString(): string {
+            var vals: { [k: string]: any } = {};
             for (var k in this.items) vals[k] = this.items[k].val;
             return JSON.stringify(vals, null, 4);
         }
@@ -400,7 +400,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addBoolean (key: string, val: boolean, bindTo: string) {
+        addBoolean(key: string, val: boolean, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.BOOLEAN, bindTo);
         }
         /**
@@ -409,7 +409,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addString (key: string, val: string, bindTo: string) {
+        addString(key: string, val: string, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.STRING, bindTo);
         }
         /**
@@ -418,7 +418,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addNumber (key: string, val: number, bindTo: string) {
+        addNumber(key: string, val: number, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.NUMBER, bindTo);
         }
         /**
@@ -429,7 +429,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addPath (key: string, val: string, bindTo: string) {
+        addPath(key: string, val: string, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.PATH, bindTo);
         }
         /**
@@ -438,7 +438,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addArray (key: string, val: Array<any>, bindTo: string) {
+        addArray(key: string, val: Array<any>, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.ARRAY, bindTo);
         }
         /**
@@ -447,7 +447,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addPOJO (key: string, val: object, bindTo: string) {
+        addPOJO(key: string, val: object, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.POJO, bindTo);
         }
         /**
@@ -456,7 +456,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addObject (key: string, val: object, bindTo: string) {
+        addObject(key: string, val: object, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.OBJECT, bindTo);
         }
         /**
@@ -465,7 +465,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addRegexp (key: string, val: RegExp, bindTo: string) {
+        addRegexp(key: string, val: RegExp, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.REGEXP, bindTo);
         }
         /**
@@ -474,7 +474,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addJSON (key: string, val: string, bindTo: string) {
+        addJSON(key: string, val: string, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.JSON, bindTo);
         }
         /**
@@ -483,7 +483,7 @@ namespace config {
          * @param {string} bindTo Script.config value to bind to
          * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
          */
-        addFunction (key: string, val: Function, bindTo: string) {
+        addFunction(key: string, val: Function, bindTo: string) {
             return this.addValueWithBinding(key, val, config.TYPE.FUNCTION, bindTo);
         }
 
@@ -507,6 +507,6 @@ namespace config {
     }
 
     export const user = new Base();
-    export const ext  = new ScriptExt();
+    export const ext = new ScriptExt();
 
 }
