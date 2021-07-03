@@ -57,8 +57,8 @@ namespace g {
         err  : E|true;
         stack: any[];
         constructor(oOKValue: S, oErrValue: E) {
-            this.ok    = typeof oOKValue !== undefined ? oOKValue : false;
-            this.err   = typeof oErrValue!== undefined ? oErrValue : true;
+            this.ok    = typeof oOKValue !== 'undefined' ? oOKValue : false;
+            this.err   = typeof oErrValue!== 'undefined' ? oErrValue : true;
             this.stack = [];
         }
         // note this one does not allow any falsy value for OK at all

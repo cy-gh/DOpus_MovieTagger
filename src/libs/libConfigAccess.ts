@@ -391,7 +391,7 @@ namespace config {
             }
 
             var valueToProbe;
-            // if (autoGetDOpusValue && typeof Script.config !== undefined && typeof Script.config[this.items[key].binding] !== undefined) {
+            // if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof Script.config[this.items[key].binding] !== 'undefined') {
             if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof this.items[key].binding !== 'undefined') {
                 valueToProbe = Script.config[<string>this.items[key].binding];
                 if (typeof valueToProbe === 'undefined' || valueToProbe === null) {
