@@ -12,7 +12,19 @@ interface String {
 
 // methods for pseudo-HEREDOCs
 String.prototype.normalizeLeadingWhiteSpace = function () {
-    return this.replace(/^\t\t|\s{8}/mg, '  ').replace(/^\t|\s{4}/mg, '');
+    // the §s help with avoiding backtracking
+    return this
+        // .trim()
+        .replace(/^\t\t\t|^ {12}/mg, '§§§')
+        .replace(/^\t\t|^ {8}/mg, '§§')
+        .replace(/^\t|^ {4}/mg, '§')
+        .replace(/^§§§/mg, '    ')
+        .replace(/^§§/mg, '  ')
+        .replace(/^§/mg, '')
+        .trim()
+        .replace(/\n/g, '\r\n')
+        .replace(/\n\n/g, '\n')
+        ;
 };
 String.prototype.substituteVars = function () {
     return this.replace(/\${([^}]+)}/g, function (match, p1) {
@@ -184,7 +196,8 @@ namespace config {
         DIALOG = 'DIALOG',
     }
 
-    type ConfigValue = {
+    export type ConfigValue = {
+        key: string;
         /** current internal (JS/TS) value of the config variable */
         val: any,
         /** default internal (JS/TS) value of the config variable */
@@ -202,7 +215,31 @@ namespace config {
         [key: string]: ConfigValue
     }
 
+    // class Items {
+    //     // /** current internal (JS/TS) value of the config variable */
+    //     // key: string;
+    //     // /** current internal (JS/TS) value of the config variable */
+    //     // val: any;
+    //     // /** default internal (JS/TS) value of the config variable */
+    //     // default: any;
+    //     // /** one of the supported types */
+    //     // type: config.TYPE;
+    //     // /** this is the name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
+    //     // binding?: string;
+    //     // /** the group in the script config screen */
+    //     // group?: string;
+    //     // /** this is the description shown in the script config screen */
+    //     // desc?: string;
 
+    //     // static items: ConfigItems = {};
+    //     items: { [key: string]: any };
+    //     constructor() {
+    //         this.items = {};
+    //     }
+    //     add(key: string, val: any, type: config.TYPE, binding: string, group: string, desc: string) {
+    //         this.items[key] = { key: key, val: val, type: type, binding: binding, group: group, desc: desc };
+    //     }
+    // }
 
     class Base {
 
@@ -241,18 +278,36 @@ namespace config {
 
             for (const key in this.items) {
                 const val:ConfigValue = this.items[key];
-                DOpus.output(libSprintfjs.sprintf(
-                    'key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
-                    key,
-                    val.type,
-                    ' ' || val.val,
-                    val.default,
-                    val.group,
-                    val.desc
-                ));
+                // DOpus.output(libSprintfjs.sprintf(
+                //     'FINALIZE -- key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
+                //     key,
+                //     val.type,
+                //     val.val,
+                //     ''||val.default,
+                //     val.group,
+                //     val.desc
+                // ));
                 // this.initData.config[key] = val.val;
-                // @ts-ignore
-                this.initData.config[key] = val.type === TYPE.JSON ? JSON.stringify(val.val, null, 4).replace(/\n/mg, "\r\n") : val.val;
+
+                switch(val.type) {
+                    case TYPE.JSON:
+                        // @ts-ignore
+                        this.initData.config[key] = JSON.stringify(val.val, null, 2).replace(/\n/mg, "\r\n");
+                        break;
+                    // case TYPE.ARRAY:
+                    case TYPE.POJO:
+                        // @ts-ignore
+                        this.initData.config[key] = JSON.stringify(val.val, null, 2).replace(/\n/mg, "\r\n");
+                        break;
+                    case TYPE.REGEXP:
+                        // @ts-ignore
+                        this.initData.config[key] = val.val.toString();
+                        break;
+                    default:
+                        // @ts-ignore
+                        this.initData.config[key] = val.val;
+                };
+                // this.initData.config[key] = val.type === TYPE.JSON ? JSON.stringify(val.val, null, 4).replace(/\n/mg, "\r\n") : val.val;
                 config_groups.set(val.binding, val.group);
                 config_desc.set(val.binding, val.desc);
             }
@@ -359,7 +414,8 @@ namespace config {
                 // throw new exc.DeveloperStupidityException('InitData has not been set, call setInitData() before calling this', this.addValueWithBinding);
                 this.showError('InitData has not been set, call setInitData() before calling this');
             } else {
-                DOpus.output('initdata: ' + this.initData.file + ', key: ' + key + ', val: ' + val);
+                // DOpus.output('initdata: ' + this.initData.file + ', key: ' + key + ', val: ' + val);
+                // DOpus.output('key: ' + key + ', val: ' + val);
             }
             if (this.items.hasOwnProperty(key)) {
                 return this.showError(key + ' already exists');
@@ -368,7 +424,7 @@ namespace config {
                 return this.showError('type ' + type + ' does not accept given value ' + val);
             }
             this._count++;
-            this.items[key] = <ConfigValue>{ val: val, type: type, binding: binding, group: group, desc: desc  };
+            this.items[key] = <ConfigValue>{ val: val, default: val, type: type, binding: binding, group: group, desc: desc  };
 
             // this.initData.config[key] = val;
             // this.initData?.config_groups.set(binding, group);
