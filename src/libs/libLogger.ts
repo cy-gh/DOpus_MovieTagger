@@ -35,13 +35,13 @@ namespace libLogger {
         public info(message?: string)    { this._baseout(LOGLEVEL.INFO,     message); }
         public verbose(message?: string) { this._baseout(LOGLEVEL.VERBOSE,  message); }
 
-        public sforce(message?: string, ...args: any)       { this._baseout(LOGLEVEL.FORCE,     libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public snone(message?: string, ...args: any)        { this._baseout(LOGLEVEL.NONE,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public serror(message?: string, ...args: any)       { this._baseout(LOGLEVEL.ERROR,     libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public swarn(message?: string, ...args: any)        { this._baseout(LOGLEVEL.WARN,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public snormal(message?: string, ...args: any)      { this._baseout(LOGLEVEL.NORMAL,    libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public sinfo(message?: string, ...args: any)        { this._baseout(LOGLEVEL.INFO,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public sverbose(message?: string, ...args: any)     { this._baseout(LOGLEVEL.VERBOSE,   libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
+        public sforce(...args: any)       { this._baseout(LOGLEVEL.FORCE,     libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
+        public snone(...args: any)        { this._baseout(LOGLEVEL.NONE,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
+        public serror(...args: any)       { this._baseout(LOGLEVEL.ERROR,     libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
+        public swarn(...args: any)        { this._baseout(LOGLEVEL.WARN,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
+        public snormal(...args: any)      { this._baseout(LOGLEVEL.NORMAL,    libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
+        public sinfo(...args: any)        { this._baseout(LOGLEVEL.INFO,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
+        public sverbose(...args: any)     { this._baseout(LOGLEVEL.VERBOSE,   libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
 
         // OBSOLETE - these were used for the unwrapped sprintf.js
         // public sforce(message?: string, ...args: any)   { this._baseout(LOGLEVEL.FORCE,   sprintf.apply(sprintf, args)); };
