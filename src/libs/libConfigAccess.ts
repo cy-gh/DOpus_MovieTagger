@@ -4,6 +4,7 @@
 ///<reference path='../_Helpers.d.ts' />
 ///<reference path='./libDOpusHelper.ts' />
 ///<reference path='./libGlobal.ts' />
+///<reference path='./libExceptions.ts' />
 
 interface String {
     normalizeLeadingWhiteSpace(): string;
@@ -38,44 +39,81 @@ String.prototype.substituteVars = function () {
 /**
  * # How to use:
  *
- * Write any top-level functions callable from OnInit(), e.g.
+ * First define a unique, constant, global ID for your script,
+ * to set the memory variable with your script's name & path
+ * which are available only during `OnInit()`.
+ *
  * ```typescript
- *   function setupConfigVars(initData: DOpusScriptInitData) {
- *     // more to this below
+ *   // on top level
+ *   const GLOBAL_SCRIPT_ID = 'MyAwesomeScript';
+ * ```
+ *
+ *
+ * Then, decide on which of the following 2 you want to use:
+ *
+ *
+ * * If you want to use only the script fullpath/path/isOSP variables,
+ * e.g. in order to extract WAV files from your OSP
+ * or to read an external configuration JSON from the same dir as the script,
+ * call one or both in your `OnInit()` and you can call
+ * `config.user.getScriptPathVars()` or `config.ext.getScriptPathVars()`
+ * and get the fullpath/path/isOSP information.
+ *
+ * ```typescript
+ *   config.user.setInitData(GLOBAL_SCRIPT_ID, initData);
+ *   config.ext.setInitData(GLOBAL_SCRIPT_ID, initData);
+ * ```
+ * Now you can call `config.user.getScriptPathVars(GLOBAL_SCRIPT_ID)` or `config.ext.getScriptPathVars(GLOBAL_SCRIPT_ID)`
+ * and get the fullpath/path/isOSP information.
+ *
+ *
+ *
+ * * If you want to use more than just fullpath/path/isOSP variables,
+ * but also variables which are user-configurable via DOpus Scripts UI,
+ * write any function callable during `OnInit()`, e.g.
+ * ```typescript
+ *   function setupConfigVars(uniqueID: string, initData: DOpusScriptInitData) {
+ *     // Top level function.
+ *     // More to this below.
  *   }
  * ```
  *
  * in OnInit() call it with the scriptInitData you get automatically from DOpus, e.g.
  * ```typescript
- *   setupConfigVars(initData);
+ *   setupConfigVars(uniqueID, initData);
+ *   // note that this will also call config.user.setInitData(initData)
  * ```
  *
- * Your method should look like this
+ * Your `setupConfigVars()` method should look like this
  * ```typescript
  *   //
  *   // config.user: UI-configured settings
  *   //
- *   config.user.setInitData(initData);
+ *   config.user.setInitData(uniqueID, initData); // very important!
  *   // ...
  *   config.user.addNumber(...)
  *   config.user.addString(...)
  *   // ...
  *   // required for setting up the config UI groups & descriptions
- *   config.user.finalize();
+ *   // very important - if this is not called, you will not see the groups/descriptions
+ *   config.user.finalize(); // will throw exception if initData is unset!
  *
  *   //
  *   // config.ext: Externally configured settings
  *   //
- *   config.ext.setInitData(initData);
+ *   config.ext.setInitData(uniqueID, initData); // very important!
  *   config.ext.addPOJO('ext_config_pojo', objYourPOJO);
  *   // or shorter
  *   config.ext.setInitData(initData).addPOJO('ext_config_pojo', objYourPOJO);
- *   // config.ext.finalize() is not unnecessary and will throw exception if called
+ *   // unlike config.user.finalize(), the config.ext.finalize() is unnecessary
+ *   // and will throw exception if called
  * ```
  *
  * The order in which you call config.user and config.ext methods doesn't matter.
  *
- * Of course, you can do it all in your OnInit() method directly.
+ * Of course, you can do it all in your `OnInit()` method directly and the last example above
+ * will also give you access to fullpath/path/isOSP variables via `getScriptPathVars()` method
+ * as the simpler method.
  *
  *
  * # How to add new object types
@@ -107,19 +145,20 @@ String.prototype.substituteVars = function () {
  * // add this in your calling .ts file
  *
  * namespace config {
- *   export enum TYPE {
- *     PHONENUM = 'PHONENUM',
- *   }
- *   const isValidOrig = user.isValid; // necessary to avoid recursion
- *   user.isValid = function(val: any, type: config.TYPE) {
- *     const rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
- *     switch(type) {
- *       case config.TYPE.PHONENUM:
- *         return rePN.test(val);
- *       default:
- *         return isValidOrig(val, type);
+ *     export enum TYPE {
+ *         PHONENUM = 'PHONENUM'
  *     }
- *   }
+ *     const isValidOrig = user.isValid;
+ *     user.isValid = function (val: any, type: config.TYPE) {
+ *         switch(type) {
+ *             case config.TYPE.PHONENUM:
+ *                 DOpus.output('running extended method');
+ *                 var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
+ *                 return rePN.test(val);
+ *             default:
+ *                 return isValidOrig(val, type);
+ *         }
+ *     }
  * }
  * ```
  *
@@ -129,71 +168,36 @@ String.prototype.substituteVars = function () {
  * DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
  * DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
  * ```
+ *
+ * # Important
+ *
+ * Do not try to display any dialog during DOpus startup and until OnInit() finishes,
+ * in case your initialization routine causes an error, your script might fail to initialize,
+ * i.e. no such shenanigans:
+ *
+ * ```typescript
+ * config.setErrorMode(config.error.DIALOG);
+ * config.addSimple('i', false, config.type.NUMBER, false);
+ * ```
  */
 namespace config {
 
-    /**
-     * Object types supported by the configuration.
-     *
-     * Note that you are not necessarily limited to JS object types,
-     * one could easily extend this enum,
-     * add the proper check to validation method and use the new type.
-     *
-     * E.g. a phone number could be implemented as
-     * ```typescript
-     *   TYPE.phonenum = 'PHONENUM'
-     * ```
-     *
-     * and in validation method:
-     * ```typescript
-     *   var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
-     *   return rePN.test(inputPhoneNum);
-     * ```
-     *
-     * In fact, this file does not have to be changed
-     * to extend the enum. One can do this:
-     * ```typescript
-     * namespace config {
-     *   export enum TYPE {
-     *     PHONENUM = 'PHONENUM',
-     *   }
-     *   var isValidOrig = user.isValid;
-     *   user.isValid = function(val: any, type: config.TYPE) {
-     *     const rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
-     *     switch(type) {
-     *       case config.TYPE.PHONENUM:
-     *         return rePN.test(val);
-     *       default:
-     *         return isValidOrig(val, type);
-     *     }
-     *   }
-     * }
-     * ```
-     * and now you can directly use the existing types
-     * plus the new one:
-     * ```typescript
-     * DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
-     * DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
-     * ```
-     *
-     */
-
     export enum TYPE {
-        BOOLEAN = 'BOOLEAN',
-        STRING = 'STRING',
-        NUMBER = 'NUMBER',
-        PATH = 'PATH',
-        ARRAY = 'ARRAY',
-        POJO = 'POJO',
-        OBJECT = 'OBJECT',
-        REGEXP = 'REGEXP',
-        JSON = 'JSON',
+        BOOLEAN  = 'BOOLEAN',
+        STRING   = 'STRING',
+        NUMBER   = 'NUMBER',
+        PATH     = 'PATH',
+        ARRAY    = 'ARRAY',
+        POJO     = 'POJO',
+        OBJECT   = 'OBJECT',
+        REGEXP   = 'REGEXP',
+        JSON     = 'JSON',
         FUNCTION = 'FUNCTION',
     }
     export enum ERROR_MODE {
-        NONE = 'NONE',
-        ERROR = 'ERROR',
-        DIALOG = 'DIALOG',
+        NONE     = 'NONE',
+        ERROR    = 'ERROR',
+        DIALOG   = 'DIALOG',
     }
 
     export type ConfigValue = {
@@ -215,57 +219,83 @@ namespace config {
         [key: string]: ConfigValue
     }
 
-    // class Items {
-    //     // /** current internal (JS/TS) value of the config variable */
-    //     // key: string;
-    //     // /** current internal (JS/TS) value of the config variable */
-    //     // val: any;
-    //     // /** default internal (JS/TS) value of the config variable */
-    //     // default: any;
-    //     // /** one of the supported types */
-    //     // type: config.TYPE;
-    //     // /** this is the name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
-    //     // binding?: string;
-    //     // /** the group in the script config screen */
-    //     // group?: string;
-    //     // /** this is the description shown in the script config screen */
-    //     // desc?: string;
-
-    //     // static items: ConfigItems = {};
-    //     items: { [key: string]: any };
-    //     constructor() {
-    //         this.items = {};
-    //     }
-    //     add(key: string, val: any, type: config.TYPE, binding: string, group: string, desc: string) {
-    //         this.items[key] = { key: key, val: val, type: type, binding: binding, group: group, desc: desc };
-    //     }
-    // }
-
     class Base {
 
-        // do not try to display any dialog during DOpus startup and until OnInit() finishes
-        // i.e. no such shenanigans
-        // config.setErrorMode(config.error.DIALOG);
-        // config.addSimple('i', false, config.type.NUMBER, false);
-        // var dlg;
-
-        private _count = 0;
-        private _error_mode = ERROR_MODE.ERROR;
-        private items: ConfigItems = {};
         private initData: DOpusScriptInitData | undefined;
+        private items: ConfigItems = {};
+        private cntItems = 0;
+        private defaultErrorMode = ERROR_MODE.DIALOG;
 
-        constructor(initData?: DOpusScriptInitData) {
+        static globalVarSuffix: string = '_scriptFullPathAsDOpusItem';
+
+        constructor() {
+            this.setErrorMode(this.defaultErrorMode);
+        }
+
+        /**
+         * This method should be called before adding any parameters the config.
+         *
+         * It also sets a global variable in the global DOpus memory with the fullpath of this script
+         * so that we can determine if we are in development or released OSP mode.
+         *
+         * @param {string} scriptID unique script ID, which will be used to store the script's fullpath from initData
+         * @param {DOpusScriptInitData} initData got from DOpus OnInit() method
+         * @returns {this} for method chaining
+         */
+        setInitData(scriptID: string, initData: DOpusScriptInitData): this {
+            this.initData = initData;
+            doh.setGlobalVar(scriptID + Base.globalVarSuffix, doh.fsu.getItem(this.initData.file));
+            return this;
+        }
+
+        /**
+         * Reads the fullpath, path name and isOSP flag of this script.
+         * The DOpusItem can be easily got with the fullpath and you have access to all other properties besides path.
+         *
+         * @param {string} scriptID unique script ID, which will be used to retrieve the script's fullpath from initData
+         * @returns { { fullpath: string; path: string; name: string, isOSP: boolean } }
+         */
+        getScriptPathVars(scriptID: string): { fullpath: string; path: string; isOSP: boolean; } {
+            const oThisScriptsPath:DOpusItem = doh.getGlobalVar(scriptID + Base.globalVarSuffix);
+            if (!oThisScriptsPath) {
+                throw new exc.UninitializedException('InitData has not been set yet, call setInitData() in your OnInit() first', this.getScriptPathVars);
+            }
+            return {
+                fullpath: (''+oThisScriptsPath.realpath),
+                path    : (''+oThisScriptsPath.path).normalizeTrailingBackslashes(),
+                isOSP   : (''+oThisScriptsPath.ext).toLowerCase() === '.osp'
+            };
+        }
+
+        /**
+         * @param {string} key config key
+         * @param {boolean} val boolean
+         * @param {config.TYPE} type value type
+         * @param {string?} binding Script.config value to bind to
+         * @param {string?} group group name on the configuration screen
+         * @param {string?} desc description at the bottom of the configuration screen
+         * @param {boolean=false} bypassValidation bypass validation
+         * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
+         */
+         addValueWithBinding(key: string, val: any, type: config.TYPE, binding?: string, group?: string, desc?: string, bypassValidation = false) {
+            if (typeof this.initData === 'undefined') {
+                throw new exc.UninitializedException('InitData has not been set yet, call setInitData() in your OnInit() first', this.addValueWithBinding);
+            }
+
+            if (this.items.hasOwnProperty(key)) {
+                return this.showError(key + ' already exists');
+            }
+            if (!!!bypassValidation && !this.isValid(val, type)) {
+                return this.showError('type ' + type + ' does not accept given value ' + val);
+            }
+            this.cntItems++;
+            this.items[key] = <ConfigValue>{ val: val, default: val, type: type, binding: binding, group: group, desc: desc  };
+            return true;
         }
 
         /**
          *
-         * @param {DOpusScriptInitData} initData got from DOpus OnInit() method
-         * @returns {this} for method chaining
          */
-        setInitData(initData: DOpusScriptInitData): this {
-            this.initData = initData;
-            return this;
-        }
         finalize() {
             if (typeof this.initData === 'undefined') {
                 DOpus.output('initdata: ' + this.initData);
@@ -278,16 +308,15 @@ namespace config {
 
             for (const key in this.items) {
                 const val:ConfigValue = this.items[key];
-                // DOpus.output(libSprintfjs.sprintf(
-                //     'FINALIZE -- key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
-                //     key,
-                //     val.type,
-                //     val.val,
-                //     ''||val.default,
-                //     val.group,
-                //     val.desc
-                // ));
-                // this.initData.config[key] = val.val;
+                DOpus.output(libSprintfjs.sprintf(
+                    'FINALIZE -- key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
+                    key,
+                    val.type,
+                    val.val,
+                    ''||val.default,
+                    val.group,
+                    val.desc
+                ));
 
                 switch(val.type) {
                     case TYPE.JSON:
@@ -315,38 +344,29 @@ namespace config {
             this.initData.config_groups = config_groups;
             // @ts-ignore
             this.initData.config_desc   = config_desc;
-            // this.initData.config[key] = val;
-            // this.initData?.config_groups.set(binding, group);
-            // this.initData?.config_desc.set(binding, group);
         }
 
-        // internal method called by OnInit()
-        addToConfigVar(initData: DOpusScriptInitData, group: string, name: string, desc: string, value: any) {
-            throw new Error("config.addToConfigVar() - Not implemented yet");
-            // var cfg                     = this.getBinding(name);;
-            // initData.config[cfg]        = value || this.getValue(name);
-            // // initData.config_desc(cfg) = desc;
-            // // initData.config_groups(cfg) = group;
-            // initData.config_desc.set(cfg, desc);
-            // initData.config_groups.set(cfg, group);
-        }
 
-        setErrorMode(em: config.ERROR_MODE) {
-            // do not call this with ERROR in main/global block otherwise script might fail to initialize
-            // if (!ERROR_MODES.hasOwnProperty(em)) {
-            if (typeof em !== typeof config.ERROR_MODE) {
-                var msg = 'Error mode ' + em + ' is not supported';
+
+        /**
+         * Do not call this with DIALOG in main/global block of your script
+         * otherwise script might fail to initialize!
+         * @param {config.ERROR_MODE} errorMode
+         */
+        setErrorMode(errorMode: config.ERROR_MODE) {
+            if (!config.ERROR_MODE.hasOwnProperty(errorMode)) {
+                const msg = 'Error mode ' + errorMode + ' is not supported';
                 DOpus.output(msg);
                 g.showMessageDialog(null, msg);
-                return;
+            } else {
+                this.defaultErrorMode = errorMode;
             }
-            this._error_mode = em;
         }
         getErrorMode(): config.ERROR_MODE {
-            return this._error_mode;
+            return this.defaultErrorMode;
         }
         showError(msg: string): false {
-            switch (this._error_mode) {
+            switch (this.defaultErrorMode) {
                 case ERROR_MODE.NONE: return false;           // you can use this as: if(!addBoolean(...)) {/*error*/}
                 case ERROR_MODE.ERROR: throw new Error(msg);  // mainly for development
                 case ERROR_MODE.DIALOG: { g.showMessageDialog(null, msg); return false; }
@@ -397,40 +417,6 @@ namespace config {
             }
         }
 
-        /**
-         * @param {string} key config key
-         * @param {boolean} val boolean
-         * @param {config.TYPE} type value type
-         * @param {string?} binding Script.config value to bind to
-         * @param {string?} group group name on the configuration screen
-         * @param {string?} desc description at the bottom of the configuration screen
-         * @param {boolean=false} bypassValidation bypass validation
-         * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
-         */
-        addValueWithBinding(key: string, val: any, type: config.TYPE, binding?: string, group?: string, desc?: string, bypassValidation = false) {
-            if (typeof this.initData === 'undefined') {
-                DOpus.output('initdata: ' + this.initData + ', key: ' + key + ', val: ' + val);
-                // TODO
-                // throw new exc.DeveloperStupidityException('InitData has not been set, call setInitData() before calling this', this.addValueWithBinding);
-                this.showError('InitData has not been set, call setInitData() before calling this');
-            } else {
-                // DOpus.output('initdata: ' + this.initData.file + ', key: ' + key + ', val: ' + val);
-                // DOpus.output('key: ' + key + ', val: ' + val);
-            }
-            if (this.items.hasOwnProperty(key)) {
-                return this.showError(key + ' already exists');
-            }
-            if (!!!bypassValidation && !this.isValid(val, type)) {
-                return this.showError('type ' + type + ' does not accept given value ' + val);
-            }
-            this._count++;
-            this.items[key] = <ConfigValue>{ val: val, default: val, type: type, binding: binding, group: group, desc: desc  };
-
-            // this.initData.config[key] = val;
-            // this.initData?.config_groups.set(binding, group);
-            // this.initData?.config_desc.set(binding, group);
-            return true;
-        }
         /**
          * auto-checks the current Script.config value this key is bound to
          * and returns the current value if valid and default value if invalid
@@ -487,7 +473,7 @@ namespace config {
                 case TYPE.ARRAY:
                 case TYPE.OBJECT:
                 case TYPE.POJO: return this.safeConvertToJSON(val);
-                case TYPE.PATH: return DOpus.fsUtil().resolve(val) + '';
+                case TYPE.PATH: return '' + DOpus.fsUtil().resolve(val);
                 case TYPE.REGEXP: return this.safeConvertToRegexp(val);
                 default: return val;
             }
@@ -536,24 +522,6 @@ namespace config {
             if (!this.isValid(val, this.items[key].type)) {
                 return this.showError(key + ' must have type ' + this.items[key].type + ', given: ' + typeof val);
             }
-            // DOpus.Output('this.items[key].type: ' + this.items[key].type);
-            // var _tmp;
-            // if (this.items[key].type === SUPPORTED_TYPES.REGEXP && typeof val === 'string') {
-            //  DOpus.Output('regexp requested');
-            //  _tmp = SafeRegexpConvert(val);
-            //  if (_tmp === false) {
-            //   return this.showError(key + ' must have type ' + this.items[key].type + ', given value cannot be parsed as such');
-            //  }
-            //  val = _tmp;
-            // } else if (this.items[key].type === SUPPORTED_TYPES.JSON && typeof val === 'string') {
-            //  DOpus.Output('json requested');
-            //  _tmp = SafeJSONConvert(val);
-            //  if (_tmp === false) {
-            //   return this.showError(key + ' must have type ' + this.items[key].type + ', given value cannot be parsed as such');
-            //  }
-            //  val = _tmp;
-            // }
-            // this.items[key].val = val;
             this.items[key].val = val;
         }
         /**
@@ -564,7 +532,7 @@ namespace config {
             if (!this.items.hasOwnProperty(key)) {
                 return this.showError(key + ' does not exist');
             }
-            this._count--;
+            this.cntItems--;
             delete this.items[key];
             // var _tmp = this.items[key].val;
             // delete this.items[key].val;
@@ -585,23 +553,17 @@ namespace config {
 
 
 
-        /**
-         * @returns {number} number of elements in the config
-         */
+        /** @returns {number} number of elements in the config */
         getCount(): number {
-            return this._count;
+            return this.cntItems;
         }
-        /**
-         * @returns {Array<string>} keys in the config
-         */
+        /** @returns {Array<string>} keys in the config */
         getKeys(): Array<string> {
             var keys = [];
             for (var k in this.items) keys.push(k);
             return keys;
         }
-        /**
-         * @returns {string} stringified config
-         */
+        /** @returns {string} stringified config */
         toString(): string {
             var vals: { [k: string]: any } = {};
             for (var k in this.items) vals[k] = this.items[k].val;
@@ -755,7 +717,7 @@ namespace config {
      * Singleton access to user configurable parameters
      * i.e. via DOpus settings screen.
      */
-    export const user = new Base();
+    export const user = new User();
     /**
      * Singleton access to external configuration,
      * i.e. JSON-based config files accessible during script initialization

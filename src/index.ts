@@ -19,38 +19,6 @@
 
 
 
-namespace config {
-    export enum TYPE {
-        PHONENUM = 'PHONENUM'
-    }
-    const isValidOrig = user.isValid;
-    user.isValid = function (val: any, type: config.TYPE) {
-        switch(type) {
-            case config.TYPE.PHONENUM:
-                DOpus.output('running extended method');
-                var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
-                return rePN.test(val);
-            default:
-                return isValidOrig(val, type);
-        }
-    }
-    // user.isValid = isValidExt;
-}
-
-
-
-
-
-// // internal method called by OnInit()
-// function addToConfigVar(initData: DOpusScriptInitData, group: string, name: string, desc: string, value: any) {
-//     var cfg                     = cfg.getBinding(name);;
-//     initData.config[cfg]        = value || cfg.get(name);
-//     // initData.config_desc(cfg)    = desc;
-//     // initData.config_groups(cfg)    = group;
-//     initData.config_desc.set(cfg, desc);
-//     initData.config_groups.set(cfg, group);
-// }
-
 
 // temporary vars
 
@@ -59,21 +27,67 @@ type globalType = {
 }
 var logger = libLogger.logger;
 var Global:globalType = {};
-Global['SCRIPT_NAME'] = 'cuMovieTagger';
+Global.SCRIPT_NAME = 'cuMovieTagger';
 var cfg = config.user;
 var ext = config.ext;
 
-function setupConfigVars(initData: DOpusScriptInitData)
-// CONFIG - DEFAULT VALUES
-{
 
-    cfg.setInitData(initData);
+enum CfgV {
+    DEBUG_LEVEL                         = 'DEBUG_LEVEL',
+    META_STREAM_NAME                    = 'META_STREAM_NAME',
+    MEDIAINFO_PATH                      = 'MEDIAINFO_PATH',
+    KEEP_ORIG_MODTS                     = 'KEEP_ORIG_MODTS',
+    FORCE_REFRESH_AFTER_UPDATE          = 'FORCE_REFRESH_AFTER_UPDATE',
+    CACHE_ENABLED                       = 'CACHE_ENABLED',
+
+    REF_ALL_AVAILABLE_FIELDS            = 'REF_ALL_AVAILABLE_FIELDS',
+    TOGGLEABLE_FIELDS_ESSENTIAL         = 'TOGGLEABLE_FIELDS_ESSENTIAL',
+    TOGGLEABLE_FIELDS_OPTIONAL          = 'TOGGLEABLE_FIELDS_OPTIONAL',
+    TOGGLEABLE_FIELDS_OTHER             = 'TOGGLEABLE_FIELDS_OTHER',
+    TOGGLEABLE_FIELDS_VERBOSE           = 'TOGGLEABLE_FIELDS_VERBOSE',
+    TOGGLEABLE_FIELDS_ESSENTIAL_AFTER   = 'TOGGLEABLE_FIELDS_ESSENTIAL_AFTER',
+    TOGGLEABLE_FIELDS_OPTIONAL_AFTER    = 'TOGGLEABLE_FIELDS_OPTIONAL_AFTER',
+    TOGGLEABLE_FIELDS_OTHER_AFTER       = 'TOGGLEABLE_FIELDS_OTHER_AFTER',
+    TOGGLEABLE_FIELDS_VERBOSE_AFTER     = 'TOGGLEABLE_FIELDS_VERBOSE_AFTER',
+
+    REF_LOOKUP_RESOLUTIONS              = 'REF_LOOKUP_RESOLUTIONS',
+    LOOKUP_RESOLUTIONS                  = 'LOOKUP_RESOLUTIONS',
+
+    REF_LOOKUP_DURATION_GROUPS          = 'REF_LOOKUP_DURATION_GROUPS',
+    LOOKUP_DURATION_GROUPS              = 'LOOKUP_DURATION_GROUPS',
+
+    REF_LOOKUP_CODECS                   = 'REF_LOOKUP_CODECS',
+    LOOKUP_CODECS                       = 'LOOKUP_CODECS',
+
+    CODEC_USE_SHORT_VARIANT             = 'CODEC_USE_SHORT_VARIANT',
+    CODEC_APPEND_ADDINFO                = 'CODEC_APPEND_ADDINFO',
+    RESOLUTION_APPEND_VERTICAL          = 'RESOLUTION_APPEND_VERTICAL',
+    FORMATS_REGEX_VBR                   = 'FORMATS_REGEX_VBR',
+    FORMATS_REGEX_LOSSLESS              = 'FORMATS_REGEX_LOSSLESS',
+    FORMATS_REGEX_LOSSY                 = 'FORMATS_REGEX_LOSSY',
+
+    TEMP_FILES_DIR                      = 'TEMP_FILES_DIR',
+    REF_CONFIG_FILE                     = 'REF_CONFIG_FILE',
+    REF_NAME_CLEANUP                    = 'REF_NAME_CLEANUP',
+    NAME_CLEANUP                        = 'NAME_CLEANUP',
+    config_file_dir_resolved            = 'config_file_dir_resolved',
+    config_file_name                    = 'config_file_name'
+}
+
+
+
+// CONFIG - DEFAULT VALUES
+function setupConfigVars(initData: DOpusScriptInitData) {
+
+
+    // cfg.setInitData(initData);
+
 
     cfg.addNumber(
-        'DEBUG_LEVEL',
+        CfgV.DEBUG_LEVEL,
         logger.getLevel(),
-        'DEBUG_LEVEL',
-        'TEST GROUP',
+        CfgV.DEBUG_LEVEL,
+        'Listers',
         'How much information should be put to DOpus output window - Beware of anything above & incl. NORMAL, it might crash your DOpus!\nSome crucial messages or commands like Dump ADS, Dump MediaInfo, Estimate Bitrate are not affected'
         );
 
@@ -90,7 +104,13 @@ function setupConfigVars(initData: DOpusScriptInitData)
      * and an army of thousands ghosts will haunt you for the rest of your life, you wouldn't like that mess
      *
      */
-    cfg.addString('MetaStreamName', 'MExt_MediaInfo', 'META_STREAM_NAME');
+    cfg.addString(
+        CfgV.META_STREAM_NAME,
+        'MExt_MediaInfo',
+        CfgV.META_STREAM_NAME,
+        ' DO NOT CHANGE UNLESS NECESSARY', // first char is nbsp
+        'Name of NTFS stream (ADS) to use\nWARNING: DELETE existing ADS from all files before you change this, otherwise old streams will be orphaned'
+        );
 
 
     /**
@@ -102,7 +122,14 @@ function setupConfigVars(initData: DOpusScriptInitData)
      */
     // config.addPath('mediainfo_path', '%gvdTool%\\MMedia\\MediaInfo\\MediaInfoXXX.exe', 'MEDIAINFO_PATH');
     // do not use addPath() but use addValueWithBinding() with bypass=true - otherwise people will get an error on initial installation
-    cfg.addValueWithBinding('mediainfo_path', '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe', config.TYPE.PATH, 'MEDIAINFO_PATH', undefined, undefined, true);
+    cfg.addValueWithBinding(
+        CfgV.MEDIAINFO_PATH,
+        '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe',
+        config.TYPE.PATH,
+        CfgV.MEDIAINFO_PATH,
+        undefined,
+        undefined,
+        true);
     // config.addString('ref_mediainfo_download_url', 'https://mediaarea.net/en/MediaInfo/Download/Windows', 'REF_MEDIAINFO_DOWNLOAD_URL');
 
     /**
@@ -110,7 +137,13 @@ function setupConfigVars(initData: DOpusScriptInitData)
      *
      * ADJUST AS YOU SEE FIT
      */
-    cfg.addBoolean('keep_orig_modts', true, 'KEEP_ORIG_MODTS');
+    cfg.addBoolean(
+        CfgV.KEEP_ORIG_MODTS,
+        true,
+        CfgV.KEEP_ORIG_MODTS,
+        'System',
+        'Keep the original "last modified timestamp" after updating/deleting ADS data\nMust be TRUE if you use \'Dirty/Needs Update\' column'
+        );
 
     /**
      * auto refresh lister after updating metadata
@@ -125,7 +158,7 @@ function setupConfigVars(initData: DOpusScriptInitData)
      * however, also keep in mind the read time per size DOES NOT DEPEND ON THE FILE SIZE
      * the refresh time is relational to the NUMBER OF FILES and speed of your hdd/sdd/nvme/ramdisk/potato
      */
-    cfg.addBoolean('force_refresh_after_update', true, 'FORCE_REFRESH_AFTER_UPDATE');
+    cfg.addBoolean(CfgV.FORCE_REFRESH_AFTER_UPDATE, true, CfgV.FORCE_REFRESH_AFTER_UPDATE);
 
     /**
      * cache metadata JS objects in memory for unchanged files to speed up process (the gain remains questionable IMO)
@@ -153,7 +186,13 @@ function setupConfigVars(initData: DOpusScriptInitData)
      *
      * to avoid high mem usage you can manually call the CLEARCACHE command via button, menu...
      */
-    cfg.addBoolean('cache_enabled', true, 'CACHE_ENABLED');
+    cfg.addBoolean(
+        CfgV.CACHE_ENABLED,
+        true,
+        CfgV.CACHE_ENABLED,
+        'System',
+        'Enable in-memory cache\nRead About->Features for more info'
+        );
 
 
     // get list of all columns with ^\s+col(?!\.name).+$\n in a decent editor
@@ -228,15 +267,15 @@ function setupConfigVars(initData: DOpusScriptInitData)
             case 'verbose':   fields_verbose.push(f); break;
         }
     };
-    cfg.addArray('fields_essential', fields_essential, 'TOGGLEABLE_FIELDS_ESSENTIAL');
-    cfg.addArray('fields_optional', fields_optional, 'TOGGLEABLE_FIELDS_OPTIONAL');
-    cfg.addArray('fields_other', fields_other, 'TOGGLEABLE_FIELDS_OTHER');
-    cfg.addArray('fields_verbose', fields_verbose, 'TOGGLEABLE_FIELDS_VERBOSE');
+    cfg.addArray(CfgV.TOGGLEABLE_FIELDS_ESSENTIAL, fields_essential, CfgV.TOGGLEABLE_FIELDS_ESSENTIAL);
+    cfg.addArray(CfgV.TOGGLEABLE_FIELDS_OPTIONAL,  fields_optional,  CfgV.TOGGLEABLE_FIELDS_OPTIONAL);
+    cfg.addArray(CfgV.TOGGLEABLE_FIELDS_OTHER,     fields_other,     CfgV.TOGGLEABLE_FIELDS_OTHER);
+    cfg.addArray(CfgV.TOGGLEABLE_FIELDS_VERBOSE,   fields_verbose,   CfgV.TOGGLEABLE_FIELDS_VERBOSE);
 
-    cfg.addString('fields_essential_after', 'Comments', 'TOGGLEABLE_FIELDS_ESSENTIAL_AFTER');
-    cfg.addString('fields_optional_after', 'MExt_SubtitleLang', 'TOGGLEABLE_FIELDS_OPTIONAL_AFTER');
-    cfg.addString('fields_other_after', '', 'TOGGLEABLE_FIELDS_OTHER_AFTER');
-    cfg.addString('fields_verbose_after', '', 'TOGGLEABLE_FIELDS_VERBOSE_AFTER');
+    cfg.addString(CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER, 'Comments',          CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER);
+    cfg.addString(CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER,  'MExt_SubtitleLang', CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER);
+    cfg.addString(CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER,     '',                  CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER);
+    cfg.addString(CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER,   '',                  CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER);
 
 
     /**
@@ -268,8 +307,8 @@ function setupConfigVars(initData: DOpusScriptInitData)
         // do not put , in the last line
     }`;
     JSON.stringify(JSON.parse(lookup_resolutions)); // test parseability on script load, do not remove
-    cfg.addString('ref_lookup_resolutions', lookup_resolutions.normalizeLeadingWhiteSpace(), 'REF_LOOKUP_RESOLUTIONS');
-    cfg.addPOJO('lookup_resolutions', JSON.parse(lookup_resolutions), 'LOOKUP_RESOLUTIONS');
+    cfg.addString(CfgV.REF_LOOKUP_RESOLUTIONS, lookup_resolutions.normalizeLeadingWhiteSpace(), CfgV.REF_LOOKUP_RESOLUTIONS);
+    cfg.addPOJO(CfgV.LOOKUP_RESOLUTIONS, JSON.parse(lookup_resolutions), CfgV.LOOKUP_RESOLUTIONS);
 
 
     var lookup_duration_groups = `
@@ -303,8 +342,8 @@ function setupConfigVars(initData: DOpusScriptInitData)
         // do not put , in the last line
     }`;
     JSON.stringify(JSON.parse(lookup_duration_groups)); // test parseability on script load, do not remove
-    cfg.addString('ref_lookup_duration_groups', lookup_duration_groups.normalizeLeadingWhiteSpace(), 'REF_LOOKUP_DURATION_GROUPS');
-    cfg.addPOJO('lookup_duration_groups', JSON.parse(lookup_duration_groups), 'LOOKUP_DURATION_GROUPS');
+    cfg.addString(CfgV.REF_LOOKUP_DURATION_GROUPS, lookup_duration_groups.normalizeLeadingWhiteSpace(), CfgV.REF_LOOKUP_DURATION_GROUPS);
+    cfg.addPOJO(CfgV.LOOKUP_DURATION_GROUPS, JSON.parse(lookup_duration_groups), CfgV.LOOKUP_DURATION_GROUPS);
 
     /**
      * video & audio codecs translation hash
@@ -530,15 +569,15 @@ function setupConfigVars(initData: DOpusScriptInitData)
     }`;
     // }.toString().slice(17, -3);
     JSON.stringify(JSON.parse(lookup_codecs)); // test parseability on script load, do not remove
-    cfg.addString('ref_lookup_codecs', lookup_codecs.normalizeLeadingWhiteSpace(), 'REF_LOOKUP_CODECS');
-    cfg.addPOJO('lookup_codecs', JSON.parse(lookup_codecs), 'LOOKUP_CODECS');
+    cfg.addString(CfgV.REF_LOOKUP_CODECS, lookup_codecs.normalizeLeadingWhiteSpace(), CfgV.REF_LOOKUP_CODECS);
+    cfg.addPOJO(CfgV.LOOKUP_CODECS, JSON.parse(lookup_codecs), CfgV.LOOKUP_CODECS);
 
     /**
      * use short variants of codecs, found via LOOKUP_CODECS
      *
      * ADJUST AS YOU SEE FIT
      */
-    cfg.addBoolean('codec_use_short_variant', false, 'CODEC_USE_SHORT_VARIANT');
+    cfg.addBoolean(CfgV.CODEC_USE_SHORT_VARIANT, false, CfgV.CODEC_USE_SHORT_VARIANT);
 
     /**
      * add container or codec-specific information to the container/video/audio codec fields automatically
@@ -546,29 +585,29 @@ function setupConfigVars(initData: DOpusScriptInitData)
      *
      * ADJUST AS YOU SEE FIT
      */
-    cfg.addBoolean('codec_append_addinfo', true, 'CODEC_APPEND_ADDINFO');
+    cfg.addBoolean(CfgV.CODEC_APPEND_ADDINFO, true, CfgV.CODEC_APPEND_ADDINFO);
 
     /**
      * append '(Vertical)' to video resolutions
      *
      * ADJUST AS YOU SEE FIT
      */
-    cfg.addBoolean('resolution_append_vertical', true, 'RESOLUTION_APPEND_VERTICAL');
+    cfg.addBoolean(CfgV.RESOLUTION_APPEND_VERTICAL, true, CfgV.RESOLUTION_APPEND_VERTICAL);
 
     /**
      * Audio formats which do not store a VBR/CBR/ABR information separately but are VBR by definition
      *
      * do not touch
      */
-    cfg.addRegexp('formats_regex_vbr', new RegExp(/ALAC|Monkey's Audio|TAK|DSD/), 'FORMATS_REGEX_VBR');
+    cfg.addRegexp(CfgV.FORMATS_REGEX_VBR, new RegExp(/ALAC|Monkey's Audio|TAK|DSD/), CfgV.FORMATS_REGEX_VBR);
 
     /**
      * Audio formats which do not store a lossy/lossless information separately but are lossless by definition
      *
      * do not touch
      */
-    cfg.addRegexp('formats_regex_lossless', new RegExp(/ALAC|PCM|TTA|DSD/), 'FORMATS_REGEX_LOSSLESS');
-    cfg.addRegexp('formats_regex_lossy', new RegExp(/AMR/), 'FORMATS_REGEX_LOSSY');
+    cfg.addRegexp(CfgV.FORMATS_REGEX_LOSSLESS, new RegExp(/ALAC|PCM|TTA|DSD/), CfgV.FORMATS_REGEX_LOSSLESS);
+    cfg.addRegexp(CfgV.FORMATS_REGEX_LOSSY, new RegExp(/AMR/), CfgV.FORMATS_REGEX_LOSSY);
 
     /**
      * audio channels translation hash
@@ -608,8 +647,9 @@ function setupConfigVars(initData: DOpusScriptInitData)
     }`;
     // }.toString().slice(17, -3);
     JSON.stringify(JSON.parse(lookup_channels)); // test parseability on script load, do not remove
-    cfg.addString('ref_lookup_channels', lookup_channels.normalizeLeadingWhiteSpace(), 'REF_LOOKUP_CHANNELS');
-    cfg.addPOJO('lookup_channels', JSON.parse(lookup_channels), 'LOOKUP_CHANNELS');
+    cfg.addString(CfgV.REF_LOOKUP_CHANNELS, lookup_channels.normalizeLeadingWhiteSpace(), CfgV.REF_LOOKUP_CHANNELS);
+    cfg.addPOJO(CfgV.LOOKUP_CHANNELS, JSON.parse(lookup_channels), CfgV.LOOKUP_CHANNELS);
+
 
     /**
      * directory in which temporary files (selected_files_name.JSON) are created
@@ -620,7 +660,7 @@ function setupConfigVars(initData: DOpusScriptInitData)
      *
      * can include environment variables
      */
-    cfg.addPath('temp_files_dir', '%TEMP%', 'TEMP_FILES_DIR');
+    cfg.addPath(CfgV.TEMP_FILES_DIR, '%TEMP%', CfgV.TEMP_FILES_DIR);
 
     /**
      * external configuration file to adjust column headers
@@ -670,7 +710,7 @@ function setupConfigVars(initData: DOpusScriptInitData)
     // }.toString().slice(17, -3)
     .substituteVars();
     JSON.stringify(JSON.parse(config_file_contents)); // test parseability on script load, do not remove
-    cfg.addString('ref_config_file', config_file_contents.normalizeLeadingWhiteSpace(), 'REF_CONFIG_FILE');
+    cfg.addString(CfgV.REF_CONFIG_FILE, config_file_contents.normalizeLeadingWhiteSpace(), CfgV.REF_CONFIG_FILE);
 
 
 
@@ -711,24 +751,23 @@ function setupConfigVars(initData: DOpusScriptInitData)
     }`;
     // }.toString().slice(17, -3);
     JSON.stringify(JSON.parse(name_cleanup)); // test parseability on script load, do not remove
-    cfg.addString('ref_name_cleanup', name_cleanup.normalizeLeadingWhiteSpace(), 'REF_NAME_CLEANUP');
-    cfg.addPOJO('name_cleanup', JSON.parse(name_cleanup), 'NAME_CLEANUP');
+    cfg.addString(CfgV.REF_NAME_CLEANUP, name_cleanup.normalizeLeadingWhiteSpace(), CfgV.REF_NAME_CLEANUP);
+    cfg.addPOJO(CfgV.NAME_CLEANUP, JSON.parse(name_cleanup), CfgV.NAME_CLEANUP);
 
 
 
     // bindings for these 2 are unnecessary and ignored
-    cfg.addString('config_file_dir_resolved', config_file_dir_resolved, '');
-    cfg.addString('config_file_name', config_file_name, '');
+    cfg.addString(CfgV.config_file_dir_resolved, config_file_dir_resolved, '');
+    cfg.addString(CfgV.config_file_name, config_file_name, '');
 
+    cfg.finalize();
 
-
-config
 
     // do not touch this!
     // ext.setInitData(initData).addPOJO('ext_config_pojo');
 
 
-    cfg.finalize();
+
     // ext.finalize();
 
 }
@@ -739,23 +778,32 @@ config
 /** @param {DOpusScriptInitData=} initData */
 // eslint-disable-next-line no-unused-vars
 function OnInit(initData: DOpusScriptInitData) {
+
+    initData.group          = 'cuneytyilmaz.com';
+
     DOpus.clearOutput();
+    DOpus.output('Script started');
+
+    cfg.setInitData(Global.SCRIPT_NAME, initData);
+    setupConfigVars(initData);
+
+
     // let logger1 = new libLogger.CLogger(libLogger.LOGLEVEL.NORMAL);
     let logger = libLogger.logger;
     logger.force("This variant does not work with node anymore...");
     logger.force('No import or require in this version but it works with DOpus');
 
     logger.sforce('%s', 'foo');
-    logger.sforce('', 'foo2');
-    logger.sforce('', new Date().toLocaleString());
-    logger.sforce('', new Date().getTime().formatAsDateDOpus());
-    logger.sforce('', new Date().getTime().formatAsDateISO());
-    logger.sforce('', new Date().getTime().formatAsDateTimeCompact());
-    logger.sforce('', new Date().getTime().formatAsDuration());
+    logger.sforce('%s', 'foo2');
+    logger.sforce('%s', new Date().toLocaleString());
+    logger.sforce('%s', new Date().getTime().formatAsDateDOpus());
+    logger.sforce('%s', new Date().getTime().formatAsDateISO());
+    logger.sforce('%s', new Date().getTime().formatAsDateTimeCompact());
+    logger.sforce('%s', new Date().getTime().formatAsDuration());
 
-    var oItem = doh.fsu.getItem('Y:\\VeraCrypt.rar');
-    var id = oItem.modify;
-    logger.force('id: ' + id);
+    // var oItem = doh.fsu.getItem('Y:\\VeraCrypt.rar');
+    // var id = oItem.modify;
+    // logger.force('id: ' + id);
     // var d = new Date('2021-06-28 T18:09:04.206Z');
     // // var d1 = doh.dc.date('D2021-06-28 T18:09:04');
     // // var d2 = doh.dc.date('2021-06-28 T18:09:04.206Z');
@@ -786,13 +834,6 @@ function OnInit(initData: DOpusScriptInitData) {
     // var res = urlTools.getFromURLRaw('https://avatars.githubusercontent.com/u/71272476?v=4');
     // fs.saveFile('Y:\\cyghss.png', (<IDownloadedFile>res.ok).content);
 
-    DOpus.output('pn: ' + config.TYPE.PHONENUM);
-    DOpus.output('pn: ' + config.TYPE[config.TYPE.PHONENUM]);
-    DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
-    DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
-
-
-
     // config.user.setInitData(initData);
     // DOpus.output('setupConfigVars: ' + initData.file);
 
@@ -814,10 +855,21 @@ function OnInit(initData: DOpusScriptInitData) {
     //     'How much information should be put to DOpus output window - Beware of anything above & incl. NORMAL, it might crash your DOpus!\nSome crucial messages or commands like Dump ADS, Dump MediaInfo, Estimate Bitrate are not affected'
     //     );
 
-    setupConfigVars(initData);
+
+
+
+    _addCommand('DOpusMovieTagger_CustomCommand',
+        CustomCommand,
+        initData,
+        '',
+        'ignored',
+        'Custom Command',
+        'n/a',
+        false
+    );
+
 
     // config.user.addString('test', 'this is the default value', 'TEST_FOR_DOPUS');
-
     // DOpus.output(sprintfjs.sprintf(
     //     'name: %s, type: %s, binding: %s',
     //     'test',
@@ -825,13 +877,65 @@ function OnInit(initData: DOpusScriptInitData) {
     //     config.user.getBinding('test')
     // ));
 
+    // enum Enum {
+    //     A = 1,
+    // }
+    // let a = Enum.A;
+    // let nameOfA = Enum[a]; // "A"
+    // DOpus.output('nameOfA: ' + nameOfA);
 
-    enum foo {
-        bar = 'barString',
-        baz = 'bazString'
-    }
-    DOpus.output('test: ' + foo['bar']);
+    // enum foo {
+    //     bar = <any> { type: config.TYPE.STRING, bla: 'x'},
+    //     baz = <any> { type: config.TYPE.NUMBER, bla: 'y'},
+    //     // baz = <any> 'barString'
+    // }
+    // // enum foo {
+    // //     bar = 1,
+    // //     baz = 2
+    // // }
+    // DOpus.output('test -- key: ' + foo[foo.bar] + ', val: ' + foo.bar);
+    // DOpus.output(JSON.stringify(foo, null, 4));
 
-    DOpus.output('script finished');
+    DOpus.output('Script finished');
 
+}
+
+
+
+/**
+ * internal method called by OnInit() directly or indirectly
+ * @param {string} name command name, prefix will be added automatically
+ * @param {function} fnFunction function which implements the command
+ * @param {DOpusScriptInitData} initData DOpus InitData
+ * @param {string} template command template, e.g. FILE/O...
+ * @param {string} icon icon name, internal
+ * @param {string} label command label
+ * @param {string} desc command description
+ * @param {boolean=} hide if true, command is hidden from commands list
+ */
+function _addCommand(name: string, fnFunction: Function, initData: DOpusScriptInitData, template: string, icon: string, label: string, desc: string, hide: boolean | undefined) {
+    const fnName = g.funcNameExtractor(_addCommand);
+    logger.sforce('%s -- started', fnName);
+
+    logger.sforce('%s -- adding: %s', fnName, name);
+
+    var cmd         = initData.addCommand();
+    cmd.name        = (Global.SCRIPT_NAME_SHORT||'') + name;
+    cmd.method      = g.funcNameExtractor(fnFunction);
+    cmd.template    = template || '';
+    // cmd.icon		= icon && _getIcon(icon) || '';
+    cmd.label		= label || '';
+    cmd.desc        = desc || label;
+    cmd.hide        = typeof hide !== 'undefined' && hide || false;
+
+    logger.sforce('%s -- cmd.name: %s', fnName, cmd.name);
+    logger.sforce('%s -- finished', fnName);
+}
+
+function CustomCommand() {
+    const fnName = g.funcNameExtractor(CustomCommand);
+    logger.sforce('%s -- started', fnName);
+    var oScriptInfo = config.user.getScriptPathVars(Global.SCRIPT_NAME);
+    logger.sforce('%s -- script vars:\n%s', fnName, JSON.stringify(oScriptInfo, null, 4));
+    logger.sforce('%s -- finished', fnName);
 }

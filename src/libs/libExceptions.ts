@@ -48,6 +48,10 @@ namespace exc {
         constructor(message: string, where: string|Function) { super(NotImplementedYetException, message, where) }
     }
     /** @constructor @param {string} message @param {string|function} where */
+    export class UninitializedException extends UserException {
+        constructor(message: string, where: string|Function) { super(UninitializedException, message, where) }
+    }
+    /** @constructor @param {string} message @param {string|function} where */
     export class DeveloperStupidityException extends UserException {
         constructor(message: string, where: string|Function) { super(DeveloperStupidityException, message, where) }
     }
