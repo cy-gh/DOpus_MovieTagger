@@ -1,4 +1,8 @@
-///<reference path='../_IOnlineAPI.d.ts' />
+///<reference path='../std/libStdDev.ts' />
+
+interface IOnlineAPI {
+    getRandomKeyFrom(keysList: string[]): string;
+}
 
 namespace extOnline {
 

@@ -1,5 +1,5 @@
 ///<reference path='../std/libStdDev.ts' />
-///<reference path='../_Helpers.d.ts' />
+///<reference path='./formatters.ts' />
 ///<reference path='./libDOpusHelper.ts' />
 ///<reference path='./libExceptions.ts' />
 

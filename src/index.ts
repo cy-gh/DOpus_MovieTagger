@@ -4,8 +4,8 @@
 /* global ActiveXObject Enumerator DOpus Script */
 /* eslint indent: [2, 4, {"SwitchCase": 1}] */
 ///<reference path='./std/libStdDev.ts' />
-///<reference path='./_Helpers.d.ts' />
-///<reference path='./_IMemCache.d.ts' />
+///<reference path='./libs/formatters.ts' />
+///<reference path='./libs/libCache.ts' />
 ///<reference path='./libs/libDOpusHelper.ts' />
 ///<reference path='./libs/libExceptions.ts' />
 ///<reference path='./libs/libLogger.ts' />
