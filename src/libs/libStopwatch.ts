@@ -1,6 +1,6 @@
-///<reference path='../libsExt/libSprintfWrapper.ts' />
+///<reference path='../std/libStdDev.ts' />
 ///<reference path='./libExceptions.ts' />
-///<reference path='./libGlobal.ts' />
+
 /*
      .d8888b. 88888888888  .d88888b.  8888888b.  888       888        d8888 88888888888  .d8888b.  888    888
     d88P  Y88b    888     d88P" "Y88b 888   Y88b 888   o   888       d88888     888     d88P  Y88b 888    888

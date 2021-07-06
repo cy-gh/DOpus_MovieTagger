@@ -1,6 +1,5 @@
+///<reference path='../std/libStdDev.ts' />
 ///<reference path='./libDOpusHelper.ts' />
-///<reference path='./libGlobal.ts' />
-
 
 namespace urlTools {
 

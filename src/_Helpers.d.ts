@@ -14,17 +14,6 @@ interface DateComponents {
     timezone?   : string
 }
 
-
-interface IResult<S,E> {
-    ok: S|false;
-    err: E|true;
-    stack: Array<any>;
-    isOk(): boolean;
-    isValid(): boolean;
-    isErr(): boolean;
-}
-
-
 interface Date {
     /**
      * turns timestamp to ISO like "20210119-182416" format
@@ -93,9 +82,4 @@ interface String {
      * cmdData.func.args.MAXCOUNT.asInt()
      */
     asInt(): number;
-
-    /**
-     *
-     */
-    trim(): string;
 }

@@ -1,4 +1,5 @@
-///<reference path='../_DOpusDefinitions.d.ts' />
+///<reference path='../std/libStdDev.ts' />
+
 namespace doh {
 
     export const name       = 'doh';

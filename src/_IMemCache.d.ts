@@ -1,4 +1,5 @@
-///<reference path='./_Helpers.d.ts' />
+// using IResult
+///<reference path='./std/libStdDev.ts' />
 
 
 /**

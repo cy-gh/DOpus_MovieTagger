@@ -1,4 +1,4 @@
-///<reference path='./libGlobal.ts' />
+///<reference path='../std/libStdDev.ts' />
 
 /*
     8888888888 Y88b   d88P  .d8888b.  8888888888 8888888b. 88888888888 8888888  .d88888b.  888b    888  .d8888b.

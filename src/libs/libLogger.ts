@@ -1,6 +1,6 @@
 /* global DOpus */
-// see https://www.typescriptlang.org/docs/handbook/namespaces-and-modules.html
-///<reference path='../libsExt/libSprintfWrapper.ts' />
+///<reference path='../std/libStdDev.ts' />
+
 namespace libLogger {
     export enum LOGLEVEL {
         FORCE   = -1,
@@ -35,22 +35,13 @@ namespace libLogger {
         public info(message?: string)    { this._baseout(LOGLEVEL.INFO,     message); }
         public verbose(message?: string) { this._baseout(LOGLEVEL.VERBOSE,  message); }
 
-        public sforce(...args: any)       { this._baseout(LOGLEVEL.FORCE,     libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public snone(...args: any)        { this._baseout(LOGLEVEL.NONE,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public serror(...args: any)       { this._baseout(LOGLEVEL.ERROR,     libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public swarn(...args: any)        { this._baseout(LOGLEVEL.WARN,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public snormal(...args: any)      { this._baseout(LOGLEVEL.NORMAL,    libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public sinfo(...args: any)        { this._baseout(LOGLEVEL.INFO,      libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-        public sverbose(...args: any)     { this._baseout(LOGLEVEL.VERBOSE,   libSprintfjs.sprintf.apply(libSprintfjs.sprintf, args)); }
-
-        // OBSOLETE - these were used for the unwrapped sprintf.js
-        // public sforce(message?: string, ...args: any)   { this._baseout(LOGLEVEL.FORCE,   sprintf.apply(sprintf, args)); };
-        // public snone(message?: string, ...args: any)    { this._baseout(LOGLEVEL.NONE,    sprintf.apply(sprintf, args)); };
-        // public serror(message?: string, ...args: any)   { this._baseout(LOGLEVEL.ERROR,   sprintf.apply(sprintf, args)); };
-        // public swarn(message?: string, ...args: any)    { this._baseout(LOGLEVEL.WARN,    sprintf.apply(sprintf, args)); };
-        // public snormal(message?: string, ...args: any)  { this._baseout(LOGLEVEL.NORMAL,  sprintf.apply(sprintf, args)); };
-        // public sinfo(message?: string, ...args: any)    { this._baseout(LOGLEVEL.INFO,    sprintf.apply(sprintf, args)); };
-        // public sverbose(message?: string, ...args: any) { this._baseout(LOGLEVEL.VERBOSE, sprintf.apply(sprintf, args)); };
+        public sforce(...args: any)       { this._baseout(LOGLEVEL.FORCE,     g.sprintf.apply(g.sprintf, args)); }
+        public snone(...args: any)        { this._baseout(LOGLEVEL.NONE,      g.sprintf.apply(g.sprintf, args)); }
+        public serror(...args: any)       { this._baseout(LOGLEVEL.ERROR,     g.sprintf.apply(g.sprintf, args)); }
+        public swarn(...args: any)        { this._baseout(LOGLEVEL.WARN,      g.sprintf.apply(g.sprintf, args)); }
+        public snormal(...args: any)      { this._baseout(LOGLEVEL.NORMAL,    g.sprintf.apply(g.sprintf, args)); }
+        public sinfo(...args: any)        { this._baseout(LOGLEVEL.INFO,      g.sprintf.apply(g.sprintf, args)); }
+        public sverbose(...args: any)     { this._baseout(LOGLEVEL.VERBOSE,   g.sprintf.apply(g.sprintf, args)); }
     }
     export const logger = new CLogger();
 }

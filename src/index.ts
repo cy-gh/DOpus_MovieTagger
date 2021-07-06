@@ -3,14 +3,13 @@
 /* eslint-disable no-inner-declarations */
 /* global ActiveXObject Enumerator DOpus Script */
 /* eslint indent: [2, 4, {"SwitchCase": 1}] */
-///<reference path='./_DOpusDefinitions.d.ts' />
+///<reference path='./std/libStdDev.ts' />
 ///<reference path='./_Helpers.d.ts' />
 ///<reference path='./_IMemCache.d.ts' />
 ///<reference path='./libs/libDOpusHelper.ts' />
 ///<reference path='./libs/libExceptions.ts' />
 ///<reference path='./libs/libLogger.ts' />
 ///<reference path='./libs/formatters.ts' />
-///<reference path='./libs/libGlobal.ts' />
 ///<reference path='./libs/libURLHelpers.ts' />
 ///<reference path='./libs/libFS.ts' />
 ///<reference path='./libs/libConfigAccess.ts' />

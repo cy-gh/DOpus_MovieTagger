@@ -1,4 +1,4 @@
-///<reference path='../_DOpusDefinitions.d.ts' />
+///<reference path='../std/libStdDev.ts' />
 ///<reference path='../_Helpers.d.ts' />
 ///<reference path='./libLogger.ts' />
 

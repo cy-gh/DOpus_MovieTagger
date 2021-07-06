@@ -1,9 +1,6 @@
-/* global ActiveXObject Enumerator DOpus Script */
-/* eslint indent: [2, 4, {"SwitchCase": 1}] */
-///<reference path='../_DOpusDefinitions.d.ts' />
+///<reference path='../std/libStdDev.ts' />
 ///<reference path='../_Helpers.d.ts' />
 ///<reference path='./libDOpusHelper.ts' />
-///<reference path='./libGlobal.ts' />
 ///<reference path='./libExceptions.ts' />
 
 interface String {

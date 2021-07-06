@@ -1,20 +1,52 @@
-///<reference path='../libsExt/libSprintfWrapper.ts' />
-///<reference path='./libExceptions.ts' />
+// @ts-check
+/* global ActiveXObject Enumerator DOpus Script */
+// see https://www.typescriptlang.org/docs/handbook/namespaces-and-modules.html
+///<reference path='./_DOpusDefinitions.d.ts' />
+///<reference path='./libSprintf.js' />
+
+/*
+     .d8888b.  888       .d88888b.  888888b.          d8888 888
+    d88P  Y88b 888      d88P" "Y88b 888  "88b        d88888 888
+    888    888 888      888     888 888  .88P       d88P888 888
+    888        888      888     888 8888888K.      d88P 888 888
+    888  88888 888      888     888 888  "Y88b    d88P  888 888
+    888    888 888      888     888 888    888   d88P   888 888
+    Y88b  d88P 888      Y88b. .d88P 888   d88P  d8888888888 888
+     "Y8888P88 88888888  "Y88888P"  8888888P"  d88P     888 88888888
+*/
+
+
+
+/*
+    8888888 888b    888 88888888888 8888888888 8888888b.  8888888888     d8888  .d8888b.  8888888888  .d8888b.
+      888   8888b   888     888     888        888   Y88b 888           d88888 d88P  Y88b 888        d88P  Y88b
+      888   88888b  888     888     888        888    888 888          d88P888 888    888 888        Y88b.
+      888   888Y88b 888     888     8888888    888   d88P 8888888     d88P 888 888        8888888     "Y888b.
+      888   888 Y88b888     888     888        8888888P"  888        d88P  888 888        888            "Y88b.
+      888   888  Y88888     888     888        888 T88b   888       d88P   888 888    888 888              "888
+      888   888   Y8888     888     888        888  T88b  888      d8888888888 Y88b  d88P 888        Y88b  d88P
+    8888888 888    Y888     888     8888888888 888   T88b 888     d88P     888  "Y8888P"  8888888888  "Y8888P"
+*/
+interface IResult<S,E> {
+    ok: S|false;
+    err: E|true;
+    stack: Array<any>;
+    isOk(): boolean;
+    isValid(): boolean;
+    isErr(): boolean;
+}
+
+interface String {
+    trim(): string;
+}
+
+interface Error {
+    where: string;
+}
+
+
 
 namespace g {
-
-
-    /*
-         .d8888b.  888       .d88888b.  888888b.          d8888 888
-        d88P  Y88b 888      d88P" "Y88b 888  "88b        d88888 888
-        888    888 888      888     888 888  .88P       d88P888 888
-        888        888      888     888 8888888K.      d88P 888 888
-        888  88888 888      888     888 888  "Y88b    d88P  888 888
-        888    888 888      888     888 888    888   d88P   888 888
-        Y88b  d88P 888      Y88b. .d88P 888   d88P  d8888888888 888
-         "Y8888P88 88888888  "Y88888P"  8888888P"  d88P     888 88888888
-    */
-
 
     /*
                 888     888      d8888 8888888b.   .d8888b.
@@ -137,7 +169,7 @@ namespace g {
      * @param {function} fnFunc
      * @param {string=} parentName
      * @returns {string}
-     * @throws InvalidParameterTypeException
+     * @throws {Error}
      */
     export function funcNameExtractor(fnFunc: Function, parentName?: string): string {
         let reExtractor = new RegExp(/^function\s+(\w+)\(.+/),
@@ -149,8 +181,7 @@ namespace g {
             return cache[fnFunc];
         }
         if (typeof fnFunc !== 'function') {
-            // abortWith(new InvalidParameterTypeException(sprintf('%s -- Given parameter is not a function\n%s', fnName, dumpObject(fnFunc)), fnName));
-            throw new exc.InvalidParameterTypeException(libSprintfjs.sprintf('%s -- Given parameter is not a function\n%s', fnName, dumpObject(fnFunc)), fnName);
+            abortWith(new Error(sprintf('%s -- Given parameter is not a function\n%s', fnName, dumpObject(fnFunc))));
         }
         var matches = fnFunc.toString().match(reExtractor),
             out = matches ? matches[1] : 'Anonymous -- ' + dumpObject(fnFunc, true).value.replace(/\n|^\s+|\s+$/mg, '');
@@ -267,19 +298,19 @@ namespace g {
     /**
      * Helper method to show an exception to the user before throwing it,
      * the exception must be still caught and handled.
-     * @param {UserException} exception
-     * @throws {error}
+     * @param {Error} oErr
+     * @throws {Error}
      */
-    export function abortWith(exception: exc.IUserException) {
+    export function abortWith(oErr: Error) {
         // memory.clearCache();
-        var err = exception.name + ' occurred in ' + exception.where + ':\n\n' + exception.message;
-        doh.out('');
-        doh.out('');
-        doh.out('');
-        doh.out('');
-        doh.out(err);
+        var err = oErr.name + ' occurred in ' + oErr.where + ':\n\n' + oErr.message;
+        DOpus.output('');
+        DOpus.output('');
+        DOpus.output('');
+        DOpus.output('');
+        DOpus.output(err);
         showMessageDialog(null, err);
-        throw exception;
+        throw oErr;
     }
 
     export function getUniqueID(simple = true):string {
@@ -304,4 +335,95 @@ namespace g {
         return _nowMD5.toString();
     }
 
+}
+
+
+
+namespace g {
+    // this namespace  wraps the sprintf.js as a TS namespace
+    // it's possible thanks to the genius solution from https://stackoverflow.com/a/54946767
+    const wrap = <T extends Array<any>, U>(fn: (...args: T) => U) => {
+        return (...args: T): U => fn(...args)
+    }
+    /**
+     *
+     * The placeholders in the format string are marked by % and are followed by one or more of these elements, in this order:
+     *
+     * An optional number followed by a $ sign that selects which argument index to use for the value. If not specified, arguments will be placed in the same order as the placeholders in the input string.
+     *
+     * An optional + sign that forces to precede the result with a plus or minus sign on numeric values. By default, only the - sign is used on negative numbers.
+     *
+     * An optional padding specifier that says what character to use for padding (if specified). Possible values are 0 or any other character preceded by a ' (single quote). The default is to pad with spaces.
+     *
+     * An optional - sign, that causes sprintf to left-align the result of this placeholder. The default is to right-align the result.
+     *
+     * An optional number, that says how many characters the result should have. If the value to be returned is shorter than this number, the result will be padded. When used with the j (JSON) type specifier, the padding length specifies the tab size used for indentation.
+     *
+     * An optional precision modifier, consisting of a . (dot) followed by a number, that says how many digits should be displayed for floating point numbers. When used with the g type specifier, it specifies the number of significant digits. When used on a string, it causes the result to be truncated.
+     *
+     * A type specifier that can be any of:
+     *
+     *  * **%** — yields a literal % character
+     *  * **b** — yields an integer as a binary number
+     *  * **c** — yields an integer as the character with that ASCII value
+     *  * **d** or i — yields an integer as a signed decimal number
+     *  * **e** — yields a float using scientific notation
+     *  * **u** — yields an integer as an unsigned decimal number
+     *  * **f** — yields a float as is; see notes on precision above
+     *  * **g** — yields a float as is; see notes on precision above
+     *  * **o** — yields an integer as an octal number
+     *  * **s** — yields a string as is
+     *  * **t** — yields true or false
+     *  * **T** — yields the type of the argument1
+     *  * **v** — yields the primitive value of the specified argument
+     *  * **x** — yields an integer as a hexadecimal number (lower-case)
+     *  * **X** — yields an integer as a hexadecimal number (upper-case)
+     *  * **j** — yields a JavaScript object or array as a JSON encoded string
+     * @param {string} key formatting string
+     * @param {any[]} arguments
+     * @returns string
+     */
+    export const sprintf: Function = wrap(sprintfjs.sprintf);
+    /**
+     *
+     * The placeholders in the format string are marked by % and are followed by one or more of these elements, in this order:
+     *
+     * An optional number followed by a $ sign that selects which argument index to use for the value. If not specified, arguments will be placed in the same order as the placeholders in the input string.
+     *
+     * An optional + sign that forces to precede the result with a plus or minus sign on numeric values. By default, only the - sign is used on negative numbers.
+     *
+     * An optional padding specifier that says what character to use for padding (if specified). Possible values are 0 or any other character preceded by a ' (single quote). The default is to pad with spaces.
+     *
+     * An optional - sign, that causes sprintf to left-align the result of this placeholder. The default is to right-align the result.
+     *
+     * An optional number, that says how many characters the result should have. If the value to be returned is shorter than this number, the result will be padded. When used with the j (JSON) type specifier, the padding length specifies the tab size used for indentation.
+     *
+     * An optional precision modifier, consisting of a . (dot) followed by a number, that says how many digits should be displayed for floating point numbers. When used with the g type specifier, it specifies the number of significant digits. When used on a string, it causes the result to be truncated.
+     *
+     * A type specifier that can be any of:
+     *
+     *  * **%** — yields a literal % character
+     *  * **b** — yields an integer as a binary number
+     *  * **c** — yields an integer as the character with that ASCII value
+     *  * **d** or i — yields an integer as a signed decimal number
+     *  * **e** — yields a float using scientific notation
+     *  * **u** — yields an integer as an unsigned decimal number
+     *  * **f** — yields a float as is; see notes on precision above
+     *  * **g** — yields a float as is; see notes on precision above
+     *  * **o** — yields an integer as an octal number
+     *  * **s** — yields a string as is
+     *  * **t** — yields true or false
+     *  * **T** — yields the type of the argument1
+     *  * **v** — yields the primitive value of the specified argument
+     *  * **x** — yields an integer as a hexadecimal number (lower-case)
+     *  * **X** — yields an integer as a hexadecimal number (upper-case)
+     *  * **j** — yields a JavaScript object or array as a JSON encoded string
+     * @param {string} key formatting string
+     * @param {any[]} arguments
+     * @returns string
+     */
+    export const vsprintf: Function = wrap(sprintfjs.vsprintf);
+    // not used at the moment
+    // export const sprintf_format: Function = wrap(sprintfjs.sprintf_format);
+    // export const sprintf_parse: Function  = wrap(sprintfjs.sprintf_parse);
 }

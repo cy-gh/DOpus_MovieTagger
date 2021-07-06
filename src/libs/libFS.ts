@@ -33,17 +33,17 @@ namespace fs {
         if (!isValidPath(path)) { return g.ResultErr(); }
 
         var fh = doh.fsu.openFile(path); // default read mode
-        if(fh.error !== 0) return g.ResultErr(libSprintfjs.sprintf('%s -- File exists but cannot be read - error: %s, file: %s', fnName, fh.error, path));
+        if(fh.error !== 0) return g.ResultErr(g.sprintf('%s -- File exists but cannot be read - error: %s, file: %s', fnName, fh.error, path));
 
         try {
             var blob = fh.read();
         } catch(e) {
-            return g.ResultErr(libSprintfjs.sprintf('%s -- FSUtil.Read() error: %s, file: %s', fnName, e.description, path));
+            return g.ResultErr(g.sprintf('%s -- FSUtil.Read() error: %s, file: %s', fnName, e.description, path));
         }
         try {
             var res = ''+doh.st.decode(blob, decodeFormat||FORMAT_FOR_DECODE); // "utf-8" seems to be standard, "auto" does not work for me
         } catch(e) {
-            return g.ResultErr(libSprintfjs.sprintf('%s -- StringTools.Decode() error: %s, file: %s', fnName, e.description, path));
+            return g.ResultErr(g.sprintf('%s -- StringTools.Decode() error: %s, file: %s', fnName, e.description, path));
         }
         blob.free();
         fh.close();
@@ -76,7 +76,7 @@ namespace fs {
         // wa: wa - create a new file, always. If the file already exists it will be overwritten. (This is the default.)
         var fh = doh.fsu.openFile(path, 'wa');
         if(fh.error !== 0) {
-            return g.ResultErr(libSprintfjs.sprintf('%s -- FSUtil.OpenFile() error: %s, file: %s', fnName, fh.error, path));
+            return g.ResultErr(g.sprintf('%s -- FSUtil.OpenFile() error: %s, file: %s', fnName, fh.error, path));
         }
         try {
             var numBytesWritten = fh.write(contents);
@@ -89,7 +89,7 @@ namespace fs {
             return g.ResultOk(numBytesWritten);
         } catch(e) {
             fh.close();
-            return g.ResultErr(libSprintfjs.sprintf('%s --  FSUtil.Write() error: %s, file: %s', fnName, e.description, path));
+            return g.ResultErr(g.sprintf('%s --  FSUtil.Write() error: %s, file: %s', fnName, e.description, path));
         }
     }
 
@@ -122,7 +122,7 @@ namespace fs {
     export function fileTail(filepath: string, maxwait: number, delayBetweenRetries?: number): { read: Function; } {
         const fnName = g.funcNameExtractor(arguments.callee, myName);
 
-        var swid    = libSprintfjs.sprintf('%s-%d-%s', fnName, g.now(), filepath),
+        var swid    = g.sprintf('%s-%d-%s', fnName, g.now(), filepath),
             filePtr = 0;
         let delay = delayBetweenRetries || 10;
 
@@ -147,21 +147,21 @@ namespace fs {
                 logger.sforce('%s -- monitoring file: %s', fnName, filepath);
 
                 var fh = doh.fsu.openFile(filepath);
-                if (fh.error) return g.ResultErr(libSprintfjs.sprintf('%s -- Cannot open file %s, Error: %s', fnName, fh.error));
+                if (fh.error) return g.ResultErr(g.sprintf('%s -- Cannot open file %s, Error: %s', fnName, fh.error));
 
                 var size = doh.getFileSize(filepath);
                 if (size === false) {
                     // this should never happen, we already opened the file
                     throw new exc.FileReadException('File size cannot be queried: ' + filepath, fnName);
                 }
-                if (filePtr >= size) return g.ResultErr(libSprintfjs.sprintf('%s -- File has been truncated since last attempt, last size: %d, now: %d', fnName, filePtr, size));
+                if (filePtr >= size) return g.ResultErr(g.sprintf('%s -- File has been truncated since last attempt, last size: %d, now: %d', fnName, filePtr, size));
 
                 fh.seek(filePtr);
                 logger.sforce('%s -- File change detected -- filesize: %d, filePtr: %d', fnName, size, filePtr);
 
                 var blob         = doh.dc.blob(),
                     numBytesRead = fh.read(blob);
-                if (!numBytesRead) return g.ResultErr(libSprintfjs.sprintf('%s -- File change detected but cannot read lines: %d', fnName, numBytesRead));
+                if (!numBytesRead) return g.ResultErr(g.sprintf('%s -- File change detected but cannot read lines: %d', fnName, numBytesRead));
 
                 var newLines = doh.st.decode(blob, FORMAT_FOR_DECODE);
 
