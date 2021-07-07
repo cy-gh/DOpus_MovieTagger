@@ -92,7 +92,7 @@
  *   // ...
  *   // required for setting up the config UI groups & descriptions
  *   // very important - if this is not called, you will not see the groups/descriptions
- *   config.user.finalize(); // will throw exception if initData is unset!
+ *   config.user.finalize(); // will return exception if initData is unset!
  *
  *   //
  *   // config.ext: Externally configured settings
@@ -102,7 +102,7 @@
  *   // or shorter
  *   config.ext.setInitData(initData).addPOJO('ext_config_pojo', objYourPOJO);
  *   // unlike config.user.finalize(), the config.ext.finalize() is unnecessary
- *   // and will throw exception if called
+ *   // and will return exception if called
  * ```
  *
  * The order in which you call config.user and config.ext methods doesn't matter.
@@ -235,7 +235,7 @@ namespace config {
          * so that we can determine if we are in development or released OSP mode.
          * @param {string} scriptID unique script ID, which will be used to store the script's fullpath from initData
          * @param {DOpusScriptInitData} initData got from DOpus OnInit() method
-         * @returns {this} for method chaining
+         * @returns this, for method chaining
          */
         setInitData(scriptID: string, initData: DOpusScriptInitData): this {
             this.initData = initData;
@@ -247,19 +247,18 @@ namespace config {
          * Reads the fullpath, path name and isOSP flag of this script.
          * The DOpusItem can be easily got with the fullpath and you have access to all other properties besides path.
          * @param {string} scriptID unique script ID, which will be used to retrieve the script's fullpath from initData
-         * @returns { { fullpath: string; path: string; name: string, isOSP: boolean } }
-         * @throws {exc.UninitializedException}
          */
-        getScriptPathVars(scriptID: string): { fullpath: string; path: string; isOSP: boolean; } {
+        getScriptPathVars(scriptID: string): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex.UninitializedException>> {
             const oThisScriptsPath:DOpusItem = doh.getGlobalVar(scriptID + Base.globalVarSuffix);
+
             if (!oThisScriptsPath) {
-                throw new exc.UninitializedException('InitData has not been set yet, call setInitData() in your OnInit() first', this.getScriptPathVars);
+                return UserExc(ex.UninitializedException, 'Base.getScriptPathVars', 'InitData has not been set yet, call setInitData() in your OnInit() first');
             }
-            return {
+            return g.ResultOk({
                 fullpath: (''+oThisScriptsPath.realpath),
                 path    : (''+oThisScriptsPath.path).normalizeTrailingBackslashes(),
                 isOSP   : (''+oThisScriptsPath.ext).toLowerCase() === '.osp'
-            };
+            });
         }
 
         /**
@@ -270,23 +269,26 @@ namespace config {
          * @param {string?} group group name on the configuration screen
          * @param {string?} desc description at the bottom of the configuration screen
          * @param {boolean=false} bypassValidation bypass validation
-         * @throws error (in ERROR_MODES.ERROR) if key already exists or value is invalid
-         * @throws {exc.UninitializedException}
          */
-         addValue(key: string, val: any, type: config.TYPE, binding?: string, group?: string, desc?: string, bypassValidation = false) {
+         addValue(key: string, val: any, type: config.TYPE, binding?: string, group?: string, desc?: string, bypassValidation = false)
+            : IResult<true, IException<ex.UninitializedException | ex.InvalidParameterValueException | ex.KeyAlreadyExistsException>> {
+            var msg;
             if (typeof this.initData === 'undefined') {
-                throw new exc.UninitializedException('InitData has not been set yet, call setInitData() in your OnInit() first', this.addValue);
+                return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
             }
-
             if (this.items.hasOwnProperty(key)) {
-                return this.showError(key + ' already exists');
+                msg = key + ' already exists';
+                this.showError(msg);
+                return UserExc(ex.KeyAlreadyExistsException, 'Base.AddValue', msg);
             }
             if (!!!bypassValidation && !this.isValid(val, type)) {
-                return this.showError('type ' + type + ' does not accept given value ' + val);
+                msg = 'type ' + type + ' does not accept given value ' + val;
+                this.showError(msg);
+                return UserExc(ex.InvalidParameterValueException, 'Base.AddValue', msg);
             }
             this.cntItems++;
             this.items[key] = <ConfigValue>{ val: val, default: val, type: type, binding: binding, group: group, desc: desc  };
-            return true;
+            return g.ResultOk(true);
         }
 
         /**
@@ -294,11 +296,10 @@ namespace config {
          *
          * setInitData() method **must** have been called before calling this method.
          * @see {config.setInitData}
-         * @throws {exc.UninitializedException}
          */
-        finalize() {
+        finalize(): IResult<true, IException<ex.UninitializedException>> {
             if (typeof this.initData === 'undefined') {
-                throw new exc.UninitializedException('InitData has not been set yet, call setInitData() in your OnInit() first', this.finalize);
+                return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
             }
             var config_groups = DOpus.create().map();
             var config_desc   = DOpus.create().map();
@@ -341,6 +342,7 @@ namespace config {
             this.initData.config_groups = config_groups;
             // @ts-ignore
             this.initData.config_desc   = config_desc;
+            return g.ResultOk(true);
         }
 
 
@@ -480,9 +482,9 @@ namespace config {
          */
         getType(key: string): config.TYPE | false {
             if (!this.items[key]) {
-                return this.showError(key + ' does not exist');
+                this.showError(key + ' does not exist');
+                return false;
             }
-            // return this.items[key].type;
             return this.items[key].type;
         }
         /**
@@ -491,7 +493,8 @@ namespace config {
          */
         getBinding(key: string): string | false {
             if (!this.items[key]) {
-                return this.showError(key + ' does not exist');
+                this.showError(key + ' does not exist');
+                return false;
             }
             return typeof this.items[key].binding;
         }
@@ -522,7 +525,6 @@ namespace config {
         }
         /**
          * @param {string} key config key
-         * @throws error (in ERROR_MODES.ERROR) if key does not exist
          */
         delKey(key: string) {
             if (!this.items.hasOwnProperty(key)) {
@@ -579,8 +581,8 @@ namespace config {
             // note there is no binding type, group, desc necessary for this method
             return super.addValue(key, {}, config.TYPE.POJO);
         }
-        finalize() {
-            throw new Error('This method should not be called for external files');
+        finalize(): IResult<true, IException<ex.UninitializedException>> {
+            return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
         }
     }
 

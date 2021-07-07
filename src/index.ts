@@ -81,6 +81,7 @@ enum CfgV {
 // CONFIG - DEFAULT VALUES
 function setupConfigVars(initData: DOpusScriptInitData) {
 
+
     let group = '';
 
 
@@ -128,7 +129,6 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         'Path to MediaInfo.exe; folder aliases and %envvar% are auto-resolved\nportable/CLI version can be downloaded from https://mediaarea.net/en/MediaInfo/Download/Windows',
         true);
     // config.addString('ref_mediainfo_download_url', 'https://mediaarea.net/en/MediaInfo/Download/Windows', 'REF_MEDIAINFO_DOWNLOAD_URL');
-
 
 
 
@@ -924,7 +924,6 @@ function OnInit(initData: DOpusScriptInitData) {
 
 
 
-
     _addCommand('DOpusMovieTagger_CustomCommand',
         CustomCommand,
         initData,
@@ -962,6 +961,9 @@ function OnInit(initData: DOpusScriptInitData) {
     // // }
     // DOpus.output('test -- key: ' + foo[foo.bar] + ', val: ' + foo.bar);
     // DOpus.output(JSON.stringify(foo, null, 4));
+
+    DOpus.output(ex.UninitializedException);
+    DOpus.output(JSON.stringify(ex, null, 4));
 
     DOpus.output('Script finished');
 
@@ -1003,6 +1005,11 @@ function CustomCommand() {
     const fnName = g.funcNameExtractor(CustomCommand);
     logger.sforce('%s -- started', fnName);
     var oScriptInfo = config.user.getScriptPathVars(Global.SCRIPT_NAME);
-    logger.sforce('%s -- script vars:\n%s', fnName, JSON.stringify(oScriptInfo, null, 4));
+
+    if (oScriptInfo.isErr()) {
+        // logger.serror('%s -- Error while getting the script vars: %s', fnName, Err[oScriptInfo.err]);
+        logger.serror('%s -- Error while getting the script vars: %s @ %s', fnName, oScriptInfo.err.message, oScriptInfo.err.where);
+    }
+    logger.sforce('%s -- script vars:\n%s', fnName, JSON.stringify(oScriptInfo.ok, null, 4));
     logger.sforce('%s -- finished', fnName);
 }

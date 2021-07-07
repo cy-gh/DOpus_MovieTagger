@@ -18,6 +18,18 @@
 
 
 /*
+        8888888888 888b    888 888     888 888b     d888  .d8888b.
+        888        8888b   888 888     888 8888b   d8888 d88P  Y88b
+        888        88888b  888 888     888 88888b.d88888 Y88b.
+        8888888    888Y88b 888 888     888 888Y88888P888  "Y888b.
+        888        888 Y88b888 888     888 888 Y888P 888     "Y88b.
+        888        888  Y88888 888     888 888  Y8P  888       "888
+        888        888   Y8888 Y88b. .d88P 888   "   888 Y88b  d88P
+        8888888888 888    Y888  "Y88888P"  888       888  "Y8888P"
+*/
+
+
+/*
     8888888 888b    888 88888888888 8888888888 8888888b.  8888888888     d8888  .d8888b.  8888888888  .d8888b.
       888   8888b   888     888     888        888   Y88b 888           d88888 d88P  Y88b 888        d88P  Y88b
       888   88888b  888     888     888        888    888 888          d88P888 888    888 888        Y88b.
@@ -28,12 +40,13 @@
     8888888 888    Y888     888     8888888888 888   T88b 888     d88P     888  "Y8888P"  8888888888  "Y8888P"
 */
 interface IResult<S,E> {
-    ok: S|false;
-    err: E|true;
+    ok: S;
+    err: E;
     stack: Array<any>;
     isOk(): boolean;
     isValid(): boolean;
     isErr(): boolean;
+    toString(): string;
 }
 
 interface String {
@@ -70,6 +83,124 @@ interface String {
     normalizeLeadingWhiteSpace(): string;
     substituteVars(): string;
 }
+
+
+
+/*
+        8888888888 Y88b   d88P  .d8888b.  8888888888 8888888b. 88888888888 8888888  .d88888b.  888b    888  .d8888b.
+        888         Y88b d88P  d88P  Y88b 888        888   Y88b    888       888   d88P" "Y88b 8888b   888 d88P  Y88b
+        888          Y88o88P   888    888 888        888    888    888       888   888     888 88888b  888 Y88b.
+        8888888       Y888P    888        8888888    888   d88P    888       888   888     888 888Y88b 888  "Y888b.
+        888           d888b    888        888        8888888P"     888       888   888     888 888 Y88b888     "Y88b.
+        888          d88888b   888    888 888        888           888       888   888     888 888  Y88888       "888
+        888         d88P Y88b  Y88b  d88P 888        888           888       888   Y88b. .d88P 888   Y8888 Y88b  d88P
+        8888888888 d88P   Y88b  "Y8888P"  8888888888 888           888     8888888  "Y88888P"  888    Y888  "Y8888P"
+*/
+
+/**
+ * Rust-like value returning exceptions, to be used in Results.
+ *
+ * e.g.
+ * ```typescript
+ *   // in some method
+ *   return
+ *
+ *
+ *   if (myIResultVar.err === err.JSONParsingException) { ... }
+ * ```
+ *
+ *
+ * Never use the assigned values, e.g. 1, 2, 3
+ * the order, thus the assigned values, might be changed any time.
+ *
+ * @see {IResult}
+ */
+
+/**
+ * @param {function} fnCaller
+ * @param {string} message
+ * @param {string|function} where
+ * @constructor
+ */
+ interface IException<T> {
+    // readonly type: Err;
+    readonly name: string;
+    readonly message: string;
+    readonly where: string;
+}
+// declare var IUserException: {
+//     /**
+//      * @param {string} streamName name to use, no : or $DATA necessary
+//      * @constructor
+//      */
+//     new(streamName: string): IUserException;
+// }
+class UserException implements IException<ex> {
+    // public readonly type: Err;
+    public readonly name: string;
+    public readonly where: string;
+    public readonly message: string;
+    /**
+     * @param {ex} type
+     * @param {string | Function} where
+     * @param {string} message
+     * @constructor
+     */
+    constructor (type: ex, where: string | Function, message?: string) {
+        DOpus.output('Err: ' + ex[type]);
+        // this.type    = type;
+        this.name    = ex[type];
+        // this.message = message + ' - added by UserException';
+
+        this.where   = typeof where === 'string' ? where : g.funcNameExtractor(where);
+        DOpus.output('typeof where: ' + typeof where);
+        DOpus.output('where: ' + where);
+        this.message = message + ' - added by UserException';
+
+    }
+}
+function UserExc(type: ex, where: string | Function, message?: string): IResult<any, IException<ex>> {
+    return new g.Result(false, new UserException(type, where, message));
+}
+
+enum ex {
+    /** Method/function not implemented yet */
+    NotImplementedYetException,
+    /** Requirements  have not been initialized yet  */
+    UninitializedException,
+    /** The dev made a stupid mistake, it's a bug that should have been caught */
+    DeveloperStupidityException,
+    /** MTH Manager does not recognize given command */
+    InvalidManagerCommandException,
+    /** Given string is not valid JSON */
+    JSONParsingException,
+    /** Given parameter type does not match expected type */
+    InvalidParameterTypeException,
+    /** Given parameter value is not accepted */
+    InvalidParameterValueException,
+    /** Errors while reading from or writing into ADS stream */
+    StreamReadWriteException,
+    /** File could not be created */
+    FileCreateException,
+    /** File could not be read */
+    FileReadException,
+
+
+    InvalidFormatException,
+    UnsupportedFormatException,
+    ThreadPoolMissException,
+    InvalidNumberException,
+    UserAbortedException,
+    SanityCheckException,
+    KeyAlreadyExistsException,
+    KeyDoesNotExistException,
+    InvalidUserParameterException,
+}
+
+// https://stackoverflow.com/a/62764510
+// https://robinpokorny.com/blog/typescript-enums-i-want-to-actually-use/
+type anyEx = typeof ex[keyof typeof ex];
+
 
 
 /*
@@ -147,8 +278,7 @@ String.prototype.substituteVars = function () {
 String.prototype.asInt = function () {
     var num = parseInt(this.valueOf(), 10);
     if (isNaN(num)) {
-        // abortWith(new InvalidNumberException('This string cannot be parsed as a number: ' + this.valueOf(), 'asInt'));
-        throw new exc.InvalidNumberException('This string cannot be parsed as a number: ' + this.valueOf(), 'asInt');
+        throw new UserException(ex.InvalidNumberException, 'asInt', 'This string cannot be parsed as a number: ' + this.valueOf());
     }
     return num;
 };
@@ -172,9 +302,6 @@ namespace g {
                     Y8P   d88P     888 888   T88b  "Y8888P"
     */
 
-    // self-explanatory
-    // var SYSTEMP = '%TEMP%';
-    // SYSTEMP = (''+doh.shell.ExpandEnvironmentStrings(SYSTEMP));
     /**
      * System temp directory, resolved from %TEMP%
      * @type {string}
@@ -198,12 +325,12 @@ namespace g {
      * @param {any} errValue value on error/failure
      */
     export class Result<S, E> implements IResult<S, E> {
-        ok   : S|false;
-        err  : E|true;
+        ok   : S;
+        err  : E;
         stack: any[];
         constructor(oOKValue: S, oErrValue: E) {
-            this.ok    = typeof oOKValue !== 'undefined' ? oOKValue : false;
-            this.err   = typeof oErrValue!== 'undefined' ? oErrValue : true;
+            this.ok    = oOKValue;   // typeof oOKValue !== 'undefined' ? oOKValue : false;
+            this.err   = oErrValue;  // typeof oErrValue!== 'undefined' ? oErrValue : true;
             this.stack = [];
         }
         // note this one does not allow any falsy value for OK at all
@@ -311,7 +438,7 @@ namespace g {
      * @param {any=} addInfo
      * @returns {Result}
      */
-    export function ResultOk(okValue?: any, addInfo?: any): Result<any, any> {
+    export function ResultOk(okValue?: any, addInfo?: any): IResult<typeof okValue, any> {
         // return new Result(okValue||true, false);
         // var res = okValue instanceof Result ? okValue : new Result(okValue||true, false);
         var res = okValue instanceof Result ? okValue : new Result(okValue !== undefined ? okValue : true, undefined);
@@ -326,7 +453,7 @@ namespace g {
      * @param {any=} addInfo
      * @returns {Result}
      */
-    export function ResultErr(errValue?: any, addInfo?: any): Result<any, any> {
+    export function ResultErr(errValue?: any, addInfo?: any): Result<any, typeof errValue> {
         // return new Result(false, errValue||true);
         // var res = errValue instanceof Result ? errValue : new Result(false, errValue||true);
         var res = errValue instanceof Result ? errValue : new Result(undefined, errValue !== undefined ? errValue : true);
