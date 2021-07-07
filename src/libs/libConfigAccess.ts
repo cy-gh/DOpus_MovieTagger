@@ -3,35 +3,6 @@
 ///<reference path='./libDOpusHelper.ts' />
 ///<reference path='./libExceptions.ts' />
 
-interface String {
-    normalizeLeadingWhiteSpace(): string;
-    substituteVars(): string;
-}
-
-// methods for pseudo-HEREDOCs
-String.prototype.normalizeLeadingWhiteSpace = function () {
-    // the §s help with avoiding backtracking
-    return this
-        // .trim()
-        .replace(/^\t\t\t|^ {12}/mg, '§§§')
-        .replace(/^\t\t|^ {8}/mg, '§§')
-        .replace(/^\t|^ {4}/mg, '§')
-        .replace(/^§§§/mg, '    ')
-        .replace(/^§§/mg, '  ')
-        .replace(/^§/mg, '')
-        .trim()
-        .replace(/\n/g, '\r\n')
-        .replace(/\n\n/g, '\n')
-        ;
-};
-String.prototype.substituteVars = function () {
-    return this.replace(/\${([^}]+)}/g, function (match, p1) {
-        return typeof eval(p1) !== 'undefined'
-            ? eval(p1)
-            : 'undefined';
-    });
-};
-
 
 /**
  * # What is it?
@@ -262,7 +233,6 @@ namespace config {
          *
          * It also sets a global variable in the global DOpus memory with the fullpath of this script
          * so that we can determine if we are in development or released OSP mode.
-         *
          * @param {string} scriptID unique script ID, which will be used to store the script's fullpath from initData
          * @param {DOpusScriptInitData} initData got from DOpus OnInit() method
          * @returns {this} for method chaining
@@ -276,7 +246,6 @@ namespace config {
         /**
          * Reads the fullpath, path name and isOSP flag of this script.
          * The DOpusItem can be easily got with the fullpath and you have access to all other properties besides path.
-         *
          * @param {string} scriptID unique script ID, which will be used to retrieve the script's fullpath from initData
          * @returns { { fullpath: string; path: string; name: string, isOSP: boolean } }
          * @throws {exc.UninitializedException}
@@ -448,7 +417,6 @@ namespace config {
         /**
          * auto-checks the current Script.config value this key is bound to
          * and returns the current value if valid and default value if invalid
-         *
          * @param {string} key config key
          * @param {boolean=true} autoGetDOpusValue get the Script.config value automatically, use false to get stored value
          * @returns {any} config value
@@ -562,11 +530,6 @@ namespace config {
             }
             this.cntItems--;
             delete this.items[key];
-            // var _tmp = this.items[key].val;
-            // delete this.items[key].val;
-            // delete this.items[key].type;
-            // delete this.items[key].binding;
-            // return _tmp;
         }
         delValue = this.delKey;
         /**

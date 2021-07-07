@@ -1,6 +1,4 @@
-///<reference path='./libExceptions.ts' />
-///<reference path='./libDOpusHelper.ts' />
-
+/* global DOpus */
 
 type sizeUnit = [string, number];
 type sizeUnits = {
@@ -64,30 +62,6 @@ interface Number {
      */
     formatAsDateDOpus(): string;
 }
-
-interface String {
-    /**
-     * makes sure that the paths always have a trailing backslash but no doubles
-     * this happens mainly because the oItem.path does not return a trailing slash for any directory
-     * other than root dir of a drive, i.e. it returns Y:\Subdir (no BS) but Y:\ (with BS)
-     */
-    normalizeTrailingBackslashes(): string;
-
-    /**
-     * substitutes variables - Only Global ones - in the given string
-     * e.g.
-     * my name is: ${Global.SCRIPT_NAME}
-     */
-    substituteVars(): string;
-
-    /**
-     * parses string as number in base 10
-     * e.g.
-     * cmdData.func.args.MAXCOUNT.asInt()
-     */
-    asInt(): number;
-}
-
 
 const sizeUnits:sizeUnits = {
     'B' : [ 'B', 0],
@@ -186,30 +160,5 @@ Number.prototype.formatAsDateDOpus = function () {
  * Note that, this works only for DOpusDate not JS Date!
  */
 function DateToDOpusFormat(oItemDate: Date) {
-    return doh.dc.date(oItemDate).format('D#yyyy-MM-dd T#HH:mm:ss');
+    return DOpus.create().date(oItemDate).format('D#yyyy-MM-dd T#HH:mm:ss');
 }
-
-/**
- * Makes sure that the paths always have 1 trailing backslash but no doubles.
- * This happens mainly because the oItem.path does not return a trailing slash
- * for any directory other than root dir of a drive,
- * i.e. it returns Y:\Subdir (no backslash) but Y:\ (with backslash)
- */
-String.prototype.normalizeTrailingBackslashes = function () {
-    return (this + '\\').replace(/\\\\/g, '\\').replace(/^\\$/, '');
-};
-
-/** A shorter, type-safe alternative to parseInt */
-String.prototype.asInt = function () {
-    var num = parseInt(this.valueOf(), 10);
-    if (isNaN(num)) {
-        // abortWith(new InvalidNumberException('This string cannot be parsed as a number: ' + this.valueOf(), 'asInt'));
-        throw new exc.InvalidNumberException('This string cannot be parsed as a number: ' + this.valueOf(), 'asInt');
-    }
-    return num;
-};
-
-/** Trim for JScript */
-String.prototype.trim = function () {
-    return this.replace(/^\s+|\s+$/g, ''); // not even trim() JScript??
-};

@@ -41,9 +41,122 @@ interface String {
 }
 
 interface Error {
+    // add where for custom exceptions
     where: string;
 }
 
+interface String {
+    /**
+     * makes sure that the paths always have a trailing backslash but no doubles
+     * this happens mainly because the oItem.path does not return a trailing slash for any directory
+     * other than root dir of a drive, i.e. it returns Y:\Subdir (no BS) but Y:\ (with BS)
+     */
+    normalizeTrailingBackslashes(): string;
+
+    /**
+     * substitutes variables - Only Global ones - in the given string
+     * e.g.
+     * my name is: ${Global.SCRIPT_NAME}
+     */
+    substituteVars(): string;
+
+    /**
+     * parses string as number in base 10
+     * e.g.
+     * cmdData.func.args.MAXCOUNT.asInt()
+     */
+    asInt(): number;
+
+    normalizeLeadingWhiteSpace(): string;
+    substituteVars(): string;
+}
+
+
+/*
+     .d8888b. 88888888888 8888888b.       .d88888b.  888888b. 888888         8888888888 Y88b   d88P 88888888888
+    d88P  Y88b    888     888  "Y88b     d88P" "Y88b 888  "88b  "88b         888         Y88b d88P      888
+    Y88b.         888     888    888     888     888 888  .88P   888         888          Y88o88P       888
+     "Y888b.      888     888    888     888     888 8888888K.   888         8888888       Y888P        888
+        "Y88b.    888     888    888     888     888 888  "Y88b  888         888           d888b        888
+          "888    888     888    888     888     888 888    888  888         888          d88888b       888
+    Y88b  d88P    888     888  .d88P     Y88b. .d88P 888   d88P  88P d8b     888         d88P Y88b      888   d8b
+     "Y8888P"     888     8888888P"       "Y88888P"  8888888P"   888 Y8P     8888888888 d88P   Y88b     888   Y8P
+                                                               .d88P
+                                                             .d88P"
+                                                            888P"
+*/
+
+// methods for pseudo-HEREDOCs
+String.prototype.normalizeLeadingWhiteSpace = function () {
+    // the §s help with avoiding backtracking
+    return this
+        // .trim()
+        .replace(/^\t\t\t|^ {12}/mg, '§§§')
+        .replace(/^\t\t|^ {8}/mg, '§§')
+        .replace(/^\t|^ {4}/mg, '§')
+        .replace(/^§§§/mg, '    ')
+        .replace(/^§§/mg, '  ')
+        .replace(/^§/mg, '')
+        .trim()
+        .replace(/\n/g, '\r\n')
+        .replace(/\n\n/g, '\n')
+        ;
+};
+String.prototype.substituteVars = function () {
+    return this.replace(/\${([^}]+)}/g, function (match, p1) {
+        return typeof eval(p1) !== 'undefined'
+            ? eval(p1)
+            : 'undefined';
+    });
+};
+// methods for pseudo-HEREDOCs
+String.prototype.normalizeLeadingWhiteSpace = function () {
+    // the §s help with avoiding backtracking
+    return this
+        // .trim()
+        .replace(/^\t\t\t|^ {12}/mg, '§§§')
+        .replace(/^\t\t|^ {8}/mg, '§§')
+        .replace(/^\t|^ {4}/mg, '§')
+        .replace(/^§§§/mg, '    ')
+        .replace(/^§§/mg, '  ')
+        .replace(/^§/mg, '')
+        .trim()
+        .replace(/\n/g, '\r\n')
+        .replace(/\n\n/g, '\n')
+        ;
+};
+/**
+ * Makes sure that the paths always have 1 trailing backslash but no doubles.
+ * This happens mainly because the oItem.path does not return a trailing slash
+ * for any directory other than root dir of a drive,
+ * i.e. it returns Y:\Subdir (no backslash) but Y:\ (with backslash)
+ */
+ String.prototype.normalizeTrailingBackslashes = function () {
+    return (this + '\\').replace(/\\\\/g, '\\').replace(/^\\$/, '');
+};
+
+String.prototype.substituteVars = function () {
+    return this.replace(/\${([^}]+)}/g, function (match, p1) {
+        return typeof eval(p1) !== 'undefined'
+            ? eval(p1)
+            : 'undefined';
+    });
+};
+
+/** A shorter, type-safe alternative to parseInt */
+String.prototype.asInt = function () {
+    var num = parseInt(this.valueOf(), 10);
+    if (isNaN(num)) {
+        // abortWith(new InvalidNumberException('This string cannot be parsed as a number: ' + this.valueOf(), 'asInt'));
+        throw new exc.InvalidNumberException('This string cannot be parsed as a number: ' + this.valueOf(), 'asInt');
+    }
+    return num;
+};
+
+/** Trim for JScript */
+String.prototype.trim = function () {
+    return this.replace(/^\s+|\s+$/g, ''); // not even trim() JScript??
+};
 
 
 namespace g {
