@@ -123,20 +123,13 @@ interface String {
  * @constructor
  */
  interface IException<T> {
-    // readonly type: Err;
+    readonly type: T;
     readonly name: string;
     readonly message: string;
     readonly where: string;
 }
-// declare var IUserException: {
-//     /**
-//      * @param {string} streamName name to use, no : or $DATA necessary
-//      * @constructor
-//      */
-//     new(streamName: string): IUserException;
-// }
 class UserException implements IException<ex> {
-    // public readonly type: Err;
+    public readonly type: ex;
     public readonly name: string;
     public readonly where: string;
     public readonly message: string;
@@ -147,16 +140,10 @@ class UserException implements IException<ex> {
      * @constructor
      */
     constructor (type: ex, where: string | Function, message?: string) {
-        DOpus.output('Err: ' + ex[type]);
-        // this.type    = type;
+        this.type    = type;
         this.name    = ex[type];
-        // this.message = message + ' - added by UserException';
-
         this.where   = typeof where === 'string' ? where : g.funcNameExtractor(where);
-        DOpus.output('typeof where: ' + typeof where);
-        DOpus.output('where: ' + where);
-        this.message = message + ' - added by UserException';
-
+        this.message = message || '<no message passed>';
     }
 }
 function UserExc(type: ex, where: string | Function, message?: string): IResult<any, IException<ex>> {
@@ -166,7 +153,7 @@ function UserExc(type: ex, where: string | Function, message?: string): IResult<
 enum ex {
     /** Method/function not implemented yet */
     NotImplementedYetException,
-    /** Requirements  have not been initialized yet  */
+    /** Requirements have not been initialized yet  */
     UninitializedException,
     /** The dev made a stupid mistake, it's a bug that should have been caught */
     DeveloperStupidityException,
@@ -196,10 +183,6 @@ enum ex {
     KeyDoesNotExistException,
     InvalidUserParameterException,
 }
-
-// https://stackoverflow.com/a/62764510
-// https://robinpokorny.com/blog/typescript-enums-i-want-to-actually-use/
-type anyEx = typeof ex[keyof typeof ex];
 
 
 
@@ -327,7 +310,7 @@ namespace g {
     export class Result<S, E> implements IResult<S, E> {
         ok   : S;
         err  : E;
-        stack: any[];
+        stack: Array<any>;
         constructor(oOKValue: S, oErrValue: E) {
             this.ok    = oOKValue;   // typeof oOKValue !== 'undefined' ? oOKValue : false;
             this.err   = oErrValue;  // typeof oErrValue!== 'undefined' ? oErrValue : true;

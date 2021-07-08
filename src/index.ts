@@ -962,13 +962,13 @@ function OnInit(initData: DOpusScriptInitData) {
     // DOpus.output('test -- key: ' + foo[foo.bar] + ', val: ' + foo.bar);
     // DOpus.output(JSON.stringify(foo, null, 4));
 
-    DOpus.output(ex.UninitializedException);
-    DOpus.output(JSON.stringify(ex, null, 4));
+    // DOpus.output(ex.UninitializedException);
+    // DOpus.output(JSON.stringify(ex, null, 4));
+
 
     DOpus.output('Script finished');
 
 }
-
 
 
 /**
@@ -1004,11 +1004,14 @@ function _addCommand(name: string, fnFunction: Function, initData: DOpusScriptIn
 function CustomCommand() {
     const fnName = g.funcNameExtractor(CustomCommand);
     logger.sforce('%s -- started', fnName);
-    var oScriptInfo = config.user.getScriptPathVars(Global.SCRIPT_NAME);
 
+    var oScriptInfo = config.user.getScriptPathVars(Global.SCRIPT_NAME);
     if (oScriptInfo.isErr()) {
         // logger.serror('%s -- Error while getting the script vars: %s', fnName, Err[oScriptInfo.err]);
+        logger.serror('%s -- Error:', JSON.stringify(oScriptInfo, null, 4));
+        logger.serror('%s -- Error type: %s, name: %s, where: %s, message: %s', 'caller', oScriptInfo.err.type, oScriptInfo.err.name, oScriptInfo.err.where, oScriptInfo.err.message);
         logger.serror('%s -- Error while getting the script vars: %s @ %s', fnName, oScriptInfo.err.message, oScriptInfo.err.where);
+        return;
     }
     logger.sforce('%s -- script vars:\n%s', fnName, JSON.stringify(oScriptInfo.ok, null, 4));
     logger.sforce('%s -- finished', fnName);
