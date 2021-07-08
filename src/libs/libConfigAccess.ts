@@ -248,7 +248,7 @@ namespace config {
          * The DOpusItem can be easily got with the fullpath and you have access to all other properties besides path.
          * @param {string} scriptID unique script ID, which will be used to retrieve the script's fullpath from initData
          */
-        getScriptPathVars(scriptID: string): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex.UninitializedException>> {
+        getScriptPathVars(scriptID: string): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
             const oThisScriptsPath:DOpusItem = doh.getGlobalVar(scriptID + Base.globalVarSuffix);
 
             if (!oThisScriptsPath) {
@@ -271,7 +271,7 @@ namespace config {
          * @param {boolean=false} bypassValidation bypass validation
          */
          addValue(key: string, val: any, type: config.TYPE, binding?: string, group?: string, desc?: string, bypassValidation = false)
-            : IResult<true, IException<ex.UninitializedException | ex.InvalidParameterValueException | ex.KeyAlreadyExistsException>> {
+            : IResult<true, IException<ex>> {
             var msg;
             if (typeof this.initData === 'undefined') {
                 return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
@@ -297,7 +297,7 @@ namespace config {
          * setInitData() method **must** have been called before calling this method.
          * @see {config.setInitData}
          */
-        finalize(): IResult<true, IException<ex.UninitializedException>> {
+        finalize(): IResult<true, IException<ex>> {
             if (typeof this.initData === 'undefined') {
                 return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
             }
@@ -581,7 +581,7 @@ namespace config {
             // note there is no binding type, group, desc necessary for this method
             return super.addValue(key, {}, config.TYPE.POJO);
         }
-        finalize(): IResult<true, IException<ex.UninitializedException>> {
+        finalize(): IResult<true, IException<ex>> {
             return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
         }
     }
