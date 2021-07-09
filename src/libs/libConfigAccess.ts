@@ -192,6 +192,7 @@ namespace config {
     }
     export enum ERROR_MODE {
         NONE     = 'NONE',
+        RESULT   = 'RESULT',
         ERROR    = 'ERROR',
         DIALOG   = 'DIALOG',
     }
@@ -364,9 +365,10 @@ namespace config {
         getErrorMode(): config.ERROR_MODE {
             return this.defaultErrorMode;
         }
-        showError(msg: string): false {
+        showError(msg: string): false|IResult<any, string> {
             switch (this.defaultErrorMode) {
                 case ERROR_MODE.NONE: return false;           // you can use this as: if(!addBoolean(...)) {/*error*/}
+                case ERROR_MODE.RESULT: return g.ResultErr(msg);  // mainly for development
                 case ERROR_MODE.ERROR: throw new Error(msg);  // mainly for development
                 case ERROR_MODE.DIALOG: { g.showMessageDialog(null, msg); return false; }
             }

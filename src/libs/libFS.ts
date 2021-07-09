@@ -118,8 +118,10 @@ namespace fs {
      * @param {number} maxwait in millisecs
      * @param {number=} delayBetweenRetries in millisecs, default 10
      * @returns {{read: function}}
+     * @deprecated
      */
-    export function fileTail(filepath: string, maxwait: number, delayBetweenRetries?: number): { read: Function; } {
+    // export
+    function fileTail(filepath: string, maxwait: number, delayBetweenRetries?: number): { read: Function; } {
         const fnName = g.funcNameExtractor(arguments.callee, myName);
 
         var swid    = g.sprintf('%s-%d-%s', fnName, g.now(), filepath),

@@ -122,10 +122,14 @@ interface String {
  * @param {string|function} where
  * @constructor
  */
- interface IException<T> {
+interface IException<T> {
+    /** Internal type number, never use it directly/hard-coded */
     readonly type: T;
+    /** Exception name, e.g. 'NotImplementedYetException' */
     readonly name: string;
+    /** Message from the exception raiser */
     readonly message: string;
+    /** Where the exception has occurred; this is not automatically set, i.e. it's up to the raiser to set this correctly */
     readonly where: string;
 }
 class UserException implements IException<ex> {
@@ -134,9 +138,9 @@ class UserException implements IException<ex> {
     public readonly where: string;
     public readonly message: string;
     /**
-     * @param {ex} type
-     * @param {string | Function} where
-     * @param {string} message
+     * @param {ex} type enum type number
+     * @param {string | Function} where the exception occurred, if function is passed, it will be attempted to extract the name, may fail anonymous and class member functions
+     * @param {string} message exception details
      * @constructor
      */
     constructor (type: ex, where: string | Function, message?: string) {
@@ -223,39 +227,17 @@ String.prototype.substituteVars = function () {
             : 'undefined';
     });
 };
-// methods for pseudo-HEREDOCs
-String.prototype.normalizeLeadingWhiteSpace = function () {
-    // the §s help with avoiding backtracking
-    return this
-        // .trim()
-        .replace(/^\t\t\t|^ {12}/mg, '§§§')
-        .replace(/^\t\t|^ {8}/mg, '§§')
-        .replace(/^\t|^ {4}/mg, '§')
-        .replace(/^§§§/mg, '    ')
-        .replace(/^§§/mg, '  ')
-        .replace(/^§/mg, '')
-        .trim()
-        .replace(/\n/g, '\r\n')
-        .replace(/\n\n/g, '\n')
-        ;
-};
+
 /**
  * Makes sure that the paths always have 1 trailing backslash but no doubles.
  * This happens mainly because the oItem.path does not return a trailing slash
  * for any directory other than root dir of a drive,
  * i.e. it returns Y:\Subdir (no backslash) but Y:\ (with backslash)
  */
- String.prototype.normalizeTrailingBackslashes = function () {
+String.prototype.normalizeTrailingBackslashes = function () {
     return (this + '\\').replace(/\\\\/g, '\\').replace(/^\\$/, '');
 };
 
-String.prototype.substituteVars = function () {
-    return this.replace(/\${([^}]+)}/g, function (match, p1) {
-        return typeof eval(p1) !== 'undefined'
-            ? eval(p1)
-            : 'undefined';
-    });
-};
 
 /** A shorter, type-safe alternative to parseInt */
 String.prototype.asInt = function () {
@@ -266,10 +248,194 @@ String.prototype.asInt = function () {
     return num;
 };
 
-/** Trim for JScript */
-String.prototype.trim = function () {
-    return this.replace(/^\s+|\s+$/g, ''); // not even trim() JScript??
-};
+// /** Trim for JScript */
+// String.prototype.trim = function () {
+//     return this.replace(/^\s+|\s+$/g, ''); // not even trim() JScript??
+// };
+// better alternative
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
+if (!String.prototype.trim) {
+    String.prototype.trim = function () {
+        return this.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
+    };
+}
+
+
+// From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys
+if (!Object.keys) {
+    Object.keys = (function () {
+        'use strict';
+        var hasOwnProperty = Object.prototype.hasOwnProperty,
+            hasDontEnumBug = !({ toString: null }).propertyIsEnumerable('toString'),
+            dontEnums = [
+                'toString',
+                'toLocaleString',
+                'valueOf',
+                'hasOwnProperty',
+                'isPrototypeOf',
+                'propertyIsEnumerable',
+                'constructor'
+            ],
+            dontEnumsLength = dontEnums.length;
+
+        return function (obj: any) {
+            if (typeof obj !== 'function' && (typeof obj !== 'object' || obj === null)) {
+                throw new TypeError('Object.keys called on non-object');
+            }
+
+            var result = [], prop, i;
+
+            for (prop in obj) {
+                if (hasOwnProperty.call(obj, prop)) {
+                    result.push(prop);
+                }
+            }
+
+            if (hasDontEnumBug) {
+                for (i = 0; i < dontEnumsLength; i++) {
+                    if (hasOwnProperty.call(obj, dontEnums[i])) {
+                        result.push(dontEnums[i]);
+                    }
+                }
+            }
+            return result;
+        };
+    }());
+}
+
+
+// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter
+if (!Array.prototype.filter) {
+    Array.prototype.filter = function (func: Function, thisArg: undefined) {
+        'use strict';
+        // @ts-ignore
+        if (!((typeof func === 'Function' || typeof func === 'function') && this))
+            throw new TypeError();
+
+        var len = this.length >>> 0,
+            res = new Array(len), // preallocate array
+            t = this, c = 0, i = -1;
+
+        var kValue;
+        if (thisArg === undefined) {
+            while (++i !== len) {
+                // checks to see if the key was set
+                if (i in this) {
+                    kValue = t[i]; // in case t is changed in callback
+                    if (func(t[i], i, t)) {
+                        res[c++] = kValue;
+                    }
+                }
+            }
+        }
+        else {
+            while (++i !== len) {
+                // checks to see if the key was set
+                if (i in this) {
+                    kValue = t[i];
+                    if (func.call(thisArg, t[i], i, t)) {
+                        res[c++] = kValue;
+                    }
+                }
+            }
+        }
+
+        res.length = c; // shrink down array to proper size
+        return res;
+    };
+}
+
+// from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map
+// Production steps of ECMA-262, Edition 5, 15.4.4.19
+// Reference: https://es5.github.io/#x15.4.4.19
+if (!Array.prototype.map) {
+
+    Array.prototype.map = function (callback/*, thisArg*/) {
+
+        var T, A, k;
+
+        if (this == null) {
+            throw new TypeError('this is null or not defined');
+        }
+
+        // 1. Let O be the result of calling ToObject passing the |this|
+        //    value as the argument.
+        var O = Object(this);
+
+        // 2. Let lenValue be the result of calling the Get internal
+        //    method of O with the argument "length".
+        // 3. Let len be ToUint32(lenValue).
+        var len = O.length >>> 0;
+
+        // 4. If IsCallable(callback) is false, throw a TypeError exception.
+        // See: https://es5.github.com/#x9.11
+        if (typeof callback !== 'function') {
+            throw new TypeError(callback + ' is not a function');
+        }
+
+        // 5. If thisArg was supplied, let T be thisArg; else let T be undefined.
+        if (arguments.length > 1) {
+            T = arguments[1];
+        }
+
+        // 6. Let A be a new array created as if by the expression new Array(len)
+        //    where Array is the standard built-in constructor with that name and
+        //    len is the value of len.
+        A = new Array(len);
+
+        // 7. Let k be 0
+        k = 0;
+
+        // 8. Repeat, while k < len
+        while (k < len) {
+
+            var kValue, mappedValue;
+
+            // a. Let Pk be ToString(k).
+            //   This is implicit for LHS operands of the in operator
+            // b. Let kPresent be the result of calling the HasProperty internal
+            //    method of O with argument Pk.
+            //   This step can be combined with c
+            // c. If kPresent is true, then
+            if (k in O) {
+
+                // i. Let kValue be the result of calling the Get internal
+                //    method of O with argument Pk.
+                kValue = O[k];
+
+                // ii. Let mappedValue be the result of calling the Call internal
+                //     method of callback with T as the this value and argument
+                //     list containing kValue, k, and O.
+                mappedValue = callback.call(T, kValue, k, O);
+
+                // iii. Call the DefineOwnProperty internal method of A with arguments
+                // Pk, Property Descriptor
+                // { Value: mappedValue,
+                //   Writable: true,
+                //   Enumerable: true,
+                //   Configurable: true },
+                // and false.
+
+                // In browsers that support Object.defineProperty, use the following:
+                // Object.defineProperty(A, k, {
+                //   value: mappedValue,
+                //   writable: true,
+                //   enumerable: true,
+                //   configurable: true
+                // });
+
+                // For best browser support, use the following:
+                A[k] = mappedValue;
+            }
+            // d. Increase k by 1.
+            k++;
+        }
+
+        // 9. return A
+        return A;
+    };
+}
+
 
 
 namespace g {
@@ -500,6 +666,137 @@ namespace g {
         }
         return obj;
     }
+
+
+    /**
+     * Split the keys & values of given enum and returns as sorted arrays
+     *
+     * Given
+     * ```typescript
+     *   enum foo1 { key1, key2 }
+     *   enum foo2 { key1 = 3, key2 = 2 }
+     *   enum foo3 { key1 = 'val1', key2 = 'val2' }
+     * ```
+     *
+     * An object with 2 parts are returned
+     * ```typescript
+     *   { keys: keyArray[], vals: valsArray[] }
+     * ```
+     *
+     * Keys
+     * ```typescript
+     *   foo1 => [ key1, key2 ]
+     *   foo2 => [ key1, key2 ]
+     *   foo3 => [ key1, key2 ]
+     * ```
+     *
+     * Vals
+     * ```typescript
+     *   foo1 => [ 0, 1 ]
+     *   foo2 => [ 3, 2 ]
+     *   foo3 => [ 'val1', 'val2' ]
+     * ```
+     *
+     * @throws Exception when empty enum is passed
+     *
+     * @example
+     *   // caller method
+     *   public getKeys(): LOGLEVEL[] {
+     *       return g.splitEnum(LOGLEVEL).keys as unknown as LOGLEVEL[];
+     *   }
+     * @param enumObject enum object, MUST be non-empty
+     * @returns Object.<keys: keyof typeof enumObject[], vals: typeof enumObject[]>
+     */
+    export function splitEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: typeof enumObject[]} {
+        // from https://github.com/Microsoft/TypeScript/issues/17198#issuecomment-315400819
+        // combined with type conversion (from standard string to Enum[])
+        // it's not the most elegant solution
+        // but it tries hard to prevent passing an enum to one of the explicitly-typed splitEnum methods below
+        // which I commented out but kept for later reference
+        //
+        // first try the number-valued enums e.g. enum foo1 { key1, key2 };
+        var keys: typeof enumObject[] = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'number');
+        if (!keys.length) {
+            // we failed, try the string-valued enums e.g. enum foo2 { key1 = 'val1', key2 = 'val2' };
+            keys = <typeof enumObject[]> Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'string');
+        }
+        if (!keys.length) {
+            throw new Error('splitEnum(): empty or unknown enum passed, cannot continue!');
+        }
+        const vals = keys.map(k => enumObject[k as any]);
+        // @ts-ignore
+        return { keys: keys, vals: vals};
+    }
+    export function getEnumKeys(enumObject: any): keyof typeof enumObject[] {
+        return splitEnum(enumObject).keys;
+    }
+    export function getEnumVals(enumObject: any): number[] {
+        return splitEnum(enumObject).vals;
+    }
+
+    // export function splitEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: typeof enumObject[]} {
+    //     // from https://github.com/Microsoft/TypeScript/issues/17198#issuecomment-315400819
+    //     // combined with type conversion (from standard string to Enum[])
+    //     // it's not the most elegant solution
+    //     // but it tries hard to prevent passing an enum to one of the explicitly-typed splitEnum methods below
+    //     // which I commented out but kept for later reference
+    //     var keysUnknown: unknown, keys: typeof enumObject[];
+    //     // first try the number-valued enums e.g. enum foo { key1, key2 };
+    //     keysUnknown = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'number');
+    //     keys        = <typeof enumObject[]> keysUnknown;
+    //     if (!keys.length) {
+    //         // we failed, try the string-valued enums e.g. enum foo { key1 = 'val1', key2 = 'val2' };
+    //         keysUnknown = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'string');
+    //         keys        = <typeof enumObject[]> keysUnknown;
+    //     }
+    //     if (!keys.length) {
+    //         throw new Error('splitEnum(): empty or unknown enum passed, cannot continue!');
+    //     }
+    //     const vals = keys.map(k => enumObject[k as any]);
+    //     // @ts-ignore
+    //     return { keys: keys, vals: vals};
+    // }
+    // export function getEnumKeys(enumObject: any): keyof typeof enumObject[] {
+    //     return splitEnum(enumObject).keys;
+    // }
+    // export function getEnumVals(enumObject: any): number[] {
+    //     return splitEnum(enumObject).vals;
+    // }
+
+    /*
+    export function splitStringBasedEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: string[]} {
+        // from https://github.com/Microsoft/TypeScript/issues/17198#issuecomment-315400819
+        // combined with type conversion (from standard string to Enum[])
+        const keysUnknown: unknown = Object.keys(enumObject).filter(k => typeof enumObject[k as string] === 'string');
+        const keys: typeof enumObject[] = <typeof enumObject[]> keysUnknown;
+        const vals = keys.map(k => enumObject[k as any]);
+        // @ts-ignore
+        return { keys: keys, vals: vals};
+    }
+    export function getStringBasedEnumKeys(enumObject: any): keyof typeof enumObject[] {
+        return splitStringBasedEnum(enumObject).keys;
+    }
+    export function getStringBasedEnumVals(enumObject: any): string[] {
+        return splitStringBasedEnum(enumObject).vals;
+    }
+
+
+    export function splitNumberBasedEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: number[]} {
+        // from https://github.com/Microsoft/TypeScript/issues/17198#issuecomment-315400819
+        // combined with type conversion (from standard string to Enum[])
+        const keysUnknown: unknown = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'number');
+        const keys: typeof enumObject[] = <typeof enumObject[]> keysUnknown;
+        const vals = keys.map(k => enumObject[k as any]);
+        // @ts-ignore
+        return { keys: keys, vals: vals};
+    }
+    export function getNumberBasedEnumKeys(enumObject: any): keyof typeof enumObject[] {
+        return splitNumberBasedEnum(enumObject).keys;
+    }
+    export function getNumberBasedEnumVals(enumObject: any): number[] {
+        return splitNumberBasedEnum(enumObject).vals;
+    }
+    */
 
     /**
      * Show a message dialog with message and optional title & buttons

@@ -965,7 +965,51 @@ function OnInit(initData: DOpusScriptInitData) {
     // DOpus.output(ex.UninitializedException);
     // DOpus.output(JSON.stringify(ex, null, 4));
 
+    var loglevels = logger.getLevels();
+    DOpus.output('loglevels Untyped: ' + JSON.stringify(loglevels, null, 4))
+    DOpus.output('loglevels Typed: ' + JSON.stringify(g.splitEnum(libLogger.LOGLEVEL), null, 4))
+    DOpus.output('loglevels Typed Keys: ' + JSON.stringify(g.getEnumKeys(libLogger.LOGLEVEL), null, 4))
+    DOpus.output('loglevels Typed Vals: ' + JSON.stringify(g.getEnumVals(libLogger.LOGLEVEL), null, 4))
+    // DOpus.output('loglevels Typed: ' + JSON.stringify(g.getNumberBasedEnumKeys(libLogger.LOGLEVEL, libLogger.LOGLEVEL), null, 4))
+    // DOpus.output('loglevels Typed: ' + JSON.stringify(g.getNumberBasedEnumVals(libLogger.LOGLEVEL), null, 4))
 
+    enum foo1 {
+        key1,
+        key2,
+    }
+    // DOpus.output('foo1 orig: ' + JSON.stringify(foo1, null, 4))
+    // DOpus.output('foo1 Typed: ' + JSON.stringify(g.splitNumberBasedEnum(foo1), null, 4))
+
+    enum foo2 {
+        key1 = 'this is val 1',
+        key2 = 'this is val 2',
+    }
+    enum foo3 {
+
+    }
+    // DOpus.output('foo2 orig: ' + JSON.stringify(foo2, null, 4))
+    // DOpus.output('foo2 Typed: ' + JSON.stringify(g.splitStringBasedEnum(foo2), null, 4))
+
+    // DOpus.output('LOGLEVEL orig: ' + JSON.stringify(libLogger.LOGLEVEL, null, 4))
+    // DOpus.output('LOGLEVEL Typed - Number: ' + JSON.stringify(g.splitNumberBasedEnum(libLogger.LOGLEVEL), null, 4))
+    // DOpus.output('LOGLEVEL Typed - String: ' + JSON.stringify(g.splitStringBasedEnum(libLogger.LOGLEVEL), null, 4))
+
+    DOpus.output('foo1 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo1), null, 4))
+    DOpus.output('foo2 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo2), null, 4))
+    DOpus.output('foo2 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo3), null, 4))
+
+
+    // DOpus.output('foo Typed split: ' + JSON.stringify(g.splitNumberBasedEnum(foo).keys, null, 4))
+    // DOpus.output('foo Typed keys: ' + JSON.stringify(g.getNumberBasedEnumKeys(foo), null, 4))
+    // DOpus.output('foo Typed vals: ' + JSON.stringify(g.getNumberBasedEnumVals(foo), null, 4))
+
+
+    // DOpus.output('split: ' + JSON.stringify(g.splitNumberBasedEnum(libLogger.LOGLEVEL), null, 4))
+    // DOpus.output('keys: ' + JSON.stringify(g.getNumberBasedEnumKeys(libLogger.LOGLEVEL), null, 4))
+    // DOpus.output('vals: ' + JSON.stringify(g.getNumberBasedEnumVals(libLogger.LOGLEVEL), null, 4))
+
+    // return Object.keys(LOGLEVEL).filter(k => typeof LOGLEVEL[k as any] === "number").map(k => LOGLEVEL[k as any]);
+    // DOpus.output( JSON.stringify(Object.keys(libLogger.LOGLEVEL), null, 4) );
     DOpus.output('Script finished');
 
 }
