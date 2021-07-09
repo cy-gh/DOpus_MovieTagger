@@ -25,6 +25,7 @@ namespace libLogger {
         private _baseout(level: LOGLEVEL, message?: string) { if (level <= this.level) DOpus.output(message || ''); }
         public getLevels(): LOGLEVEL[]      { return g.splitEnum(LOGLEVEL).keys as unknown as LOGLEVEL[]; }
         public getLevel(): LOGLEVEL         { return this.level; }
+        public getLevelIndex(): IResult<number, boolean>    { return g.findIndexOfValue(LOGLEVEL, this.level); }
         public setLevel(level: LOGLEVEL)    { this.level = level; }
 
         public force(message?: string)      { this._baseout(LOGLEVEL.FORCE,    message); }

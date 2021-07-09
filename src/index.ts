@@ -133,17 +133,16 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
 
     group = 'Listers';
-    // TODO
-    //
-    // var _tmp = DOpus.create().vector();
-	// _tmp.push_back(logger.getLevels());
-	// for (var i=0, keys=logger.getKeys(); i<keys.length; i++) {
-	// 	_tmp.push_back(keys[i]);
-	// }
+
+    var _vDebugLevels = DOpus.create().vector();
+    _vDebugLevels.push_back(logger.getLevelIndex().ok);
+    for (var i=0, keys=logger.getLevels(); i<keys.length; i++) {
+        _vDebugLevels.push_back(keys[i]);
+    }
     cfg.addValue(
         CfgV.DEBUG_LEVEL,
-        logger.getLevel(),
-        config.TYPE.NUMBER,
+        _vDebugLevels,
+        config.TYPE.DROPDOWN,
         CfgV.DEBUG_LEVEL,
         group,
         'How much information should be put to DOpus output window - Beware of anything above & incl. NORMAL, it might crash your DOpus!\nSome crucial messages or commands like Dump ADS, Dump MediaInfo, Estimate Bitrate are not affected'
@@ -996,7 +995,7 @@ function OnInit(initData: DOpusScriptInitData) {
 
     DOpus.output('foo1 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo1), null, 4))
     DOpus.output('foo2 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo2), null, 4))
-    DOpus.output('foo2 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo3), null, 4))
+    // DOpus.output('foo2 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo3), null, 4))
 
 
     // DOpus.output('foo Typed split: ' + JSON.stringify(g.splitNumberBasedEnum(foo).keys, null, 4))

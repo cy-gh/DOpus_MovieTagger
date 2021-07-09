@@ -704,7 +704,7 @@ namespace g {
      *   public getKeys(): LOGLEVEL[] {
      *       return g.splitEnum(LOGLEVEL).keys as unknown as LOGLEVEL[];
      *   }
-     * @param enumObject enum object, MUST be non-empty
+     * @param enumObject enum object, **must** be non-empty
      * @returns Object.<keys: keyof typeof enumObject[], vals: typeof enumObject[]>
      */
     export function splitEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: typeof enumObject[]} {
@@ -718,7 +718,7 @@ namespace g {
         var keys: typeof enumObject[] = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'number');
         if (!keys.length) {
             // we failed, try the string-valued enums e.g. enum foo2 { key1 = 'val1', key2 = 'val2' };
-            keys = <typeof enumObject[]> Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'string');
+            keys = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'string');
         }
         if (!keys.length) {
             throw new Error('splitEnum(): empty or unknown enum passed, cannot continue!');
@@ -732,6 +732,16 @@ namespace g {
     }
     export function getEnumVals(enumObject: any): number[] {
         return splitEnum(enumObject).vals;
+    }
+    export function findIndexOfValue(enumObject: any, value: any): IResult<number, true> {
+        const keys = splitEnum(enumObject).keys as unknown as string[];
+        for (let i = 0; i < keys.length; i++) {
+            const val = keys[i];
+            if (value === enumObject[val]) {
+                return ResultOk(i);
+            }
+        }
+        return ResultErr(true);
     }
 
     // export function splitEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: typeof enumObject[]} {

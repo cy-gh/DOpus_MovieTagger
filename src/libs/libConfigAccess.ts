@@ -185,6 +185,7 @@ namespace config {
         PATH     = 'PATH',
         ARRAY    = 'ARRAY',
         POJO     = 'POJO',
+        DROPDOWN = 'DROPDOWN',
         OBJECT   = 'OBJECT',
         REGEXP   = 'REGEXP',
         JSON     = 'JSON',
@@ -327,6 +328,9 @@ namespace config {
                         // @ts-ignore
                         this.initData.config[key] = JSON.stringify(val.val, null, 2).replace(/\n/mg, "\r\n");
                         break;
+                    case TYPE.DROPDOWN:
+                        this.initData.config[key] = val.val;
+                        break;
                     case TYPE.REGEXP:
                         // @ts-ignore
                         this.initData.config[key] = val.val.toString();
@@ -401,6 +405,21 @@ namespace config {
                         if (typeof val[k] === 'function') { return false; }
                     }
                     return true;
+                case TYPE.DROPDOWN:
+                    // must be DOpus Vector
+                    if (typeof val !== 'object') {
+                        return false;
+                    }
+                    try {
+                        var dv: DOpusVector<number>;
+                        dv = DOpus.create().vector(val);
+                        if (dv.length < 2) {
+                            return false;
+                        }
+                        return typeof dv[0] === 'number' && typeof dv[1] === 'string';
+                    } catch (e) {
+                        return false;
+                     }
                 case TYPE.OBJECT:
                     return typeof val === 'object';
                 case TYPE.REGEXP:
