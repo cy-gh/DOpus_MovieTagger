@@ -1,7 +1,5 @@
 ///<reference path='../std/libStdDev.ts' />
 ///<reference path='./formatters.ts' />
-///<reference path='./libDOpusHelper.ts' />
-///<reference path='./libExceptions.ts' />
 
 
 /**
@@ -216,17 +214,25 @@ namespace config {
         [key: string]: ConfigValue
     }
 
-    class Base {
+    class Base implements ILibrary{
 
         private initData: DOpusScriptInitData | undefined;
         private items: ConfigItems = {};
         private cntItems = 0;
         private defaultErrorMode = ERROR_MODE.DIALOG;
+        protected logger: ILogger;
 
         static globalVarSuffix: string = '_scriptFullPathAsDOpusItem';
 
         constructor() {
             this.setErrorMode(this.defaultErrorMode);
+            this.logger = logger || libLogger.std;
+        }
+
+        // interface implementation
+        setLogger(loggerNew?: ILogger): IResult<true, any> {
+            this.logger = loggerNew || this.logger;
+            return g.ResultOk(true);
         }
 
         /**
@@ -240,7 +246,7 @@ namespace config {
          */
         setInitData(scriptID: string, initData: DOpusScriptInitData): this {
             this.initData = initData;
-            doh.setGlobalVar(scriptID + Base.globalVarSuffix, doh.fsu.getItem(this.initData.file));
+            DOpus.vars.set(scriptID + Base.globalVarSuffix, DOpus.fsUtil().getItem(this.initData.file));
             return this;
         }
 
@@ -250,7 +256,7 @@ namespace config {
          * @param {string} scriptID unique script ID, which will be used to retrieve the script's fullpath from initData
          */
         getScriptPathVars(scriptID: string): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
-            const oThisScriptsPath:DOpusItem = doh.getGlobalVar(scriptID + Base.globalVarSuffix);
+            const oThisScriptsPath:DOpusItem = DOpus.vars.get(scriptID + Base.globalVarSuffix);
 
             if (!oThisScriptsPath) {
                 return UserExc(ex.UninitializedException, 'Base.getScriptPathVars', 'InitData has not been set yet, call setInitData() in your OnInit() first');
@@ -572,13 +578,43 @@ namespace config {
         constructor() {
             super();
         }
-        addPOJO(key: string) {
-            // note there is no binding type, group, desc necessary for this method
-            return super.addValue(key, config.TYPE.POJO, {});
+        addPOJO(key: string, val: string) {
+            // note there is no group, desc necessary for this method
+            return super.addValue(key, config.TYPE.POJO, val);
+        }
+        addPOJOFromFile(key: string, filepath: string) {
+            this.logger.force('Checking external config file under: ' + filepath);
+            if (!DOpus.fsUtil().exists(filepath)) {
+                this.logger.force('...not found, skipping');
+                return g.ResultErr('External config not found at ' + filepath + '\n...skipping.');
+            }
+            this.logger.force('...using external config file');
+            var resReadFile = fs.readFile(filepath);
+            if (resReadFile.isErr()) {
+                return resReadFile;
+            }
+            this.logger.force('external config contents:\n' + resReadFile.ok);
+            // test parseability
+            var prevErrorMode = super.getErrorMode();
+            super.setErrorMode(ERROR_MODE.DIALOG);
+            var parsed;
+            try {
+                parsed = JSON.parse(resReadFile.ok);
+                this.logger.force('...external config is valid JSON');
+                // oExtConfigPOJO = JSON.parse(extcfgContents);
+            } catch(e) {
+                var err = 'External config file found but is not valid JSON, ignoring\n\nerror: ' + e.toString() + '\nfile: ' + filepath;
+                super.showError(err);
+                this.logger.force(err);
+                super.setErrorMode(prevErrorMode);
+                return g.ResultErr(err);
+            }
+            return super.addValue(key, config.TYPE.POJO, parsed);
         }
         finalize(): IResult<true, IException<ex>> {
             return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
         }
+
     }
 
 

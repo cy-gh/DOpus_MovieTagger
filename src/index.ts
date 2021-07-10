@@ -7,9 +7,7 @@
 ///<reference path='./libs/formatters.ts' />
 ///<reference path='./libs/libCache.ts' />
 ///<reference path='./libs/libDOpusHelper.ts' />
-///<reference path='./libs/libExceptions.ts' />
 ///<reference path='./libs/libLogger.ts' />
-///<reference path='./libs/formatters.ts' />
 ///<reference path='./libs/libURLHelpers.ts' />
 ///<reference path='./libs/libFS.ts' />
 ///<reference path='./libs/libConfigAccess.ts' />
@@ -24,9 +22,10 @@
 type globalType = {
     [k: string]: any
 }
-var logger = libLogger.logger;
+var logger = libLogger.def;
 var Global:globalType = {};
 Global.SCRIPT_NAME = 'cuMovieTagger';
+Global.SCRIPT_NAME = 'DOpus_MovieTagger';
 var cfg = config.user;
 var ext = config.ext;
 
@@ -723,12 +722,12 @@ function setupConfigVars(initData: DOpusScriptInitData) {
      */
     var config_file_dir_raw = '/dopusdata\\Script AddIns';
     var config_file_dir_resolved = DOpus.fsUtil().resolve(config_file_dir_raw) + '\\';
-    var config_file_name = Global.SCRIPT_NAME + '.json';
+    var ext_config_file = Global.SCRIPT_NAME + '.json';
     // var config_file_contents = function(){return{
     var config_file_contents = `
     {
         // To customize the column headers
-        // create a file with the name: ${config_file_name}
+        // create a file with the name: ${ext_config_file}
         // under: ${config_file_dir_raw}
         // (usually: ${config_file_dir_resolved})
         //
@@ -816,9 +815,14 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
     cfg.finalize();
 
-
+    // var config_file_dir_raw = '/dopusdata/Script AddIns';
+    // var config_file_dir_resolved = DOpus.fsUtil().resolve(config_file_dir_raw) + '\\';
+    // var config_file_name = Global.SCRIPT_NAME + '.json';
+    // var config_file_dir_raw = '/dopusdata/Script AddIns';
+    var ext_config_file = DOpus.fsUtil().resolve('/dopusdata/Script AddIns') + '\\' + Global.SCRIPT_NAME + '.json';
+    ext.addPOJOFromFile('ext_config_pojo', ext_config_file);
     // do not touch this!
-    // ext.setInitData(initData).addPOJO('ext_config_pojo');
+    // ext.addPOJO('ext_config_pojo');
 
     // var v = DOpus.create().vector();
     // var a = [ 'Foo', 'Bar' ];          v.append(a);
@@ -830,9 +834,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
     // DOpus.output('v[0]: ' + v[0]);
     // DOpus.output('v[1]: ' + v[1]);
 
-
-
-    // ext.finalize();
+    ext.finalize();
 
 }
 
@@ -850,6 +852,7 @@ function OnInit(initData: DOpusScriptInitData) {
 
     // cfg.finalize();
     cfg.setInitData(Global.SCRIPT_NAME, initData);
+    ext.setInitData(Global.SCRIPT_NAME, initData);
     setupConfigVars(initData);
 
     _addCommand('DOpusMovieTagger_CustomCommand',
@@ -864,7 +867,7 @@ function OnInit(initData: DOpusScriptInitData) {
 
 
     // let logger1 = new libLogger.CLogger(libLogger.LOGLEVEL.NORMAL);
-    let logger = libLogger.logger;
+    let logger = libLogger.std;
     logger.force("This variant does not work with node anymore...");
     logger.force('No import or require in this version but it works with DOpus');
 

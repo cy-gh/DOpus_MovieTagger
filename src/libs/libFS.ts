@@ -1,12 +1,11 @@
 ///<reference path='./libDOpusHelper.ts' />
-///<reference path='./libExceptions.ts' />
 ///<reference path='./libLogger.ts' />
 ///<reference path='./libStopwatch.ts' />
 
 namespace fs {
 
     const myName = 'fs';
-    const logger = libLogger.logger;
+    const logger = libLogger.std;
 
     // blob.copyFrom() and stringTools.decode() use different names
     const // FORMAT_FOR_COPY   = 'utf8',
@@ -102,79 +101,6 @@ namespace fs {
         return doh.fsu.exists(path);
     }
 
-    /**
-     * @example
-     * var X = FS.fileTail('Y:\\MyFile.txt', 15000, 1000);
-     * do {
-     *   var linesRead = X.read();
-     *   if (!linesRead.isOK()) continue;
-     *   logger.sforce('lines: %s', linesRead.ok);
-     * } while(linesRead.isValid());
-     *
-     * // do not use while(Result.isOK()), use isValid() instead,
-     * // because isValid() allows 0,'',{}... as OK value, whereas isOK() does not
-     * // another alternative is obviously while(!linesRead.isErr())
-     * @param {string} filepath
-     * @param {number} maxwait in millisecs
-     * @param {number=} delayBetweenRetries in millisecs, default 10
-     * @returns {{read: function}}
-     * @deprecated
-     */
-    // export
-    function fileTail(filepath: string, maxwait: number, delayBetweenRetries?: number): { read: Function; } {
-        const fnName = g.funcNameExtractor(arguments.callee, myName);
-
-        var swid    = g.sprintf('%s-%d-%s', fnName, g.now(), filepath),
-            filePtr = 0;
-        let delay = delayBetweenRetries || 10;
-
-        SW.stopwatch.start(swid);
-
-        /**
-         * Unfortunately we have to open and close the file every time
-         * because the file will most likely grow since we opened it
-         * but File.Seek() does not allow us to seek beyond the original file size
-         * and that way we cannot get the tail lines.
-         * @returns {Result}
-         */
-        return {
-            read: function() {
-                if (SW.stopwatch.getElapsed(swid) > maxwait) {
-                    SW.stopwatch.stop(swid);
-                    logger.sforce('%s -- timed out', fnName);
-                    return g.ResultOk(''); // timed out => empty string
-                }
-                doh.delay(delay);
-
-                logger.sforce('%s -- monitoring file: %s', fnName, filepath);
-
-                var fh = doh.fsu.openFile(filepath);
-                if (fh.error) return g.ResultErr(g.sprintf('%s -- Cannot open file %s, Error: %s', fnName, fh.error));
-
-                var size = doh.getFileSize(filepath);
-                if (size === false) {
-                    // this should never happen, we already opened the file
-                    throw new exc.FileReadException('File size cannot be queried: ' + filepath, fnName);
-                }
-                if (filePtr >= size) return g.ResultErr(g.sprintf('%s -- File has been truncated since last attempt, last size: %d, now: %d', fnName, filePtr, size));
-
-                fh.seek(filePtr);
-                logger.sforce('%s -- File change detected -- filesize: %d, filePtr: %d', fnName, size, filePtr);
-
-                var blob         = doh.dc.blob(),
-                    numBytesRead = fh.read(blob);
-                if (!numBytesRead) return g.ResultErr(g.sprintf('%s -- File change detected but cannot read lines: %d', fnName, numBytesRead));
-
-                var newLines = doh.st.decode(blob, FORMAT_FOR_DECODE);
-
-                filePtr = size;
-                fh.close();
-                logger.sforce('%s -- Read %s new bytes', fnName, numBytesRead);
-                // return g.ResultOk(newLines);
-                return new g.Result(newLines, false);
-            }
-        };
-    }
 
     /**
      * @param {Object} driveLetters object which maps driveLetter, e.g. Y: to the number of files found under it (this function ignores it)

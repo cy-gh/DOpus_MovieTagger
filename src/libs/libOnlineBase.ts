@@ -7,7 +7,7 @@ interface IOnlineAPI {
 namespace extOnline {
 
 
-    const logger = libLogger.logger;
+    const logger = libLogger.std;
     const sprintf = sprintfjs.sprintf;
 
 
@@ -24,7 +24,8 @@ namespace extOnline {
         constructor() {}
         getRandomKeyFrom(keysList: string[]): string {
             if (keysList.length === 0) {
-                throw new exc.NotImplementedYetException('API key reading logic', this.getRandomKeyFrom);
+                throw UserExc(ex.NotImplementedYetException, arguments.callee, 'API key reading logic');
+                // throw new exc.NotImplementedYetException('API key reading logic', this.getRandomKeyFrom);
             }
             function getRandomInt(max: number) {
                 return Math.floor(Math.random() * max);

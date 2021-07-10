@@ -1,5 +1,4 @@
 ///<reference path='../std/libStdDev.ts' />
-///<reference path='./libExceptions.ts' />
 
 /*
      .d8888b. 88888888888  .d88888b.  8888888b.  888       888        d8888 88888888888  .d8888b.  888    888
@@ -32,8 +31,8 @@ namespace SW {
         private ensureExists(id: string | number, action: string) {
             if(this._running[id]) return;
             var fnName = g.funcNameExtractor(arguments.callee, Stopwatch.myName);
-            var msg = sprintfjs.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must exist)', fnName, id, action);
-            g.abortWith(new exc.InvalidParameterValueException(msg, fnName));
+            var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must exist)', fnName, id, action);
+            g.abortWith(UserExc(ex.InvalidParameterValueException, fnName, msg).err);
         }
 
         /**
@@ -42,8 +41,8 @@ namespace SW {
         private ensureNotExists(id: string | number, action: string) {
             if(!this._running[id]) return;
             var fnName = g.funcNameExtractor(arguments.callee, Stopwatch.myName);
-            var msg = sprintfjs.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must not exist)', fnName, id, action);
-            g.abortWith(new exc.InvalidParameterValueException(msg, fnName));
+            var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must not exist)', fnName, id, action);
+            g.abortWith(UserExc(ex.InvalidParameterValueException, fnName, msg).err);
         }
 
         /**
@@ -104,7 +103,7 @@ namespace SW {
          */
         public startAndPrint(id: string, prefix?: any, suffix?: any): string {
             this.start(id);
-            return sprintfjs.sprintf(
+            return g.sprintf(
                 '%s -- %s Started @%d %s',
                 id,
                 (prefix ? prefix + ' -' : ''),
@@ -123,7 +122,7 @@ namespace SW {
          */
         public resetAndPrint(id: string, prefix?: any, suffix?: any): string {
             var _elapsed = this.reset(id);
-            return sprintfjs.sprintf(
+            return g.sprintf(
                 '%s -- %s Reset @%d, Elapsed so far: %d ms (%s s) %s',
                 id,
                 (prefix ? prefix + ' -' : ''),
@@ -144,7 +143,7 @@ namespace SW {
          */
         public getElapsedAndPrint(id: string, prefix?: any, suffix?: any): string {
             var _elapsed =  this.getElapsed(id);
-            return sprintfjs.sprintf(
+            return g.sprintf(
                 '%s -- %s Elapsed so far: %d ms (%s s) %s',
                 id,
                 (prefix ? prefix + ' -' : ''),
@@ -164,7 +163,7 @@ namespace SW {
          */
         public stopAndPrint(id: string, prefix?: any, suffix?: any): string {
             var _elapsed = this.stop(id);
-            return sprintfjs.sprintf(
+            return g.sprintf(
                 '%s -- %s Finished @%d, Elapsed: %d ms (%s s) %s',
                 id,
                 (prefix ? prefix + ' -' : ''),

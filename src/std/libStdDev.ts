@@ -27,7 +27,15 @@
         888        888   Y8888 Y88b. .d88P 888   "   888 Y88b  d88P
         8888888888 888    Y888  "Y88888P"  888       888  "Y8888P"
 */
-
+enum LOGLEVEL {
+    FORCE   = -1,
+    NONE    = 0,
+    ERROR   = 1,
+    WARN    = 2,
+    NORMAL  = 3,
+    INFO    = 4,
+    VERBOSE = 5
+}
 
 /*
     8888888 888b    888 88888888888 8888888888 8888888b.  8888888888     d8888  .d8888b.  8888888888  .d8888b.
@@ -48,6 +56,36 @@ interface IResult<S,E> {
     isErr(): boolean;
     toString(): string;
 }
+
+interface ILogger {
+    getLevel()                  : LOGLEVEL;
+    setLevel(level: LOGLEVEL)   : void;
+    getLevels()                 : LOGLEVEL[];
+    getLevelIndex()             : IResult<number, boolean>;
+    force(message?: string)     : void;
+    none(message?: string)      : void;
+    error(message?: string)     : void;
+    warn(message?: string)      : void;
+    normal(message?: string)    : void;
+    info(message?: string)      : void;
+    verbose(message?: string)   : void;
+    sforce(...args: any)        : void;
+    snone(...args: any)         : void;
+    serror(...args: any)        : void;
+    swarn(...args: any)         : void;
+    snormal(...args: any)       : void;
+    sinfo(...args: any)         : void;
+    sverbose(...args: any)      : void;
+}
+
+interface ILibrary {
+    /**
+     * Injects a custom logger, instead of default one
+     * @param loggerNew new logger to override the default
+     */
+    setLogger(loggerNew: ILogger): IResult<boolean, boolean>;
+}
+
 
 interface String {
     trim(): string;
@@ -206,7 +244,7 @@ enum ex {
 
 // methods for pseudo-HEREDOCs
 String.prototype.normalizeLeadingWhiteSpace = function () {
-    // the §s help with avoiding backtracking
+    // the §s help to avoid backtracking
     return this
         // .trim()
         .replace(/^\t\t\t|^ {12}/mg, '§§§')
@@ -238,7 +276,6 @@ String.prototype.normalizeTrailingBackslashes = function () {
     return (this + '\\').replace(/\\\\/g, '\\').replace(/^\\$/, '');
 };
 
-
 /** A shorter, type-safe alternative to parseInt */
 String.prototype.asInt = function () {
     var num = parseInt(this.valueOf(), 10);
@@ -248,18 +285,24 @@ String.prototype.asInt = function () {
     return num;
 };
 
-// /** Trim for JScript */
-// String.prototype.trim = function () {
-//     return this.replace(/^\s+|\s+$/g, ''); // not even trim() JScript??
-// };
-// better alternative
+
+/*
+    8888888b.   .d88888b.  888    Y88b   d88P 8888888888 8888888 888      888      .d8888b.
+    888   Y88b d88P" "Y88b 888     Y88b d88P  888          888   888      888     d88P  Y88b
+    888    888 888     888 888      Y88o88P   888          888   888      888     Y88b.
+    888   d88P 888     888 888       Y888P    8888888      888   888      888      "Y888b.
+    8888888P"  888     888 888        888     888          888   888      888         "Y88b.
+    888        888     888 888        888     888          888   888      888           "888
+    888        Y88b. .d88P 888        888     888          888   888      888     Y88b  d88P
+    888         "Y88888P"  88888888   888     888        8888888 88888888 88888888 "Y8888P"
+*/
+
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/Trim
 if (!String.prototype.trim) {
     String.prototype.trim = function () {
         return this.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
     };
 }
-
 
 // From https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys
 if (!Object.keys) {
@@ -615,17 +658,6 @@ namespace g {
         return new Date().getTime();
     }
 
-    // /** @param {object} obj */
-    // function getKeys(obj: { hasOwnProperty: (arg0: string) => any; }) {
-    //     // I do not want to put this object.prototype for various reasons
-    //     var out = [];
-    //     for (var k in obj) {
-    //         // eslint-disable-next-line no-prototype-builtins
-    //         if (obj.hasOwnProperty(k)) out.push(k);
-    //     }
-    //     return out;
-    // }
-
     /**
      * @param {Object.<string, any>} obj
      * @param {boolean=} descending
@@ -711,8 +743,7 @@ namespace g {
         // from https://github.com/Microsoft/TypeScript/issues/17198#issuecomment-315400819
         // combined with type conversion (from standard string to Enum[])
         // it's not the most elegant solution
-        // but it tries hard to prevent passing an enum to one of the explicitly-typed splitEnum methods below
-        // which I commented out but kept for later reference
+        // but it is better than having separately typed methods and accidentally using the wrong one
         //
         // first try the number-valued enums e.g. enum foo1 { key1, key2 };
         var keys: typeof enumObject[] = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'number');
@@ -744,69 +775,6 @@ namespace g {
         return ResultErr(true);
     }
 
-    // export function splitEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: typeof enumObject[]} {
-    //     // from https://github.com/Microsoft/TypeScript/issues/17198#issuecomment-315400819
-    //     // combined with type conversion (from standard string to Enum[])
-    //     // it's not the most elegant solution
-    //     // but it tries hard to prevent passing an enum to one of the explicitly-typed splitEnum methods below
-    //     // which I commented out but kept for later reference
-    //     var keysUnknown: unknown, keys: typeof enumObject[];
-    //     // first try the number-valued enums e.g. enum foo { key1, key2 };
-    //     keysUnknown = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'number');
-    //     keys        = <typeof enumObject[]> keysUnknown;
-    //     if (!keys.length) {
-    //         // we failed, try the string-valued enums e.g. enum foo { key1 = 'val1', key2 = 'val2' };
-    //         keysUnknown = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'string');
-    //         keys        = <typeof enumObject[]> keysUnknown;
-    //     }
-    //     if (!keys.length) {
-    //         throw new Error('splitEnum(): empty or unknown enum passed, cannot continue!');
-    //     }
-    //     const vals = keys.map(k => enumObject[k as any]);
-    //     // @ts-ignore
-    //     return { keys: keys, vals: vals};
-    // }
-    // export function getEnumKeys(enumObject: any): keyof typeof enumObject[] {
-    //     return splitEnum(enumObject).keys;
-    // }
-    // export function getEnumVals(enumObject: any): number[] {
-    //     return splitEnum(enumObject).vals;
-    // }
-
-    /*
-    export function splitStringBasedEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: string[]} {
-        // from https://github.com/Microsoft/TypeScript/issues/17198#issuecomment-315400819
-        // combined with type conversion (from standard string to Enum[])
-        const keysUnknown: unknown = Object.keys(enumObject).filter(k => typeof enumObject[k as string] === 'string');
-        const keys: typeof enumObject[] = <typeof enumObject[]> keysUnknown;
-        const vals = keys.map(k => enumObject[k as any]);
-        // @ts-ignore
-        return { keys: keys, vals: vals};
-    }
-    export function getStringBasedEnumKeys(enumObject: any): keyof typeof enumObject[] {
-        return splitStringBasedEnum(enumObject).keys;
-    }
-    export function getStringBasedEnumVals(enumObject: any): string[] {
-        return splitStringBasedEnum(enumObject).vals;
-    }
-
-
-    export function splitNumberBasedEnum(enumObject: any): { keys: keyof typeof enumObject[], vals: number[]} {
-        // from https://github.com/Microsoft/TypeScript/issues/17198#issuecomment-315400819
-        // combined with type conversion (from standard string to Enum[])
-        const keysUnknown: unknown = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'number');
-        const keys: typeof enumObject[] = <typeof enumObject[]> keysUnknown;
-        const vals = keys.map(k => enumObject[k as any]);
-        // @ts-ignore
-        return { keys: keys, vals: vals};
-    }
-    export function getNumberBasedEnumKeys(enumObject: any): keyof typeof enumObject[] {
-        return splitNumberBasedEnum(enumObject).keys;
-    }
-    export function getNumberBasedEnumVals(enumObject: any): number[] {
-        return splitNumberBasedEnum(enumObject).vals;
-    }
-    */
 
     /**
      * Show a message dialog with message and optional title & buttons

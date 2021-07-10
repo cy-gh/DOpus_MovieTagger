@@ -4,7 +4,7 @@
 namespace urlTools {
 
     const myName = 'url';
-    const logger = libLogger.logger;
+    const logger = libLogger.std;
 
     /**
      * @param {string} sURL
