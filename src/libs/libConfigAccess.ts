@@ -199,19 +199,18 @@ namespace config {
     }
 
     export type ConfigValue = {
+        /** this is the JS variable and UI name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
         key: string;
+        /** one of the supported types */
+        type: config.TYPE,
         /** current internal (JS/TS) value of the config variable */
         val: any,
         /** default internal (JS/TS) value of the config variable */
         default: any,
-        /** one of the supported types */
-        type: config.TYPE,
-        /** this is the name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
-        binding?: string,
         /** the group in the script config screen */
         group?: string,
         /** this is the description shown in the script config screen */
-        desc?: string,
+        desc?: string
     }
     type ConfigItems = {
         [key: string]: ConfigValue
@@ -265,14 +264,14 @@ namespace config {
 
         /**
          * @param {string} key config key
-         * @param {boolean} val boolean
          * @param {config.TYPE} type value type
-         * @param {string?} binding Script.config value to bind to
-         * @param {string?} group group name on the configuration screen
-         * @param {string?} desc description at the bottom of the configuration screen
+         * @param {any} val value
+         * @param {string=''} group group name on the configuration screen
+         * @param {string=''} desc description at the bottom of the configuration screen
          * @param {boolean=false} bypassValidation bypass validation
+         * @param {boolean=true} bindToUI if the value should be bound to UI
          */
-         addValue(key: string, val: any, type: config.TYPE, binding?: string, group?: string, desc?: string, bypassValidation = false)
+        addValue(key: string, type: config.TYPE, val: any, group = '', desc = '', bypassValidation = false)
             : IResult<true, IException<ex>> {
             var msg;
             if (typeof this.initData === 'undefined') {
@@ -289,7 +288,7 @@ namespace config {
                 return UserExc(ex.InvalidParameterValueException, 'Base.AddValue', msg);
             }
             this.cntItems++;
-            this.items[key] = <ConfigValue>{ val: val, default: val, type: type, binding: binding, group: group, desc: desc  };
+            this.items[key] = <ConfigValue>{ type: type, val: val, default: val, group: group, desc: desc };
             return g.ResultOk(true);
         }
 
@@ -308,15 +307,15 @@ namespace config {
 
             for (const key in this.items) {
                 const val:ConfigValue = this.items[key];
-                // DOpus.output(libSprintfjs.sprintf(
-                //     'FINALIZE -- key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
-                //     key,
-                //     val.type,
-                //     val.val,
-                //     ''||val.default,
-                //     val.group,
-                //     val.desc
-                // ));
+                DOpus.output(g.sprintf(
+                    'FINALIZE -- key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
+                    key,
+                    val.type,
+                    val.type !== TYPE.DROPDOWN ? val.val.toString().slice(0, 20) + '...' : 'Vector',
+                    ''|| (val.type !== TYPE.DROPDOWN ? val.default.toString().slice(0, 20) + '...' : 'Vector Default'),
+                    val.group,
+                    val.desc
+                ));
 
                 switch(val.type) {
                     case TYPE.JSON:
@@ -340,8 +339,8 @@ namespace config {
                         this.initData.config[key] = val.val;
                 };
                 // this.initData.config[key] = val.type === TYPE.JSON ? JSON.stringify(val.val, null, 4).replace(/\n/mg, "\r\n") : val.val;
-                config_groups.set(val.binding, val.group);
-                config_desc.set(val.binding, val.desc);
+                config_groups.set(key, val.group||'');
+                config_desc.set(key, val.desc||'');
             }
             // @ts-ignore
             this.initData.config_groups = config_groups;
@@ -448,19 +447,20 @@ namespace config {
 
             var usingConfigVal = false;
             if (!this.items.hasOwnProperty(key)) {
+                DOpus.output('this.items:\n' + JSON.stringify(this.items, null, 4));
                 return this.showError(key + ' does not exist');
             }
 
             var valueToProbe;
             // if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof Script.config[this.items[key].binding] !== 'undefined') {
-            if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof this.items[key].binding !== 'undefined') {
-                valueToProbe = Script.config[<string>this.items[key].binding];
+            if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof this.items[key].key !== 'undefined') {
+                valueToProbe = Script.config[<string>this.items[key].key];
                 if (typeof valueToProbe === 'undefined' || valueToProbe === null) {
-                    return this.showError('Script config has no value for ' + key + ', check the binding: ' + this.items[key].binding);
+                    return this.showError('Script config has no value for ' + key);
                 }
                 valueToProbe = this.convert(valueToProbe, this.items[key].type);
                 if (typeof valueToProbe === 'undefined') {
-                    return this.showError('Config value ' + this.items[key].binding + ' is not valid');
+                    return this.showError('Config value ' + this.items[key].key + ' is not valid');
                 }
                 usingConfigVal = true;
             } else {
@@ -468,7 +468,7 @@ namespace config {
             }
 
             if (!this.isValid(valueToProbe, this.items[key].type)) {
-                return this.showError('Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].binding : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
+                return this.showError('Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].key : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
             }
             return valueToProbe;
         }
@@ -510,29 +510,6 @@ namespace config {
         }
         /**
          * @param {string} key config key
-         * @returns {string|false} bound Script.config key
-         */
-        getBinding(key: string): string | false {
-            if (!this.items[key]) {
-                this.showError(key + ' does not exist');
-                return false;
-            }
-            return typeof this.items[key].binding;
-        }
-        /**
-         * @param {string} bindTo bound config variable name
-         * @returns {string|false} key name if found, false if not
-         */
-        findBinding(bindTo: string): string | false {
-            for (var k in this.items) {
-                if (this.items[k].binding === bindTo) {
-                    return k;
-                }
-            }
-            return false;
-        }
-        /**
-         * @param {string} key config key
          * @param {any} val config value
          */
         setValue(key: string, val: any) {
@@ -554,7 +531,6 @@ namespace config {
             this.cntItems--;
             delete this.items[key];
         }
-        delValue = this.delKey;
         /**
          * @param {string} key config key
          * @returns {boolean} true if key is valid
@@ -562,8 +538,6 @@ namespace config {
         hasKey(key: string): boolean {
             return this.items.hasOwnProperty(key);
         }
-        hasValue = this.hasKey;
-
 
         /** @returns {number} number of elements in the config */
         getCount(): number {
@@ -600,7 +574,7 @@ namespace config {
         }
         addPOJO(key: string) {
             // note there is no binding type, group, desc necessary for this method
-            return super.addValue(key, {}, config.TYPE.POJO);
+            return super.addValue(key, config.TYPE.POJO, {});
         }
         finalize(): IResult<true, IException<ex>> {
             return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
