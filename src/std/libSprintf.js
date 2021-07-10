@@ -65,6 +65,14 @@ var sprintfjs = (function() {
         sign: /^[+-]/
     };
 
+    /*
+        sprintf
+        Returns a formatted string:
+        string sprintf(string format, mixed arg1?, mixed arg2?, ...)
+        vsprintf
+        Same as sprintf except it takes an array of arguments, rather than a variable number of arguments:
+        string vsprintf(string format, array arguments?)
+    */
     function sprintf(key) {
         // `arguments` is not an array, but should be fine for this call
         return sprintf_format(sprintf_parse(key), arguments);
