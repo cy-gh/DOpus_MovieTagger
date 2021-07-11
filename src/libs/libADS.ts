@@ -3,6 +3,7 @@
 ///<reference path='./libCache.ts' />
 
 namespace ads {
+    const myName = 'ads';
 
     /*
         why we need separate declarations for the interfaces and the constructor is explained here:
@@ -209,11 +210,15 @@ namespace ads {
 
         // interface implementation
         setLogger(newLogger?: ILogger): IResult<true, any> {
+            const fname = this.setLogger.fname = myName + '.setLogger';
+
             this.logger = newLogger || this.logger;
             return g.ResultOk(true);
         }
 
         getFileAttributes(oItem: DOpusItem): IADSFileAttr {
+            const fname = this.getFileAttributes.fname = myName + '.getFileAttributes';
+
             // check the file attributes: Read-Only & System
             var oFile = oItem.open('m');
             var sSetAttr = '', sClearAttr = '';
@@ -225,14 +230,15 @@ namespace ads {
         }
 
         hasHashStream(oItem: DOpusItem): boolean {
-            var fnName = g.funcNameExtractor(arguments.callee, typeof Stream);
-            this.logger.sverbose('%s -- oItem.name: %s', fnName, oItem.name);
+            const fname = this.hasHashStream.fname = myName + '.hasHashStream';
+
+            this.logger.sverbose('%s -- oItem.name: %s', fname, oItem.name);
             if (oItem.is_dir) return false;
             return fs.isValidPath(oItem.realpath + ':' + this.streamName);
         }
 
         read(oItem: DOpusItem): IResult<ICachedItem, string> {
-            var fnName = g.funcNameExtractor(arguments.callee, typeof Stream);
+            const fname = this.read.fname = myName + '.read';
 
             var filePath = ''+oItem.realpath,
                 resCache = this.cache.getCacheVar(filePath),
@@ -251,7 +257,7 @@ namespace ads {
                     // checking with isEnabled() is not necessary for setCacheVar()
                     // as it silently ignores the call if cache is disabled,
                     // I only put it so that we can print the logger entry
-                    this.logger.sverbose('%s -- adding missing %s to cache', fnName, oItem.name);
+                    this.logger.sverbose('%s -- adding missing %s to cache', fname, oItem.name);
                     this.cache.setCacheVar(filePath, resContents);
                 }
             }
@@ -261,7 +267,7 @@ namespace ads {
         }
 
         save(oItemOrItems: any, oCachedItemOrNull: ICachedItem | null): IResult<number, string> {
-            var fnName = g.funcNameExtractor(arguments.callee, typeof Stream);
+            const fname = this.save.fname = myName + '.save';
 
             var totalBytesWritten = 0;
 
@@ -292,7 +298,7 @@ namespace ads {
                 }
 
                 var resSaveFile = fs.saveFile(targetPath, JSON.stringify(oCachedItem));
-                if (resSaveFile.isErr()) return g.ResultErr(g.sprintf('%s -- Cannot save to %s', fnName, targetPath));
+                if (resSaveFile.isErr()) return g.ResultErr(g.sprintf('%s -- Cannot save to %s', fname, targetPath));
 
                 // reset the file date & attributes
                 // cmd.runCommand('SetAttr FILE="' + filePath + '" MODIFIED "' + origModDate + '" ATTR ' + oFileAttrib.setAttr + ' CLEARATTR ' + oFileAttrib.clearAttr);
@@ -309,7 +315,7 @@ namespace ads {
         }
 
         remove(oItemOrItems: any): void {
-            var fnName = g.funcNameExtractor(arguments.callee, typeof Stream);
+            const fname = this.remove.fname = myName + '.remove';
 
             var vec: DOpusVector<DOpusItem>;
             if(oItemOrItems instanceof DOpusItemsVector) {
@@ -327,7 +333,7 @@ namespace ads {
                     targetPath  = filePath + ':' + this.streamName,
                     origModDate = DateToDOpusFormat(oItem.modify);
                     // origModDate = oItem.modify.formatAsDateDOpus();
-                this.logger.sverbose('%s -- Deleting %s and resetting modification date to: %s', fnName, oItem.realpath, origModDate);
+                this.logger.sverbose('%s -- Deleting %s and resetting modification date to: %s', fname, oItem.realpath, origModDate);
 
                 // get the current file attributes: Read-Only, System, Archive, Hidden
                 var oFileAttrib = this.getFileAttributes(oItem);

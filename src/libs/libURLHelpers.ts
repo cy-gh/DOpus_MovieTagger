@@ -1,17 +1,22 @@
 ///<reference path='../std/libStdDev.ts' />
 ///<reference path='./libDOpusHelper.ts' />
 
-namespace urlTools {
+interface IDownloadedFile {
+    size: number;
+    content: string;
+}
 
+namespace url {
     const myName = 'url';
+
     const logger = libLogger.current;
 
     /**
      * @param {string} sURL
      * @returns {IResult.<IDownloadedFile, string>}
      */
-    export function getFromURLRaw(sURL: string): IResult<IDownloadedFile, string> {
-        var fnName = g.funcNameExtractor(arguments.callee, myName);
+    export function getRaw(sURL: string): IResult<IDownloadedFile, string> {
+        const fname = getRaw.fname = myName + '.getRaw';
 
         // documentation at
         // https://docs.microsoft.com/en-us/previous-versions/windows/desktop/ms760305(v=vs.85)
@@ -32,7 +37,7 @@ namespace urlTools {
         if(xhr.status != 200) {
             return g.ResultErr('Error during GET, status: ' + xhr.status + ', URL: ' + sURL)
         } else {
-            logger.sforce('%s -- response headers:\n%s', fnName, xhr.getAllResponseHeaders());
+            logger.sforce('%s -- response headers:\n%s', fname, xhr.getAllResponseHeaders());
             return g.ResultOk({ size: iFileSize, content: xhr.responseBody });
         }
     }
@@ -42,9 +47,9 @@ namespace urlTools {
      * @returns {IResult.<Object, string>}
      */
     export function getFromURL(sURL: string): IResult<object, string> {
-        var fnName = g.funcNameExtractor(arguments.callee, myName);
+        const fname = getFromURL.fname = myName + '.getFromURL';
 
-        var resDownload = getFromURLRaw(sURL);
+        var resDownload = getRaw(sURL);
         if (resDownload.isOk()) {
             try {
                 return g.ResultOk(JSON.parse((<IDownloadedFile>resDownload.ok).content));
@@ -63,16 +68,11 @@ namespace urlTools {
      * @returns {string} base64-encoded string
      */
     export function getAsBase64(iSize: number, xBinaryString: string): string {
+        const fname = getAsBase64.fname = myName + '.getAsBase64';
         var blob = DOpus.create().blob(iSize),
             st   = DOpus.create().stringTools();
         blob.copyFrom(xBinaryString);
         var out = ''+st.encode(blob, 'base64');
         return out;
     }
-
-}
-
-interface IDownloadedFile {
-    size: number;
-    content: string;
 }

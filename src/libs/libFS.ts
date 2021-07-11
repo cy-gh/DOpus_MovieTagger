@@ -30,22 +30,22 @@ namespace fs {
      * @returns {IResult.<string, string>} file contents on success, error string on error
      */
     export function readFile(path:string, decodeFormat?:string): IResult<string, string> {
-        const fnName = g.funcNameExtractor(arguments.callee, myName);
+        const fname = readFile.fname = myName + 'readFile';
 
         if (!isValidPath(path)) { return g.ResultErr(); }
 
         var fh = doh.fsu.openFile(path); // default read mode
-        if(fh.error !== 0) return g.ResultErr(g.sprintf('%s -- File exists but cannot be read - error: %s, file: %s', fnName, fh.error, path));
+        if(fh.error !== 0) return g.ResultErr(g.sprintf('%s -- File exists but cannot be read - error: %s, file: %s', fname, fh.error, path));
 
         try {
             var blob = fh.read();
         } catch(e) {
-            return g.ResultErr(g.sprintf('%s -- FSUtil.Read() error: %s, file: %s', fnName, e.description, path));
+            return g.ResultErr(g.sprintf('%s -- FSUtil.Read() error: %s, file: %s', fname, e.description, path));
         }
         try {
             var res = ''+doh.st.decode(blob, decodeFormat||FORMAT_FOR_DECODE); // "utf-8" seems to be standard, "auto" does not work for me
         } catch(e) {
-            return g.ResultErr(g.sprintf('%s -- StringTools.Decode() error: %s, file: %s', fnName, e.description, path));
+            return g.ResultErr(g.sprintf('%s -- StringTools.Decode() error: %s, file: %s', fname, e.description, path));
         }
         blob.free();
         fh.close();
@@ -72,7 +72,7 @@ namespace fs {
      * @returns {IResult.<number, string>} number of bytes written on success, error string on error
      */
      export function saveFile(path: string, contents: string): IResult<number, string> {
-        const fnName = g.funcNameExtractor(arguments.callee, myName);
+        const fname = saveFile.fname = myName + 'saveFile';
 
         // if (path.length > 240 && path.indexOf('\\\\?\\') === -1) {
         //   path   = '\\\\?\\' + path;
@@ -81,20 +81,20 @@ namespace fs {
         // wa: wa - create a new file, always. If the file already exists it will be overwritten. (This is the default.)
         var fh = doh.fsu.openFile(path, 'wa');
         if(fh.error !== 0) {
-            return g.ResultErr(g.sprintf('%s -- FSUtil.OpenFile() error: %s, file: %s', fnName, fh.error, path));
+            return g.ResultErr(g.sprintf('%s -- FSUtil.OpenFile() error: %s, file: %s', fname, fh.error, path));
         }
         try {
             var numBytesWritten = fh.write(contents);
             // var blob = doh.dc.blob();
             // blob.copyFrom(contents, FORMAT_FOR_COPY);  // seems to use implicitly utf-16, only available optional param is utf8
             // var numBytesWritten = fh.write(blob);
-            logger.snormal('%s -- Written bytes: %d, orig length: %d, path: %s, contents:\n%s', fnName, numBytesWritten, contents.length, path, contents);
+            logger.snormal('%s -- Written bytes: %d, orig length: %d, path: %s, contents:\n%s', fname, numBytesWritten, contents.length, path, contents);
             // blob.free();
             fh.close();
             return g.ResultOk(numBytesWritten);
         } catch(e) {
             fh.close();
-            return g.ResultErr(g.sprintf('%s --  FSUtil.Write() error: %s, file: %s', fnName, e.description, path));
+            return g.ResultErr(g.sprintf('%s --  FSUtil.Write() error: %s, file: %s', fname, e.description, path));
         }
     }
 
@@ -104,6 +104,7 @@ namespace fs {
      * @returns {boolean} true if file exists
      */
     export function isValidPath(path: string): boolean {
+        const fname = isValidPath.fname = myName + 'isValidPath';
         return doh.fsu.exists(path);
     }
 
@@ -113,7 +114,7 @@ namespace fs {
      * @returns {IResult.<string, boolean>} drive type, e.g. HDD, SSD on success
      */
     export function detectDriveType(driveLetters: object): IResult<string, boolean> {
-        const fnName = g.funcNameExtractor(arguments.callee);
+        const fname = detectDriveType.fname = myName + 'detectDriveType';
         var cmd;
 
         var ts = g.now();
@@ -137,23 +138,23 @@ namespace fs {
          * - if an HDD is detected or it cannot be detected, ask user if the detection is correct
          */
         var driveType;
-        logger.snormal(SW.stopwatch.startAndPrint(fnName, 'Drive Type Detection'));
+        logger.snormal(SW.stopwatch.startAndPrint(fname, 'Drive Type Detection'));
         for (var driveLetter in driveLetters) {
             // var tempPSOutFile = g.SYSTEMP + '\\' + GlobalCMT.SCRIPT_NAME + '.tmp.txt';
             var tempPSOutFile = g.SYSTEMP + '\\' + g.getUniqueID() + '.tmp.txt';
             // cmd = 'PowerShell.exe "Get-Partition –DriveLetter ' + driveLetter.slice(0,1) + ' | Get-Disk | Get-PhysicalDisk | Select MediaType | Select-String \'(HDD|SSD)\'" -encoding ascii > "' + tempPSOutFile + '"';
             cmd = 'PowerShell.exe ( "Get-Partition -DriveLetter ' + driveLetter.slice(0,1) + ' | Get-Disk | Get-PhysicalDisk | Select MediaType | Select-String \'(HDD|SSD|Unspecified)\' -encoding ascii | Out-String" ).trim() > "' + tempPSOutFile + '"';
-            logger.sforce('%s -- Running: %s', fnName, cmd);
+            logger.sforce('%s -- Running: %s', fname, cmd);
             doh.shell.Run(cmd, 0, true); // 0: hidden, true: wait
 
             var res = readFile(tempPSOutFile, 'utf-16');
 
             doh.cmd.runCommand('Delete /quiet /norecycle "' + tempPSOutFile + '"');
             if (res.isErr() || !res.ok) {
-                logger.snormal('%s -- Could not determine disk type of %s, assuming SSD', fnName, driveLetter);
+                logger.snormal('%s -- Could not determine disk type of %s, assuming SSD', fname, driveLetter);
             } else {
                 driveType = res.ok.trim().replace(/.*\{MediaType=([^}]+)\}.*/mg, '$1').trim();
-                logger.sforce('%s -- Detemined disk type for %s is %s', fnName, driveLetter, driveType);
+                logger.sforce('%s -- Detemined disk type for %s is %s', fname, driveLetter, driveType);
                 // if (driveType === 'HDD' && command.maxcount > REDUCE_THREADS_ON_HDD_TO) {
                 //   var driveDetectMsg = libSprintfjs.sprintf('This drive seems to be an %s.\n\nThe script will automatically reduce the number of threads to avoid disk thrashing.\nOld # of Threads: %d\nNew # of Threads : %d\n\nIf you press Cancel, the old value will be used instead.\nIs this drive type correct?', driveType, command.maxcount, REDUCE_THREADS_ON_HDD_TO);
                 //   var result = showMessageDialog(cmdData.func.dlg(), driveDetectMsg, 'Drive Type detection', 'OK|Cancel');
@@ -161,7 +162,7 @@ namespace fs {
                 // }
             }
         }
-        logger.snormal(SW.stopwatch.stopAndPrint(fnName, 'Drive Type Detection'));
+        logger.snormal(SW.stopwatch.stopAndPrint(fname, 'Drive Type Detection'));
         return driveType ? g.ResultOk(driveType) : g.ResultErr(true);
     }
 

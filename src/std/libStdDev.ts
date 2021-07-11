@@ -54,6 +54,9 @@
     8888888 888    Y888     888     8888888888 888   T88b 888     d88P     888  "Y8888P"  8888888888  "Y8888P"
 */
 
+interface Function {
+    fname: string;
+}
 
 
 /**
@@ -345,6 +348,8 @@ interface String {
 
     normalizeLeadingWhiteSpace(): string;
     substituteVars(): string;
+
+    toHash(): string;
 }
 
 // methods for pseudo-HEREDOCs
@@ -389,6 +394,40 @@ String.prototype.asInt = function () : IResult<number, IException<ex>> {
     }
     return g.ResultOk(num);
 };
+
+String.prototype.toHash = function () : string {
+    let blob = DOpus.create().blob();
+    blob.copyFrom(this.valueOf());
+    return <string> DOpus.fsUtil().hash(blob, 'md5');
+};
+
+
+
+// // @ts-ignore
+// Function.prototype.name = function (parentName?: string) {
+//     let reExtractor = new RegExp(/^function\s+(\w+)\s*\(.+/),
+//         fnName      = 'funcNameExtractor';
+//     let cache: DOpusMap;
+//     if (!DOpus.vars.exists(g.VAR_NAMES.SCRIPT_FNAME_CACHE)) {
+//         cache = DOpus.create().map();
+//     }
+//     // @ts-ignore
+//     if (cache[fnFunc]) {
+//         logger.sforce('%s -- found in cache: %s', fnName, cache[fnFunc]);
+//         // @ts-ignore
+//         return cache[fnFunc];
+//     }
+//     if (typeof fnFunc !== 'function') {
+//         abortWith(UserExc(ex.DeveloperStupidityException, fnName,  'Given parameter is not a function\n' + dumpObject(fnFunc)).err);
+//     }
+//     var matches = fnFunc.toString().match(reExtractor),
+//         out = matches ? matches[1] : 'Anonymous -- ' + dumpObject(fnFunc, true).value.replace(/\n|^\s+|\s+$/mg, '');
+//     if (parentName)
+//         out = parentName + '.' + out;
+//     // @ts-ignore
+//     cache[fnFunc] = out;
+//     return out;
+// };
 
 
 /*
@@ -560,6 +599,7 @@ if (!Array.prototype.map) {
 
 
 
+
 /*
      .d8888b.  888       .d88888b.  888888b.          d8888 888
     d88P  Y88b 888      d88P" "Y88b 888  "88b        d88888 888
@@ -603,6 +643,13 @@ namespace g {
         VERBOSE = 5
     }
 
+    export enum VAR_NAMES {
+        SCRIPT_UNIQUE_ID    = 'SCRIPT_UNIQUE_ID',
+        SCRIPT_FILE_PATH    = 'SCRIPT_FILE_PATH',
+        SCRIPT_CONFIG_DUMP  = 'SCRIPT_CONFIG_DUMP',
+        SCRIPT_FNAME_CACHE  = 'SCRIPT_FNAME_CACHE',
+    }
+
     /*
                 888     888      d8888 8888888b.   .d8888b.
                 888     888     d88888 888   Y88b d88P  Y88b
@@ -620,6 +667,7 @@ namespace g {
      */
     export const SYSTEMP: string = ''+DOpus.fsUtil().resolve('%TEMP%');
 
+    export let SCRIPT_UNIQUE_ID: string;
 
     /*
                  .d8888b.  888             d8888  .d8888b.   .d8888b.  8888888888  .d8888b.
@@ -656,6 +704,9 @@ namespace g {
         // isErr()    { return !!this.err; }
         isErr()    { return typeof this.err !== 'undefined'; }
         toString() { return JSON.stringify(this, null, 4); }
+        toExString() {
+            return (this.err as unknown as UserException).toString();
+        }
         match(matcher: IResultMatcher) {
             if(this.isOk()) {
                 return matcher.ok.apply(this, arguments);
@@ -664,11 +715,20 @@ namespace g {
             }
         }
         show(): IResult<S, E> {
-            if (this.isErr()) g.showMessageDialog(null, this.toString());
+            if (!this.isErr()) {
+                return this;
+            }
+            // non-exception results are not shown, unless ALL_RESULTS is set
+            if (ERROR_MODE !== ERROR_MODES.ALL_RESULTS && !(this.err instanceof UserException)) {
+                logger.error(this.toString());
+                return this;
+            }
+            const err = this.err instanceof UserException ? this.err.toString() : this.toString();
+            logger.error(err);
+            g.showMessageDialog(null, err);
             return this;
         }
     }
-
 
     export class UserException implements IException<ex>, IShowableError<UserException> {
         public readonly type: ex;
@@ -688,7 +748,7 @@ namespace g {
             this.message = message || '<no message passed>';
         }
         toString(): string {
-            return this.name + ' (' + this.type + ') @ ' + this.where + '\n' + this.message;
+            return this.name + ' (' + this.type + ') @ ' + this.where + '\n\n' + this.message;
         }
         show(): UserException {
             g.showMessageDialog(null, this.toString());
@@ -706,6 +766,29 @@ namespace g {
                 888        Y88b. .d88P 888   Y8888 Y88b  d88P    888       888   Y88b. .d88P 888   Y8888 Y88b  d88P
                 888         "Y88888P"  888    Y888  "Y8888P"     888     8888888  "Y88888P"  888    Y888  "Y8888P"
     */
+
+    export function init(initData: DOpusScriptInitData) {
+        initData.vars.set(VAR_NAMES.SCRIPT_FILE_PATH, initData.file);
+        initData.vars.set(VAR_NAMES.SCRIPT_UNIQUE_ID, initData.file.toHash());
+    }
+    export function getScriptPathVars(): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
+        if (!Script.vars.exists(VAR_NAMES.SCRIPT_FILE_PATH)) {
+            return UserExc(ex.UninitializedException, 'g.getScriptPathVars', 'InitData has not been set yet, call g.init(scriptInitData) in your OnInit() first').show();
+        }
+        const oThisScriptsPath = DOpus.fsUtil().getItem(Script.vars.get(VAR_NAMES.SCRIPT_FILE_PATH));
+        return g.ResultOk({
+            fullpath: (''+oThisScriptsPath.realpath),
+            path    : (''+oThisScriptsPath.path).normalizeTrailingBackslashes(),
+            isOSP   : (''+oThisScriptsPath.ext).toLowerCase() === '.osp'
+        });
+    }
+    export function getScriptUniqueID(): IResult<string, IException<ex>> {
+        if (!Script.vars.exists(VAR_NAMES.SCRIPT_UNIQUE_ID)) {
+            return UserExc(ex.UninitializedException, 'g.getScriptPathVars', 'InitData has not been set yet, call g.init(scriptInitData) in your OnInit() first').show();
+        }
+        return g.ResultOk(Script.vars.get(VAR_NAMES.SCRIPT_UNIQUE_ID));
+    }
+
     /**
      * poor man's debugger
      * returns the given object in a printable fashion, incl. some of DOpus objects
@@ -766,16 +849,26 @@ namespace g {
      * @returns {string}
      */
     export function funcNameExtractor(fnFunc: Function, parentName?: string): string {
+        const fname = 'funcNameExtractor';
+
+        if (typeof fnFunc !== 'function') {
+            abortWith(UserExc(ex.DeveloperStupidityException, fname,  'Given parameter is not a function\n' + dumpObject(fnFunc)).err);
+        }
+        if (typeof fnFunc.fname === 'undefined') {
+            UserExc(ex.NotImplementedYetException, 'funcNameExtractor', 'given method has not set the property \'fname\' yet, found: ' + fnFunc.fname + ',source:\n' + fnFunc.toString().slice(0,200)).show();
+        } else {
+            logger.force('found: ' + fnFunc.fname);
+        }
+
         let reExtractor = new RegExp(/^function\s+(\w+)\(.+/),
             fnName = 'funcNameExtractor',
             cache: Function[] = [];
         // @ts-ignore
         if (cache[fnFunc]) {
             // @ts-ignore
+            logger.sforce('%s -- found in cache: %s', fnName, cache[fnFunc]);
+            // @ts-ignore
             return cache[fnFunc];
-        }
-        if (typeof fnFunc !== 'function') {
-            abortWith(UserExc(ex.DeveloperStupidityException, fnName,  'Given parameter is not a function\n' + dumpObject(fnFunc)).err);
         }
         var matches = fnFunc.toString().match(reExtractor),
             out = matches ? matches[1] : 'Anonymous -- ' + dumpObject(fnFunc, true).value.replace(/\n|^\s+|\s+$/mg, '');
@@ -976,48 +1069,6 @@ namespace g {
         showMessageDialog(null, err);
         throw oErr;
     }
-
-
-    // /**
-    //  * Do not call this with DIALOG in main/global block of your script
-    //  * otherwise script might fail to initialize!
-    //  * @param {ERROR_MODES} newErrorMode next error mode
-    //  * @returns {ERROR_MODES} previous error mode
-    //  */
-    // export function setErrorMode(newErrorMode: ERROR_MODES): ERROR_MODES {
-    //     var current = ERROR_MODE,
-    //         msg: string;
-    //     if (!ERROR_MODES.hasOwnProperty(newErrorMode)) {
-    //         msg = 'Error mode ' + newErrorMode + ' is not supported';
-    //         DOpus.output(msg);
-    //         g.showMessageDialog(null, msg);
-    //     } else {
-    //         msg = 'I understand that changing default error mode may lead to freezes and bugs which escape my attention!\n\nNew error mode: ' + newErrorMode;
-    //         g.showMessageDialog(null, msg);
-    //         ERROR_MODE = newErrorMode;
-    //     }
-    //     return current;
-    // }
-    // export function getErrorMode(): ERROR_MODES {
-    //     return ERROR_MODE;
-    // }
-    // export function showError(err: any): typeof err {
-    //     libLogger.current.serror(err);
-    //     switch (ERROR_MODE) {
-    //         case ERROR_MODES.RESULT:
-    //             return g.ResultErr(err);  // mainly for development
-    //         case ERROR_MODES.ERROR:
-    //             throw new Error(err);     // mainly for development
-    //         case ERROR_MODES.DIALOG:
-    //             g.showMessageDialog(null, err);
-    //             return false;
-    //         default:
-    //             throw new Error('Unexpected error mode ' + ERROR_MODE + ', contact the developer!');
-    //     }
-    // }
-
-
-
 
     export function getUniqueID(simple = true):string {
         // Believe it or not

@@ -175,7 +175,10 @@
  * ```
  */
 namespace config {
+    const myName = 'config';
 
+    // only JSON-ifiable objects are allowed
+    // regexps must be passed as string, but are automatically validated if they can be converted to RegExp
     export enum TYPE {
         BOOLEAN  = 'BOOLEAN',
         STRING   = 'STRING',
@@ -184,12 +187,9 @@ namespace config {
         ARRAY    = 'ARRAY',
         POJO     = 'POJO',
         DROPDOWN = 'DROPDOWN',
-        OBJECT   = 'OBJECT',
         REGEXP   = 'REGEXP',
         JSON     = 'JSON',
-        FUNCTION = 'FUNCTION',
     }
-
 
     export type ConfigValue = {
         /** this is the JS variable and UI name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
@@ -210,15 +210,14 @@ namespace config {
     }
 
     class Base implements ILibrary{
+        myName: string = 'Base';
 
         private initData: DOpusScriptInitData | undefined;
         private items: ConfigItems = {};
-        private cntItems = 0;
+        private cntItems: number = 0;
         protected logger: ILogger = libLogger.current;
 
-        static globalVarSuffix: string = '_scriptFullPathAsDOpusItem';
-
-        constructor() {}
+        constructor() { }
 
         // interface implementation
         setLogger(newLogger?: ILogger): IResult<true, any> {
@@ -237,27 +236,25 @@ namespace config {
          */
         setInitData(scriptID: string, initData: DOpusScriptInitData): this {
             this.initData = initData;
-            DOpus.vars.set(scriptID + Base.globalVarSuffix, DOpus.fsUtil().getItem(this.initData.file));
             return this;
         }
 
-        /**
-         * Reads the fullpath, path name and isOSP flag of this script.
-         * The DOpusItem can be easily got with the fullpath and you have access to all other properties besides path.
-         * @param {string} scriptID unique script ID, which will be used to retrieve the script's fullpath from initData
-         */
-        getScriptPathVars(scriptID: string): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
-            const oThisScriptsPath:DOpusItem = DOpus.vars.get(scriptID + Base.globalVarSuffix);
-
-            if (!oThisScriptsPath) {
-                return UserExc(ex.UninitializedException, 'Base.getScriptPathVars', 'InitData has not been set yet, call setInitData() in your OnInit() first');
-            }
-            return g.ResultOk({
-                fullpath: (''+oThisScriptsPath.realpath),
-                path    : (''+oThisScriptsPath.path).normalizeTrailingBackslashes(),
-                isOSP   : (''+oThisScriptsPath.ext).toLowerCase() === '.osp'
-            });
-        }
+        // /**
+        //  * Reads the fullpath, path name and isOSP flag of this script.
+        //  * The DOpusItem can be easily got with the fullpath and you have access to all other properties besides path.
+        //  * @param {string} scriptID unique script ID, which will be used to retrieve the script's fullpath from initData
+        //  */
+        // getScriptPathVars(scriptID: string): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
+        //     const oThisScriptsPath:DOpusItem = DOpus.vars.get(scriptID + Base.globalVarSuffix);
+        //     if (!oThisScriptsPath) {
+        //         return UserExc(ex.UninitializedException, 'Base.getScriptPathVars', 'InitData has not been set yet, call setInitData() in your OnInit() first');
+        //     }
+        //     return g.ResultOk({
+        //         fullpath: (''+oThisScriptsPath.realpath),
+        //         path    : (''+oThisScriptsPath.path).normalizeTrailingBackslashes(),
+        //         isOSP   : (''+oThisScriptsPath.ext).toLowerCase() === '.osp'
+        //     });
+        // }
 
         /**
          * @param {string} key config key
@@ -297,8 +294,8 @@ namespace config {
             if (typeof this.initData === 'undefined') {
                 return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first').show();
             }
-            var config_groups = DOpus.create().map();
-            var config_desc   = DOpus.create().map();
+            var config_groups = this.initData.config_groups || DOpus.create().map();
+            var config_desc   = this.initData.config_desc   || DOpus.create().map();
 
             for (const key in this.items) {
                 const val:ConfigValue = this.items[key];
@@ -337,6 +334,7 @@ namespace config {
                 config_groups.set(key, val.group||'');
                 config_desc.set(key, val.desc||'');
             }
+            this.initData.vars.set(g.VAR_NAMES.SCRIPT_CONFIG_DUMP, JSON.stringify(this.items, null, 4));
             // @ts-ignore
             this.initData.config_groups = config_groups;
             // @ts-ignore
@@ -386,17 +384,16 @@ namespace config {
                     } catch (e) {
                         return false;
                      }
-                case TYPE.OBJECT:
-                    return typeof val === 'object';
                 case TYPE.REGEXP:
-                    if (typeof val !== 'string' && typeof val !== 'object') {
+                    if (typeof val !== 'string') {
                         return false;
                     }
                     try { eval('new RegExp(' + val + ');'); return true; } catch (e) { return false }
                 case TYPE.JSON:
+                    if (typeof val !== 'string') {
+                        return false;
+                    }
                     try { JSON.parse(val); return true; } catch (e) { return false; }
-                case TYPE.FUNCTION:
-                    return typeof val === 'function';
                 default:
                     g.showMessageDialog(null, 'isValid(): ' + type + ' is not supported');
                     return false;
@@ -411,12 +408,24 @@ namespace config {
          * @returns {any} config value
          */
         getValue(key: string, autoGetDOpusValue = true): IResult<any, IException<ex>> {
+            const fname = this.getValue.fname = this.myName + '.getValue';
+
+            if (!this.items || !this.cntItems) {
+                logger.force('Attempting to read from script memory, count: ' + this.cntItems);
+                if (Script.vars.exists(g.VAR_NAMES.SCRIPT_CONFIG_DUMP)) {
+                    logger.force('Config dump found in memory');
+                    this.items = JSON.parse(Script.vars.get(g.VAR_NAMES.SCRIPT_CONFIG_DUMP));
+                    logger.force(JSON.stringify(this.items).slice(0, 1000));
+                    // logger.force(JSON.stringify(this.items, null, 4));
+                } else {
+                    logger.force('Config dump not found in memory');
+                }
+            }
 
             var usingConfigVal = false;
             if (!this.items.hasOwnProperty(key)) {
                 DOpus.output('this.items:\n' + JSON.stringify(this.items, null, 4));
                 return UserExc(ex.InvalidKeyException, this.getValue, key + ' does not exist');
-                // return this.showError(key + ' does not exist');
             }
 
             var valueToProbe;
@@ -425,46 +434,44 @@ namespace config {
                 valueToProbe = Script.config[<string>this.items[key].key];
                 if (typeof valueToProbe === 'undefined' || valueToProbe === null) {
                     return UserExc(ex.InvalidParameterValueException, this.getValue, 'Script config has no value for ' + key);
-                    // return this.showError('Script config has no value for ' + key);
                 }
                 valueToProbe = this.convert(valueToProbe, this.items[key].type);
                 if (typeof valueToProbe === 'undefined') {
                     return UserExc(ex.InvalidParameterValueException, this.getValue, 'Config value ' + this.items[key].key + ' is not valid');
-                    // return this.showError('Config value ' + this.items[key].key + ' is not valid');
                 }
                 usingConfigVal = true;
             } else {
                 valueToProbe = this.items[key].val;
             }
+            logger.sinfo('%s -- valueToProbe: %s, key: %s, type: %s', 'Base.getValue()', g.dumpObject(valueToProbe), key, this.items[key].type);
 
             if (!this.isValid(valueToProbe, this.items[key].type)) {
                 return UserExc(ex.InvalidParameterValueException, this.getValue, 'Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].key : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
-                // return this.showError('Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].key : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
             }
             return valueToProbe;
         }
-        safeConvertToRegexp(testString: string): RegExp | undefined {
-            var res;
-            if (typeof testString === 'string') {
-                try { res = eval('new RegExp(' + testString + ');') } catch (e) { }
-            }
-            return res;
-        }
-        safeConvertToJSON(testString: string): Object | undefined {
-            var res;
-            if (typeof testString === 'string') {
-                try { res = JSON.parse(testString); } catch (e) { }
-            }
-            return res;
-        }
+
 
         convert(val: any, type: config.TYPE) {
+            function safeConvertToRegexp(testString: string): RegExp | undefined {
+                var res;
+                if (typeof testString === 'string') {
+                    try { res = eval('new RegExp(' + testString + ');') } catch (e) { }
+                }
+                return res;
+            }
+            function safeConvertToJSON(testString: string): Object | undefined {
+                var res;
+                if (typeof testString === 'string') {
+                    try { res = JSON.parse(testString); } catch (e) { }
+                }
+                return res;
+            }
             switch (type) {
                 case TYPE.ARRAY:
-                case TYPE.OBJECT:
-                case TYPE.POJO: return this.safeConvertToJSON(val);
+                case TYPE.POJO: return safeConvertToJSON(val);
+                case TYPE.REGEXP: return safeConvertToRegexp(val);
                 case TYPE.PATH: return '' + DOpus.fsUtil().resolve(val);
-                case TYPE.REGEXP: return this.safeConvertToRegexp(val);
                 default: return val;
             }
         }
@@ -538,6 +545,7 @@ namespace config {
     class User extends Base {
         constructor() {
             super();
+            this.myName = myName + '.User';
         }
     }
 
@@ -546,6 +554,7 @@ namespace config {
     class ScriptExt extends Base {
         constructor() {
             super();
+            this.myName = myName + '.ScriptExt';
         }
         addPOJO(key: string, val: string) {
             // note there is no group, desc necessary for this method

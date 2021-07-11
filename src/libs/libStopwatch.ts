@@ -12,8 +12,10 @@
 */
 
 namespace SW {
+    const myName = 'sw';
 
     class Stopwatch {
+        private myName = myName + '.Stopwatch';
 
         private static myName = 'stopwatch';
 
@@ -26,17 +28,17 @@ namespace SW {
         private _running: { [s: string]: number; } = {};
 
         private ensureExists(id: string | number, action: string) {
+            const fname = this.ensureExists.fname = myName + '.ensureExists';
             if(this._running[id]) return;
-            var fnName = g.funcNameExtractor(arguments.callee, Stopwatch.myName);
-            var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must exist)', fnName, id, action);
-            g.abortWith(UserExc(ex.InvalidParameterValueException, fnName, msg).err);
+            var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must exist)', fname, id, action);
+            g.abortWith(UserExc(ex.InvalidParameterValueException, fname, msg).err);
         }
 
         private ensureNotExists(id: string | number, action: string) {
+            const fname = this.ensureNotExists.fname = myName + '.ensureNotExists';
             if(!this._running[id]) return;
-            var fnName = g.funcNameExtractor(arguments.callee, Stopwatch.myName);
-            var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must not exist)', fnName, id, action);
-            g.abortWith(UserExc(ex.InvalidParameterValueException, fnName, msg).err);
+            var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must not exist)', fname, id, action);
+            g.abortWith(UserExc(ex.InvalidParameterValueException, fname, msg).err);
         }
 
         /**
@@ -45,6 +47,7 @@ namespace SW {
          * @returns {number} current timestamp in millisecs
          */
         public start(id: string): number {
+            const fname = this.start.fname = myName + '.start';
             this.ensureNotExists(id, 'start');
             var _now = g.now();
             this._running[id] = _now;
@@ -57,6 +60,7 @@ namespace SW {
          * @returns {number} elapsed time in millisecs
          */
         public reset(id: string): number {
+            const fname = this.reset.fname = myName + '.reset';
             this.ensureExists(id, 'reset');
             var _now = g.now();
             var _elapsed = _now - this._running[id];
@@ -70,6 +74,7 @@ namespace SW {
          * @returns {number} elapsed time in millisecs
          */
         public getElapsed(id: string): number {
+            const fname = this.getElapsed.fname = myName + '.getElapsed';
             this.ensureExists(id, 'getElapsed');
             var _elapsed =  g.now() - this._running[id];
             return _elapsed;
@@ -81,6 +86,7 @@ namespace SW {
          * @returns {number} elapsed time in millisecs
          */
         public stop(id: string): number {
+            const fname = this.stop.fname = myName + '.stop';
             this.ensureExists(id, 'stop');
             var _elapsed = g.now() - this._running[id];
             delete this._running[id];
@@ -96,6 +102,7 @@ namespace SW {
          * @see start
          */
         public startAndPrint(id: string, prefix?: any, suffix?: any): string {
+            const fname = this.startAndPrint.fname = myName + '.startAndPrint';
             this.start(id);
             return g.sprintf(
                 '%s -- %s Started @%d %s',
@@ -115,6 +122,7 @@ namespace SW {
          * @see reset
          */
         public resetAndPrint(id: string, prefix?: any, suffix?: any): string {
+            const fname = this.resetAndPrint.fname = myName + '.resetAndPrint';
             var _elapsed = this.reset(id);
             return g.sprintf(
                 '%s -- %s Reset @%d, Elapsed so far: %d ms (%s s) %s',
@@ -136,6 +144,7 @@ namespace SW {
          * @see getElapsed
          */
         public getElapsedAndPrint(id: string, prefix?: any, suffix?: any): string {
+            const fname = this.getElapsedAndPrint.fname = myName + '.getElapsedAndPrint';
             var _elapsed =  this.getElapsed(id);
             return g.sprintf(
                 '%s -- %s Elapsed so far: %d ms (%s s) %s',
@@ -156,6 +165,7 @@ namespace SW {
          * @see stop
          */
         public stopAndPrint(id: string, prefix?: any, suffix?: any): string {
+            const fname = this.stopAndPrint.fname = myName + '.stopAndPrint';
             var _elapsed = this.stop(id);
             return g.sprintf(
                 '%s -- %s Finished @%d, Elapsed: %d ms (%s s) %s',

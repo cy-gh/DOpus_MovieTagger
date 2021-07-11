@@ -10,6 +10,7 @@
 ///<reference path='./libs/libLogger.ts' />
 ///<reference path='./libs/libURLHelpers.ts' />
 ///<reference path='./libs/libFS.ts' />
+///<reference path='./libs/libADS.ts' />
 ///<reference path='./libs/libConfigAccess.ts' />
 
 // use CTRL-SHIFT-B to build - you must have npx.cmd in your path
@@ -79,7 +80,7 @@ enum CfgV {
 
 // CONFIG - DEFAULT VALUES
 function setupConfigVars(initData: DOpusScriptInitData) {
-    const fnName = g.funcNameExtractor(setupConfigVars);
+    setupConfigVars.fname = 'setupConfigVars';
 
     let group = '';
 
@@ -651,15 +652,18 @@ function setupConfigVars(initData: DOpusScriptInitData) {
      *
      * do not touch
      */
-    cfg.addValue(CfgV.FORMATS_REGEX_VBR, config.TYPE.REGEXP, new RegExp(/ALAC|Monkey's Audio|TAK|DSD/));
+    // cfg.addValue(CfgV.FORMATS_REGEX_VBR, config.TYPE.REGEXP, new RegExp(/ALAC|Monkey's Audio|TAK|DSD/));
+    cfg.addValue(CfgV.FORMATS_REGEX_VBR, config.TYPE.REGEXP, '/ALAC|Monkey\'s Audio|TAK|DSD/');
 
     /**
      * Audio formats which do not store a lossy/lossless information separately but are lossless by definition
      *
      * do not touch
      */
-    cfg.addValue(CfgV.FORMATS_REGEX_LOSSLESS, config.TYPE.REGEXP, new RegExp(/ALAC|PCM|TTA|DSD/));
-    cfg.addValue(CfgV.FORMATS_REGEX_LOSSY, config.TYPE.REGEXP, new RegExp(/AMR/));
+    // cfg.addValue(CfgV.FORMATS_REGEX_LOSSLESS, config.TYPE.REGEXP, new RegExp(/ALAC|PCM|TTA|DSD/));
+    // cfg.addValue(CfgV.FORMATS_REGEX_LOSSY, config.TYPE.REGEXP, new RegExp(/AMR/));
+    cfg.addValue(CfgV.FORMATS_REGEX_LOSSLESS, config.TYPE.REGEXP, '/ALAC|PCM|TTA|DSD/');
+    cfg.addValue(CfgV.FORMATS_REGEX_LOSSY, config.TYPE.REGEXP, '/AMR/');
 
     /**
      * audio channels translation hash
@@ -820,9 +824,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
     // var config_file_dir_raw = '/dopusdata/Script AddIns';
     var ext_config_file = DOpus.fsUtil().resolve('/dopusdata/Script AddIns') + '\\' + Global.SCRIPT_NAME + '.json';
     var res = ext.addPOJOFromFile('ext_config_pojo', ext_config_file);
-    if (res.isErr()) {
-        logger.sforce('%s -- %s', fnName, JSON.stringify(res, null, 4));
-    }
+
     // do not touch this!
     // ext.addPOJO('ext_config_pojo');
 
@@ -835,6 +837,19 @@ function setupConfigVars(initData: DOpusScriptInitData) {
     // DOpus.output('v.length: ' + v.length);
     // DOpus.output('v[0]: ' + v[0]);
     // DOpus.output('v[1]: ' + v[1]);
+
+    // var re = new RegExp(/ALAC|Monkey's Audio|TAK|DSD/i);
+    // // DOpus.output('regexp.toString: ' + re.source + ', flags: ' + re.);
+    // logger.sforce(
+    //     '%s -- source: %s, flags: %s, global: %s, ignoreCase: %s, multiline: %s',
+    //     fnName,
+    //     re.source,
+    //     re.flags,
+    //     re.global,
+    //     re.ignoreCase,
+    //     re.multiline
+    //     );
+
 
     ext.finalize();
 
@@ -852,6 +867,7 @@ function OnInit(initData: DOpusScriptInitData) {
     DOpus.clearOutput();
     DOpus.output('Script initialization started');
 
+    g.init(initData);
 
     // cfg.finalize();
     cfg.setInitData(Global.SCRIPT_NAME, initData);
@@ -988,6 +1004,22 @@ function OnInit(initData: DOpusScriptInitData) {
 
     // return Object.keys(LOGLEVEL).filter(k => typeof LOGLEVEL[k as any] === "number").map(k => LOGLEVEL[k as any]);
     // DOpus.output( JSON.stringify(Object.keys(libLogger.LOGLEVEL), null, 4) );
+
+
+    initData.vars.set('f2k', 'set in OnInit()');
+
+    DOpus.output('initData.file: ' + typeof Script);
+    DOpus.output('initData.file: ' + typeof Script.vars);
+
+
+
+    var dummy = DOpus.create().map();
+    dummy.set('foo', CustomCommand);
+    initData.vars.set('foo', CustomCommand);
+    DOpus.output('function in map - typeof: ' + typeof dummy.get('foo'));
+
+    // g.init(initData);
+
     DOpus.output('Script initialization finished');
 
 }
@@ -1005,10 +1037,11 @@ function OnInit(initData: DOpusScriptInitData) {
  * @param {boolean=} hide if true, command is hidden from commands list
  */
 function _addCommand(name: string, fnFunction: Function, initData: DOpusScriptInitData, template: string, icon: string, label: string, desc: string, hide: boolean | undefined) {
-    const fnName = g.funcNameExtractor(_addCommand);
-    logger.sforce('%s -- started', fnName);
+    const fname = _addCommand.fname = '_addCommand';
 
-    logger.sforce('%s -- adding: %s', fnName, name);
+    logger.sforce('%s -- started', fname);
+
+    logger.sforce('%s -- adding: %s', fname, name);
 
     var cmd         = initData.addCommand();
     cmd.name        = (Global.SCRIPT_NAME_SHORT||'') + name;
@@ -1019,24 +1052,34 @@ function _addCommand(name: string, fnFunction: Function, initData: DOpusScriptIn
     cmd.desc        = desc || label;
     cmd.hide        = typeof hide !== 'undefined' && hide || false;
 
-    logger.sforce('%s -- cmd.name: %s', fnName, cmd.name);
-    logger.sforce('%s -- finished', fnName);
+    logger.sforce('%s -- cmd.name: %s', fname, cmd.name);
+    logger.sforce('%s -- finished', fname);
 }
 
 function CustomCommand() {
-    const fnName = g.funcNameExtractor(CustomCommand);
-    logger.sforce('%s -- started', fnName);
+    const fname = CustomCommand.fname = 'CustomCommand';
 
-    var oScriptInfo = config.user.getScriptPathVars(Global.SCRIPT_NAME);
-    if (oScriptInfo.isErr()) {
-        // logger.serror('%s -- Error while getting the script vars: %s', fnName, Err[oScriptInfo.err]);
-        logger.serror('%s -- Error:', JSON.stringify(oScriptInfo, null, 4));
-        logger.serror('%s -- Error type: %s, name: %s, where: %s, message: %s', 'caller', oScriptInfo.err.type, oScriptInfo.err.name, oScriptInfo.err.where, oScriptInfo.err.message);
-        logger.serror('%s -- Error while getting the script vars: %s @ %s', fnName, oScriptInfo.err.message, oScriptInfo.err.where);
-        return;
-    }
-    logger.sforce('%s -- script vars:\n%s', fnName, JSON.stringify(oScriptInfo.ok, null, 4));
+    logger.sforce('%s -- started', fname);
 
-    logger.sforce('%s -- hidden var:\n%s', fnName, config.user.getValue(CfgV.config_file_name));
-    logger.sforce('%s -- finished', fnName);
+    logger.force('uid: ' + g.getScriptUniqueID());
+    logger.force('pvars: ' + JSON.stringify(g.getScriptPathVars(), null, 4));
+
+    logger.force('');
+    logger.force('');
+    logger.force('');
+    logger.force('');
+
+    // logger.force('cfg items: ' + cfg.getValue(CfgV.FORMATS_REGEX_VBR));
+    logger.force('cfg items: ' + cfg.getValue(CfgV.META_STREAM_NAME));
+
+    DOpus.output('function in map - typeof: ' + typeof Script.vars.get('foo'));
+    DOpus.output('function in map: ' + Script.vars.get('foo'));
+    // DOpus.output('function in map: ' + g.funcNameExtractor.fname);
+    // DOpus.output('extracted name: ' + g.funcNameExtractor(CustomCommand));
+
+    // var stream = ads.adsStreamCreator('dummy');
+    var stream = new ads.Stream('dummy');
+    stream.setLogger(logger);
+
+    logger.sforce('%s -- finished', fname);
 }
