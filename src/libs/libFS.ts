@@ -5,20 +5,23 @@
 namespace fs {
 
     const myName = 'fs';
-    const logger = libLogger.std;
+    const logger = libLogger.current;
 
     // blob.copyFrom() and stringTools.decode() use different names
     const // FORMAT_FOR_COPY   = 'utf8',
           FORMAT_FOR_DECODE = 'utf-8';
 
     /**
-     * reads requested file contents (incl. ADS streams)
-     * is compatible with extremely long paths, incl. > 255 chars
+     * Reads requested file contents (incl. ADS streams).
      *
-     * DO NOT PASS QUOTES, SINGLE OR DOUBLE - they will be automatically added
+     * Is compatible with extremely long paths, incl. > 255 chars.
      *
-     * for format not all of "base64", "quoted", "auto"=not supplied, "utf-8", "utf-16", "utf-16-le", "utf-16-be" do work
-     * the only ones which worked reliably in my tests are utf-8 & utf-16, since they're the only ones Blob.CopyFrom() supports
+     * DO NOT PASS QUOTES, SINGLE OR DOUBLE - they will be automatically added.
+     *
+     * For format not all of "base64", "quoted", "auto"=not supplied, "utf-8", "utf-16", "utf-16-le", "utf-16-be" do work.
+     *
+     * The only ones which worked reliably in my tests are utf-8 & utf-16, since they're the only ones Blob.CopyFrom() supports.
+     *
      * @example
      * contents = FS.readFile("Y:\\MyDir\\myfile.txt", FS.TEXT_ENCODING.utf16);
      * contents = FS.readFile("Y:\\MyDir\\myfile.txt:SecondStream", FS.TEXT_ENCODING.utf8);
@@ -50,13 +53,16 @@ namespace fs {
     }
 
     /**
-     * saves given contents to file (incl. ADS streams)
-     * is compatible with extremely long paths, incl. > 255 chars
+     * Saves given contents to file (incl. ADS streams).
      *
-     * DO NOT PASS QUOTES, SINGLE OR DOUBLE - they will be automatically added
+     * Is compatible with extremely long paths, incl. > 255 chars.
      *
-     * for format not all of "base64", "quoted", "auto"=not supplied, "utf-8", "utf-16", "utf-16-le", "utf-16-be" do work
-     * the only ones which worked reliably in my tests are utf-8 & utf-16, since they're the only ones Blob.CopyFrom() supports
+     * DO NOT PASS QUOTES, SINGLE OR DOUBLE - they will be automatically added.
+     *
+     * For format not all of "base64", "quoted", "auto"=not supplied, "utf-8", "utf-16", "utf-16-le", "utf-16-be" do work.
+     *
+     * The only ones which worked reliably in my tests are utf-8 & utf-16, since they're the only ones Blob.CopyFrom() supports.
+     *
      * @example
      * numBytesWritten = FS.SaveFile("Y:\\MyDir\\myfile.txt", 'Hello World');
      * numBytesWritten = FS.SaveFile("Y:\\MyDir\\myfile.txt:CustomMetaInfo", encodeURI(new Date().getTime().toString()), FS.TEXT_ENCODING.utf16);

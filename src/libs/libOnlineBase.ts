@@ -1,13 +1,13 @@
 ///<reference path='../std/libStdDev.ts' />
 
 interface IOnlineAPI {
-    getRandomKeyFrom(keysList: string[]): string;
+    getRandomKeyFrom(keysList: string[]): IResult<string, any>;
 }
 
 namespace extOnline {
 
 
-    const logger = libLogger.std;
+    const logger = libLogger.current;
     const sprintf = sprintfjs.sprintf;
 
 
@@ -22,15 +22,14 @@ namespace extOnline {
 
     class MovSite implements IOnlineAPI {
         constructor() {}
-        getRandomKeyFrom(keysList: string[]): string {
+        getRandomKeyFrom(keysList: string[]): IResult<string, any> {
             if (keysList.length === 0) {
-                throw UserExc(ex.NotImplementedYetException, arguments.callee, 'API key reading logic');
-                // throw new exc.NotImplementedYetException('API key reading logic', this.getRandomKeyFrom);
+                return UserExc(ex.NotImplementedYetException, arguments.callee, 'API key reading logic');
             }
             function getRandomInt(max: number) {
                 return Math.floor(Math.random() * max);
             }
-            return keysList.length === 1 ? keysList[0] : keysList[getRandomInt(keysList.length)];
+            return g.ResultOk(keysList.length === 1 ? keysList[0] : keysList[getRandomInt(keysList.length)]);
         }
     }
 

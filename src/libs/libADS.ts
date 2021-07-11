@@ -204,12 +204,12 @@ namespace ads {
             this.streamName = streamName;
             this.cache = cacheImpl || cache.nullCache;
             this.cmd = DOpus.create().command();
-            this.logger = libLogger.std;
+            this.logger = libLogger.current;
         }
 
         // interface implementation
-        setLogger(loggerNew?: ILogger): IResult<true, any> {
-            this.logger = loggerNew || this.logger;
+        setLogger(newLogger?: ILogger): IResult<true, any> {
+            this.logger = newLogger || this.logger;
             return g.ResultOk(true);
         }
 

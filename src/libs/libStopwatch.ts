@@ -25,9 +25,6 @@ namespace SW {
          */
         private _running: { [s: string]: number; } = {};
 
-        /**
-         * @throws {util.InvalidParameterValueException}
-         */
         private ensureExists(id: string | number, action: string) {
             if(this._running[id]) return;
             var fnName = g.funcNameExtractor(arguments.callee, Stopwatch.myName);
@@ -35,9 +32,6 @@ namespace SW {
             g.abortWith(UserExc(ex.InvalidParameterValueException, fnName, msg).err);
         }
 
-        /**
-         * @throws {util.InvalidParameterValueException}
-         */
         private ensureNotExists(id: string | number, action: string) {
             if(!this._running[id]) return;
             var fnName = g.funcNameExtractor(arguments.callee, Stopwatch.myName);

@@ -22,7 +22,7 @@
 type globalType = {
     [k: string]: any
 }
-var logger = libLogger.def;
+var logger = libLogger.current;
 var Global:globalType = {};
 Global.SCRIPT_NAME = 'cuMovieTagger';
 Global.SCRIPT_NAME = 'DOpus_MovieTagger';
@@ -83,7 +83,6 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
     let group = '';
 
-
     group = ' DO NOT CHANGE UNLESS NECESSARY'; // first char is nbsp;
     /**
      * Name of the ADS stream, can be also used via "dir /:" or "type file:stream_name" commands
@@ -104,7 +103,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         'MExt_MediaInfo',
         group,
         'Name of NTFS stream (ADS) to use\nWARNING: DELETE existing ADS from all files before you change this, otherwise old streams will be orphaned'
-    );
+    ).show();
 
 
     group = 'Paths';
@@ -820,7 +819,10 @@ function setupConfigVars(initData: DOpusScriptInitData) {
     // var config_file_name = Global.SCRIPT_NAME + '.json';
     // var config_file_dir_raw = '/dopusdata/Script AddIns';
     var ext_config_file = DOpus.fsUtil().resolve('/dopusdata/Script AddIns') + '\\' + Global.SCRIPT_NAME + '.json';
-    ext.addPOJOFromFile('ext_config_pojo', ext_config_file);
+    var res = ext.addPOJOFromFile('ext_config_pojo', ext_config_file);
+    if (res.isErr()) {
+        logger.sforce('%s -- %s', fnName, JSON.stringify(res, null, 4));
+    }
     // do not touch this!
     // ext.addPOJO('ext_config_pojo');
 
@@ -848,7 +850,8 @@ function OnInit(initData: DOpusScriptInitData) {
     initData.group          = 'cuneytyilmaz.com';
 
     DOpus.clearOutput();
-    DOpus.output('Script started');
+    DOpus.output('Script initialization started');
+
 
     // cfg.finalize();
     cfg.setInitData(Global.SCRIPT_NAME, initData);
@@ -867,7 +870,7 @@ function OnInit(initData: DOpusScriptInitData) {
 
 
     // let logger1 = new libLogger.CLogger(libLogger.LOGLEVEL.NORMAL);
-    let logger = libLogger.std;
+    let logger = libLogger.current;
     logger.force("This variant does not work with node anymore...");
     logger.force('No import or require in this version but it works with DOpus');
 
@@ -901,11 +904,6 @@ function OnInit(initData: DOpusScriptInitData) {
     // DOpus.output('unique simple: ' + g.getUniqueID());
     // DOpus.output('unique non-simple: ' + g.getUniqueID(false));
     // DOpus.output(libSprintfjs.sprintf('%s: %d', 'prefix', 12))
-    // try {
-    //     throw new exc.NotImplementedYetException('this is the message', 'OnInit');
-    // } catch(e) {
-    //     DOpus.output(JSON.stringify(e, null, 4));
-    // }
 
     // let adsStream = new ads.Stream('SHA1');
     // DOpus.output(adsStream.hasHashStream(doh.getItem('Y:\\simple.txt')));
@@ -990,7 +988,7 @@ function OnInit(initData: DOpusScriptInitData) {
 
     // return Object.keys(LOGLEVEL).filter(k => typeof LOGLEVEL[k as any] === "number").map(k => LOGLEVEL[k as any]);
     // DOpus.output( JSON.stringify(Object.keys(libLogger.LOGLEVEL), null, 4) );
-    DOpus.output('Script finished');
+    DOpus.output('Script initialization finished');
 
 }
 

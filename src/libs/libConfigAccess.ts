@@ -189,12 +189,7 @@ namespace config {
         JSON     = 'JSON',
         FUNCTION = 'FUNCTION',
     }
-    export enum ERROR_MODE {
-        NONE     = 'NONE',
-        RESULT   = 'RESULT',
-        ERROR    = 'ERROR',
-        DIALOG   = 'DIALOG',
-    }
+
 
     export type ConfigValue = {
         /** this is the JS variable and UI name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
@@ -219,19 +214,15 @@ namespace config {
         private initData: DOpusScriptInitData | undefined;
         private items: ConfigItems = {};
         private cntItems = 0;
-        private defaultErrorMode = ERROR_MODE.DIALOG;
-        protected logger: ILogger;
+        protected logger: ILogger = libLogger.current;
 
         static globalVarSuffix: string = '_scriptFullPathAsDOpusItem';
 
-        constructor() {
-            this.setErrorMode(this.defaultErrorMode);
-            this.logger = logger || libLogger.std;
-        }
+        constructor() {}
 
         // interface implementation
-        setLogger(loggerNew?: ILogger): IResult<true, any> {
-            this.logger = loggerNew || this.logger;
+        setLogger(newLogger?: ILogger): IResult<true, any> {
+            this.logger = newLogger || this.logger;
             return g.ResultOk(true);
         }
 
@@ -281,17 +272,15 @@ namespace config {
             : IResult<true, IException<ex>> {
             var msg;
             if (typeof this.initData === 'undefined') {
-                return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
+                return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first').show();
             }
             if (this.items.hasOwnProperty(key)) {
                 msg = key + ' already exists';
-                this.showError(msg);
-                return UserExc(ex.KeyAlreadyExistsException, 'Base.AddValue', msg);
+                return UserExc(ex.KeyAlreadyExistsException, 'Base.AddValue', msg).show();
             }
             if (!!!bypassValidation && !this.isValid(val, type)) {
                 msg = 'type ' + type + ' does not accept given value ' + val;
-                this.showError(msg);
-                return UserExc(ex.InvalidParameterValueException, 'Base.AddValue', msg);
+                return UserExc(ex.InvalidParameterValueException, 'Base.AddValue', msg).show();
             }
             this.cntItems++;
             this.items[key] = <ConfigValue>{ type: type, val: val, default: val, group: group, desc: desc };
@@ -306,14 +295,14 @@ namespace config {
          */
         finalize(): IResult<true, IException<ex>> {
             if (typeof this.initData === 'undefined') {
-                return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
+                return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first').show();
             }
             var config_groups = DOpus.create().map();
             var config_desc   = DOpus.create().map();
 
             for (const key in this.items) {
                 const val:ConfigValue = this.items[key];
-                DOpus.output(g.sprintf(
+                this.logger.snormal(
                     'FINALIZE -- key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
                     key,
                     val.type,
@@ -321,7 +310,7 @@ namespace config {
                     ''|| (val.type !== TYPE.DROPDOWN ? val.default.toString().slice(0, 20) + '...' : 'Vector Default'),
                     val.group,
                     val.desc
-                ));
+                );
 
                 switch(val.type) {
                     case TYPE.JSON:
@@ -353,34 +342,6 @@ namespace config {
             // @ts-ignore
             this.initData.config_desc   = config_desc;
             return g.ResultOk(true);
-        }
-
-
-
-        /**
-         * Do not call this with DIALOG in main/global block of your script
-         * otherwise script might fail to initialize!
-         * @param {config.ERROR_MODE} errorMode
-         */
-        setErrorMode(errorMode: config.ERROR_MODE) {
-            if (!config.ERROR_MODE.hasOwnProperty(errorMode)) {
-                const msg = 'Error mode ' + errorMode + ' is not supported';
-                DOpus.output(msg);
-                g.showMessageDialog(null, msg);
-            } else {
-                this.defaultErrorMode = errorMode;
-            }
-        }
-        getErrorMode(): config.ERROR_MODE {
-            return this.defaultErrorMode;
-        }
-        showError(msg: string): false|IResult<any, string> {
-            switch (this.defaultErrorMode) {
-                case ERROR_MODE.NONE: return false;           // you can use this as: if(!addBoolean(...)) {/*error*/}
-                case ERROR_MODE.RESULT: return g.ResultErr(msg);  // mainly for development
-                case ERROR_MODE.ERROR: throw new Error(msg);  // mainly for development
-                case ERROR_MODE.DIALOG: { g.showMessageDialog(null, msg); return false; }
-            }
         }
 
         /**
@@ -437,7 +398,7 @@ namespace config {
                 case TYPE.FUNCTION:
                     return typeof val === 'function';
                 default:
-                    this.showError('isValid(): ' + type + ' is not supported');
+                    g.showMessageDialog(null, 'isValid(): ' + type + ' is not supported');
                     return false;
             }
         }
@@ -449,12 +410,13 @@ namespace config {
          * @param {boolean=true} autoGetDOpusValue get the Script.config value automatically, use false to get stored value
          * @returns {any} config value
          */
-        getValue(key: string, autoGetDOpusValue = true): any {
+        getValue(key: string, autoGetDOpusValue = true): IResult<any, IException<ex>> {
 
             var usingConfigVal = false;
             if (!this.items.hasOwnProperty(key)) {
                 DOpus.output('this.items:\n' + JSON.stringify(this.items, null, 4));
-                return this.showError(key + ' does not exist');
+                return UserExc(ex.InvalidKeyException, this.getValue, key + ' does not exist');
+                // return this.showError(key + ' does not exist');
             }
 
             var valueToProbe;
@@ -462,11 +424,13 @@ namespace config {
             if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof this.items[key].key !== 'undefined') {
                 valueToProbe = Script.config[<string>this.items[key].key];
                 if (typeof valueToProbe === 'undefined' || valueToProbe === null) {
-                    return this.showError('Script config has no value for ' + key);
+                    return UserExc(ex.InvalidParameterValueException, this.getValue, 'Script config has no value for ' + key);
+                    // return this.showError('Script config has no value for ' + key);
                 }
                 valueToProbe = this.convert(valueToProbe, this.items[key].type);
                 if (typeof valueToProbe === 'undefined') {
-                    return this.showError('Config value ' + this.items[key].key + ' is not valid');
+                    return UserExc(ex.InvalidParameterValueException, this.getValue, 'Config value ' + this.items[key].key + ' is not valid');
+                    // return this.showError('Config value ' + this.items[key].key + ' is not valid');
                 }
                 usingConfigVal = true;
             } else {
@@ -474,7 +438,8 @@ namespace config {
             }
 
             if (!this.isValid(valueToProbe, this.items[key].type)) {
-                return this.showError('Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].key : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
+                return UserExc(ex.InvalidParameterValueException, this.getValue, 'Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].key : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
+                // return this.showError('Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].key : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
             }
             return valueToProbe;
         }
@@ -505,37 +470,41 @@ namespace config {
         }
         /**
          * @param {string} key config key
-         * @returns {config.TYPE|false} type of value
+         * @returns {IResult<config.TYPE, IException<ex>>} type of value
          */
-        getType(key: string): config.TYPE | false {
+        getType(key: string): IResult<config.TYPE, IException<ex>> {
             if (!this.items[key]) {
-                this.showError(key + ' does not exist');
-                return false;
+                return UserExc(ex.InvalidKeyException, this.getType, key + ' does not exist').show();
             }
-            return this.items[key].type;
+            return g.ResultOk(this.items[key].type);
         }
         /**
          * @param {string} key config key
          * @param {any} val config value
          */
-        setValue(key: string, val: any) {
+        setValue(key: string, val: any): IResult<any, IException<ex>> {
             if (!this.items.hasOwnProperty(key)) {
-                return this.showError(key + ' does not exist');
+                return UserExc(ex.InvalidKeyException, this.getType, key + ' does not exist').show();
+                // return this.showError(key + ' does not exist');
             }
             if (!this.isValid(val, this.items[key].type)) {
-                return this.showError(key + ' must have type ' + this.items[key].type + ', given: ' + typeof val);
+                return UserExc(ex.InvalidParameterTypeException, this.setValue, key + ' must have type ' + this.items[key].type + ', given: ' + typeof val).show();
+                // return this.showError(key + ' must have type ' + this.items[key].type + ', given: ' + typeof val);
             }
             this.items[key].val = val;
+            return g.ResultOk();
         }
         /**
          * @param {string} key config key
          */
-        delKey(key: string) {
+        delKey(key: string): IResult<any, IException<ex>> {
             if (!this.items.hasOwnProperty(key)) {
-                return this.showError(key + ' does not exist');
+                return UserExc(ex.InvalidKeyException, this.delKey, key + ' does not exist').show();
+                // return this.showError(key + ' does not exist');
             }
             this.cntItems--;
             delete this.items[key];
+            return g.ResultOk();
         }
         /**
          * @param {string} key config key
@@ -583,31 +552,32 @@ namespace config {
             return super.addValue(key, config.TYPE.POJO, val);
         }
         addPOJOFromFile(key: string, filepath: string) {
-            this.logger.force('Checking external config file under: ' + filepath);
+            // the messages in this method are crucial for script initialization
+            // therefore they ignore the logger level by using 'force' methods
+            var msg: string,
+                parsed: string;
             if (!DOpus.fsUtil().exists(filepath)) {
-                this.logger.force('...not found, skipping');
-                return g.ResultErr('External config not found at ' + filepath + '\n...skipping.');
+                msg = 'Skipping external config, not found: ' + filepath;
+                // super.showError(msg);
+                return g.ResultErr(msg).show();
             }
-            this.logger.force('...using external config file');
+            this.logger.force('Using external config: ' + filepath);
+
             var resReadFile = fs.readFile(filepath);
             if (resReadFile.isErr()) {
-                return resReadFile;
+                // super.showError(resReadFile.err);
+                return g.ResultErr(resReadFile).show();
             }
-            this.logger.force('external config contents:\n' + resReadFile.ok);
+            this.logger.verbose('external config contents:\n' + resReadFile.ok);
+
             // test parseability
-            var prevErrorMode = super.getErrorMode();
-            super.setErrorMode(ERROR_MODE.DIALOG);
-            var parsed;
             try {
                 parsed = JSON.parse(resReadFile.ok);
-                this.logger.force('...external config is valid JSON');
-                // oExtConfigPOJO = JSON.parse(extcfgContents);
+                this.logger.normal('...external config is valid JSON');
             } catch(e) {
-                var err = 'External config file found but is not valid JSON, ignoring\n\nerror: ' + e.toString() + '\nfile: ' + filepath;
-                super.showError(err);
-                this.logger.force(err);
-                super.setErrorMode(prevErrorMode);
-                return g.ResultErr(err);
+                msg = 'External config exists but is not valid JSON, ignoring\n\nerror: ' + e.toString() + '\nfile: ' + filepath;
+                // super.showError(msg);
+                return g.ResultErr(msg).show();
             }
             return super.addValue(key, config.TYPE.POJO, parsed);
         }

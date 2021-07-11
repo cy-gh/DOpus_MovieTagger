@@ -1,41 +1,47 @@
 // @ts-check
 /* global ActiveXObject Enumerator DOpus Script */
-// see https://www.typescriptlang.org/docs/handbook/namespaces-and-modules.html
 ///<reference path='./_DOpusDefinitions.d.ts' />
 ///<reference path='./libSprintf.js' />
 
-/*
-     .d8888b.  888       .d88888b.  888888b.          d8888 888
-    d88P  Y88b 888      d88P" "Y88b 888  "88b        d88888 888
-    888    888 888      888     888 888  .88P       d88P888 888
-    888        888      888     888 8888888K.      d88P 888 888
-    888  88888 888      888     888 888  "Y88b    d88P  888 888
-    888    888 888      888     888 888    888   d88P   888 888
-    Y88b  d88P 888      Y88b. .d88P 888   d88P  d8888888888 888
-     "Y8888P88 88888888  "Y88888P"  8888888P"  d88P     888 88888888
-*/
 
+/**
+ * # What is this file?
+ *
+ * This library is, as the name implies, the standard development library and
+ * **the heart** of all my personal DOpus/TypeScript developments.
+ *
+ * It supplies all the basic methods, constants, some crucial yet missing methods in JScript
+ * such as String.trim() or Object.keys() and tries to dictate the library construction and
+ * error strategy.
+ *
+ * As can be seen above, it automatically includes DOpus interface definitions and
+ * declares global WSH variables DOpus, ActiveXObject etc.
+ *
+ * Except the fundamental interfaces, ex enum & UserExc method for the exceptions,
+ * everything is wrapped in the `namespace g`.
+ *
+ * ## Implementing a Library
+ *
+ * All libraries should have this at the top of the file:
+ * ```typescript
+ *   ///<reference path='../std/libStdDev.ts' />
+ * ```
+ *
+ * Also all library classes should at the very least implement the interface **`ILibrary`**.
+ *
+ *
+ * ## Error strategy:
+ *
+ * Principally there are no `throw new Exception/Error`s except in the polyfills or external libs,
+ * i.e. pure JavaScript portions of this file.
+ *
+ * All TypeScript methods I write return an IException object wrapped in an IResult object.
+ *
+ * This helps to overcome a few problems, both for development and user experience.
+ *
+ * See the interface IResult for in-depth explanation.
+ */
 
-
-/*
-        8888888888 888b    888 888     888 888b     d888  .d8888b.
-        888        8888b   888 888     888 8888b   d8888 d88P  Y88b
-        888        88888b  888 888     888 88888b.d88888 Y88b.
-        8888888    888Y88b 888 888     888 888Y88888P888  "Y888b.
-        888        888 Y88b888 888     888 888 Y888P 888     "Y88b.
-        888        888  Y88888 888     888 888  Y8P  888       "888
-        888        888   Y8888 Y88b. .d88P 888   "   888 Y88b  d88P
-        8888888888 888    Y888  "Y88888P"  888       888  "Y8888P"
-*/
-enum LOGLEVEL {
-    FORCE   = -1,
-    NONE    = 0,
-    ERROR   = 1,
-    WARN    = 2,
-    NORMAL  = 3,
-    INFO    = 4,
-    VERBOSE = 5
-}
 
 /*
     8888888 888b    888 88888888888 8888888888 8888888b.  8888888888     d8888  .d8888b.  8888888888  .d8888b.
@@ -47,20 +53,153 @@ enum LOGLEVEL {
       888   888   Y8888     888     888        888  T88b  888      d8888888888 Y88b  d88P 888        Y88b  d88P
     8888888 888    Y888     888     8888888888 888   T88b 888     d88P     888  "Y8888P"  8888888888  "Y8888P"
 */
-interface IResult<S,E> {
+
+
+
+/**
+ * Showable errors, mainly for Results and Exceptions
+ */
+interface IShowableError<T> {
+    /** should show if this is an error and return the same object */
+    show(): T;
+}
+
+
+/**
+ * # IResult
+ *
+ * Cheap, Rust-like Result object.
+ * It semi-enforces you to unpack the results of method calls which might return an error/exception.
+ *
+ * # Philosophy behind IResult:
+ *
+ *
+ * A typical 'throw' can easily cut through the whole callstack and break the script abruptly,
+ * unless there are multiple try/catch all the way to the top level.
+ *
+ * JS/TS have no checked exceptions, as in Java, which explicitly warns about possible exceptions.
+ * And neither Visual Studio Code (VSC) nor ESLint can warn about this either, i.e. the method you
+ * call would throw an exception and which kind. You have to look into the code.
+ *
+ * In a highly-generic language like JS, even with TypeScript additions, this spells disaster,
+ * because the visible contract of the method signature is only the tip of the iceberg. Any method
+ * can throw an exception at any time.
+ *
+ * Put together, this means if the developer forgets to put try/catch blocks at every single step
+ * of all possible callchains, eventually a script might abort prematurely and
+ * leave the system in an unstable state. In the case of DOpus, an unstable state
+ * might cause file loss, messed up file timestamps, and so on.
+ *
+ *
+ * ...But it gets worse:
+ * JScript lacks "(call)stack" in errors and there is no JScript/WSH debugger we can use in DOpus.
+ *
+ * These 2 have serious implications, as if the unchecked exceptions weren't enough:
+ *
+ *  * Errors can be traced to the place where they really occurred but not which caller provoked it.
+ *  * To show a meaningful error, the exception raiser must gather all necessary info,
+ *    if it has that info at all, which would normally be in the call stack and put them into the exception.
+ *
+ * This makes ambitious developments nearly impossible and would leave plugins as the only alternative.
+ *
+ * This forced me to get inspirations from error-code based languages a la C and functional languages,
+ * but especially Rust's Result and the following article:
+ *
+ * http://joeduffyblog.com/2016/02/07/the-error-model/
+ *
+ * *(Highly recommended read if you're a professional or ambitioned developer,
+ * gives a tremendous overview of how different languages handle errors and has many useful links)*
+ *
+ * Unlike in the article, I chose not to abandon the script on thrown exceptions,
+ * but enforce myself to check the results of method calls by wrapping the errors in a *Result* object.
+ *
+ * # How to use:
+ *
+ * The Result objects cannot be consumed directly, e.g. `DOpus.output(fs.readFile(somefile))` will not work,
+ * Instead Results must be checked first, as in the following:
+ * ```typescript
+ *   var resRead = fs.readFile(somefile);
+ *   // now use one of the .isOk(), .isErr(), .match() etc. methods
+ *   if (resRead.isErr()) {
+ *     // do something
+ *     return res;
+ *   }
+ *   DOpus.output('file contents:\n' + res.ok);
+ *
+ *   // or something like this
+ *   resRead.match({
+ *     ok:  (ok)  => { DOpus.output('file contents:\n' + res.ok); }
+ *     err: (err) => { DOpus.output('Error occurred!\n' + res.err); }
+ *     _:   (err) => { } // _ is a synonym for err in matchers
+ *   })
+ * ```
+ *
+ * This does not prevent one from ignoring the error case and trying to use .ok value but
+ * helps at the calling site by reminding that the call **might** return an error!
+ *
+ *
+ * Unlike other implementations, my IResult has additional methods:
+ *
+ *   * match(): another inspiration from Rust, as seen above
+ *   * show(): can be used to show a DOpus dialog to the user, before re-returning the result's this object, e.g.
+ *
+ * ```typescript
+ *   var resRead = fs.readFile(somefile);
+ *   if (resRead.isErr()) {
+ *     return res.show(); // shows a dialog only if it's an error
+ *   }
+ *   // proceed with Ok case.
+ *   return res.show(); // this would show no dialog, since it's not an error
+ * ```
+ *
+ * Other Rust macros/functions like `unwrap()`, `expect()` are **intentionally not implemented**,
+ * in order not to give the developer any shortcut to ok values,
+ * which would throw an exception if the result is an error instead.
+ * Avoiding unchecked exceptions is the key here.
+ *
+ *
+ * My implementation is a very cheap knock-off of Rust's Result. Apparently many others had the same idea:
+ *   * https://github.com/vultix/ts-results
+ *   * https://github.com/theroyalwhee0/result
+ *   * https://github.com/hqoss/monads
+ *   * https://github.com/karen-irc/option-t
+ *
+ * These are more or less compatible with my implementation as well. Replace if you fancy.
+ */
+interface IResult<S, E> extends IShowableError<IResult<S, E>> {
     ok: S;
     err: E;
     stack: Array<any>;
     isOk(): boolean;
-    isValid(): boolean;
+    // isValid(): boolean;
     isErr(): boolean;
     toString(): string;
+    match(matcher: IResultMatcher): any;
+}
+declare var IResult: {
+    new (success: any, error: any): IResult<typeof success, typeof error>;
+}
+/**
+ * Helper structure for Result
+ */
+interface IResultMatcher {
+    /** function to execute if result is ok */
+    ok: Function,
+    /** function to execute if result is error */
+    err: Function,
+    /** synonym for err */
+    _: Function,
 }
 
-interface ILogger {
-    getLevel()                  : LOGLEVEL;
-    setLevel(level: LOGLEVEL)   : void;
-    getLevels()                 : LOGLEVEL[];
+/**
+ * Standard logger interface.
+ *
+ * Implemented in libLogger.ts.
+ */
+interface ILogger extends IShowableError<string> {
+    getLevel()                  : g.LOGLEVEL;
+    setLevel(level: g.LOGLEVEL) : void;
+    getLevels()                 : g.LOGLEVEL[];
     getLevelIndex()             : IResult<number, boolean>;
     force(message?: string)     : void;
     none(message?: string)      : void;
@@ -78,48 +217,15 @@ interface ILogger {
     sverbose(...args: any)      : void;
 }
 
+/**
+ * All library classes MUST implement this interface!
+ */
 interface ILibrary {
     /**
-     * Injects a custom logger, instead of default one
-     * @param loggerNew new logger to override the default
+     * Injects a custom logger, instead of the default one.
+     * @param newLogger new logger to override the default
      */
-    setLogger(loggerNew: ILogger): IResult<boolean, boolean>;
-}
-
-
-interface String {
-    trim(): string;
-}
-
-interface Error {
-    // add where for custom exceptions
-    where: string;
-}
-
-interface String {
-    /**
-     * makes sure that the paths always have a trailing backslash but no doubles
-     * this happens mainly because the oItem.path does not return a trailing slash for any directory
-     * other than root dir of a drive, i.e. it returns Y:\Subdir (no BS) but Y:\ (with BS)
-     */
-    normalizeTrailingBackslashes(): string;
-
-    /**
-     * substitutes variables - Only Global ones - in the given string
-     * e.g.
-     * my name is: ${Global.SCRIPT_NAME}
-     */
-    substituteVars(): string;
-
-    /**
-     * parses string as number in base 10
-     * e.g.
-     * cmdData.func.args.MAXCOUNT.asInt()
-     */
-    asInt(): number;
-
-    normalizeLeadingWhiteSpace(): string;
-    substituteVars(): string;
+    setLogger(newLogger: ILogger): IResult<boolean, boolean>;
 }
 
 
@@ -135,24 +241,6 @@ interface String {
         8888888888 d88P   Y88b  "Y8888P"  8888888888 888           888     8888888  "Y88888P"  888    Y888  "Y8888P"
 */
 
-/**
- * Rust-like value returning exceptions, to be used in Results.
- *
- * e.g.
- * ```typescript
- *   // in some method
- *   return
- *
- *
- *   if (myIResultVar.err === err.JSONParsingException) { ... }
- * ```
- *
- *
- * Never use the assigned values, e.g. 1, 2, 3
- * the order, thus the assigned values, might be changed any time.
- *
- * @see {IResult}
- */
 
 /**
  * @param {function} fnCaller
@@ -160,7 +248,7 @@ interface String {
  * @param {string|function} where
  * @constructor
  */
-interface IException<T> {
+interface IException<T> extends IShowableError<IException<T>> {
     /** Internal type number, never use it directly/hard-coded */
     readonly type: T;
     /** Exception name, e.g. 'NotImplementedYetException' */
@@ -170,26 +258,9 @@ interface IException<T> {
     /** Where the exception has occurred; this is not automatically set, i.e. it's up to the raiser to set this correctly */
     readonly where: string;
 }
-class UserException implements IException<ex> {
-    public readonly type: ex;
-    public readonly name: string;
-    public readonly where: string;
-    public readonly message: string;
-    /**
-     * @param {ex} type enum type number
-     * @param {string | Function} where the exception occurred, if function is passed, it will be attempted to extract the name, may fail anonymous and class member functions
-     * @param {string} message exception details
-     * @constructor
-     */
-    constructor (type: ex, where: string | Function, message?: string) {
-        this.type    = type;
-        this.name    = ex[type];
-        this.where   = typeof where === 'string' ? where : g.funcNameExtractor(where);
-        this.message = message || '<no message passed>';
-    }
-}
+
 function UserExc(type: ex, where: string | Function, message?: string): IResult<any, IException<ex>> {
-    return new g.Result(false, new UserException(type, where, message));
+    return new g.Result(false, new g.UserException(type, where, message));
 }
 
 enum ex {
@@ -207,6 +278,8 @@ enum ex {
     InvalidParameterTypeException,
     /** Given parameter value is not accepted */
     InvalidParameterValueException,
+    /** Requested key does not exist in the object */
+    InvalidKeyException,
     /** Errors while reading from or writing into ADS stream */
     StreamReadWriteException,
     /** File could not be created */
@@ -241,6 +314,38 @@ enum ex {
                                                              .d88P"
                                                             888P"
 */
+
+
+interface Error {
+    // add where for custom exceptions
+    where: string;
+}
+
+interface String {
+    /**
+     * makes sure that the paths always have a trailing backslash but no doubles
+     * this happens mainly because the oItem.path does not return a trailing slash for any directory
+     * other than root dir of a drive, i.e. it returns Y:\Subdir (no BS) but Y:\ (with BS)
+     */
+    normalizeTrailingBackslashes(): string;
+
+    /**
+     * substitutes variables - Only Global ones - in the given string
+     * e.g.
+     * my name is: ${Global.SCRIPT_NAME}
+     */
+    substituteVars(): string;
+
+    /**
+     * parses string as number in base 10
+     * e.g.
+     * cmdData.func.args.MAXCOUNT.asInt()
+     */
+    asInt(): IResult<number, IException<ex>>;
+
+    normalizeLeadingWhiteSpace(): string;
+    substituteVars(): string;
+}
 
 // methods for pseudo-HEREDOCs
 String.prototype.normalizeLeadingWhiteSpace = function () {
@@ -277,12 +382,12 @@ String.prototype.normalizeTrailingBackslashes = function () {
 };
 
 /** A shorter, type-safe alternative to parseInt */
-String.prototype.asInt = function () {
+String.prototype.asInt = function () : IResult<number, IException<ex>> {
     var num = parseInt(this.valueOf(), 10);
     if (isNaN(num)) {
-        throw new UserException(ex.InvalidNumberException, 'asInt', 'This string cannot be parsed as a number: ' + this.valueOf());
+        return UserExc(ex.InvalidNumberException, 'asInt', 'This string cannot be parsed as a number: ' + this.valueOf());
     }
-    return num;
+    return g.ResultOk(num);
 };
 
 
@@ -325,15 +430,12 @@ if (!Object.keys) {
             if (typeof obj !== 'function' && (typeof obj !== 'object' || obj === null)) {
                 throw new TypeError('Object.keys called on non-object');
             }
-
             var result = [], prop, i;
-
             for (prop in obj) {
                 if (hasOwnProperty.call(obj, prop)) {
                     result.push(prop);
                 }
             }
-
             if (hasDontEnumBug) {
                 for (i = 0; i < dontEnumsLength; i++) {
                     if (hasOwnProperty.call(obj, dontEnums[i])) {
@@ -346,7 +448,6 @@ if (!Object.keys) {
     }());
 }
 
-
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter
 if (!Array.prototype.filter) {
     Array.prototype.filter = function (func: Function, thisArg: undefined) {
@@ -354,11 +455,9 @@ if (!Array.prototype.filter) {
         // @ts-ignore
         if (!((typeof func === 'Function' || typeof func === 'function') && this))
             throw new TypeError();
-
         var len = this.length >>> 0,
             res = new Array(len), // preallocate array
             t = this, c = 0, i = -1;
-
         var kValue;
         if (thisArg === undefined) {
             while (++i !== len) {
@@ -370,8 +469,7 @@ if (!Array.prototype.filter) {
                     }
                 }
             }
-        }
-        else {
+        } else {
             while (++i !== len) {
                 // checks to see if the key was set
                 if (i in this) {
@@ -382,7 +480,6 @@ if (!Array.prototype.filter) {
                 }
             }
         }
-
         res.length = c; // shrink down array to proper size
         return res;
     };
@@ -392,48 +489,36 @@ if (!Array.prototype.filter) {
 // Production steps of ECMA-262, Edition 5, 15.4.4.19
 // Reference: https://es5.github.io/#x15.4.4.19
 if (!Array.prototype.map) {
-
     Array.prototype.map = function (callback/*, thisArg*/) {
-
         var T, A, k;
-
         if (this == null) {
             throw new TypeError('this is null or not defined');
         }
-
         // 1. Let O be the result of calling ToObject passing the |this|
         //    value as the argument.
         var O = Object(this);
-
         // 2. Let lenValue be the result of calling the Get internal
         //    method of O with the argument "length".
         // 3. Let len be ToUint32(lenValue).
         var len = O.length >>> 0;
-
         // 4. If IsCallable(callback) is false, throw a TypeError exception.
         // See: https://es5.github.com/#x9.11
         if (typeof callback !== 'function') {
             throw new TypeError(callback + ' is not a function');
         }
-
         // 5. If thisArg was supplied, let T be thisArg; else let T be undefined.
         if (arguments.length > 1) {
             T = arguments[1];
         }
-
         // 6. Let A be a new array created as if by the expression new Array(len)
         //    where Array is the standard built-in constructor with that name and
         //    len is the value of len.
         A = new Array(len);
-
         // 7. Let k be 0
         k = 0;
-
         // 8. Repeat, while k < len
         while (k < len) {
-
             var kValue, mappedValue;
-
             // a. Let Pk be ToString(k).
             //   This is implicit for LHS operands of the in operator
             // b. Let kPresent be the result of calling the HasProperty internal
@@ -441,16 +526,13 @@ if (!Array.prototype.map) {
             //   This step can be combined with c
             // c. If kPresent is true, then
             if (k in O) {
-
                 // i. Let kValue be the result of calling the Get internal
                 //    method of O with argument Pk.
                 kValue = O[k];
-
                 // ii. Let mappedValue be the result of calling the Call internal
                 //     method of callback with T as the this value and argument
                 //     list containing kValue, k, and O.
                 mappedValue = callback.call(T, kValue, k, O);
-
                 // iii. Call the DefineOwnProperty internal method of A with arguments
                 // Pk, Property Descriptor
                 // { Value: mappedValue,
@@ -458,7 +540,6 @@ if (!Array.prototype.map) {
                 //   Enumerable: true,
                 //   Configurable: true },
                 // and false.
-
                 // In browsers that support Object.defineProperty, use the following:
                 // Object.defineProperty(A, k, {
                 //   value: mappedValue,
@@ -466,14 +547,12 @@ if (!Array.prototype.map) {
                 //   enumerable: true,
                 //   configurable: true
                 // });
-
                 // For best browser support, use the following:
                 A[k] = mappedValue;
             }
             // d. Increase k by 1.
             k++;
         }
-
         // 9. return A
         return A;
     };
@@ -481,7 +560,48 @@ if (!Array.prototype.map) {
 
 
 
+/*
+     .d8888b.  888       .d88888b.  888888b.          d8888 888
+    d88P  Y88b 888      d88P" "Y88b 888  "88b        d88888 888
+    888    888 888      888     888 888  .88P       d88P888 888
+    888        888      888     888 8888888K.      d88P 888 888
+    888  88888 888      888     888 888  "Y88b    d88P  888 888
+    888    888 888      888     888 888    888   d88P   888 888
+    Y88b  d88P 888      Y88b. .d88P 888   d88P  d8888888888 888
+     "Y8888P88 88888888  "Y88888P"  8888888P"  d88P     888 88888888
+*/
+
+
+// see https://www.typescriptlang.org/docs/handbook/namespaces-and-modules.html
 namespace g {
+
+    /*
+            8888888888 888b    888 888     888 888b     d888  .d8888b.
+            888        8888b   888 888     888 8888b   d8888 d88P  Y88b
+            888        88888b  888 888     888 88888b.d88888 Y88b.
+            8888888    888Y88b 888 888     888 888Y88888P888  "Y888b.
+            888        888 Y88b888 888     888 888 Y888P 888     "Y88b.
+            888        888  Y88888 888     888 888  Y8P  888       "888
+            888        888   Y8888 Y88b. .d88P 888   "   888 Y88b  d88P
+            8888888888 888    Y888  "Y88888P"  888       888  "Y8888P"
+    */
+
+    export enum ERROR_MODES {
+        ONLY_EXCEPTIONS = 'ONLY_EXCEPTIONS',
+        ALL_RESULTS = 'ALL_RESULTS',
+    }
+
+    export var ERROR_MODE:ERROR_MODES = ERROR_MODES.ONLY_EXCEPTIONS;
+
+    export enum LOGLEVEL {
+        FORCE   = -1,
+        NONE    = 0,
+        ERROR   = 1,
+        WARN    = 2,
+        NORMAL  = 3,
+        INFO    = 4,
+        VERBOSE = 5
+    }
 
     /*
                 888     888      d8888 8888888b.   .d8888b.
@@ -511,6 +631,9 @@ namespace g {
                 Y88b  d88P 888       d8888888888 Y88b  d88P Y88b  d88P 888        Y88b  d88P
                  "Y8888P"  88888888 d88P     888  "Y8888P"   "Y8888P"  8888888888  "Y8888P"
     */
+
+
+
     /**
      * Generic Result object
      * @param {any} okValue value on success
@@ -521,18 +644,57 @@ namespace g {
         err  : E;
         stack: Array<any>;
         constructor(oOKValue: S, oErrValue: E) {
-            this.ok    = oOKValue;   // typeof oOKValue !== 'undefined' ? oOKValue : false;
-            this.err   = oErrValue;  // typeof oErrValue!== 'undefined' ? oErrValue : true;
+            this.ok    = oOKValue;
+            this.err   = oErrValue;
             this.stack = [];
         }
         // note this one does not allow any falsy value for OK at all
-        isOk()     { return !!this.ok; }
+        // isOk()     { return !!this.ok; }
+        isOk()     { return typeof this.ok !== 'undefined'; }
         // note this one allows falsy values - '', 0, {}, []... - for OK - USE SPARINGLY
-        isValid()  { return !this.err; }
-        isErr()    { return !!this.err; }
+        // isValid()  { return !this.err; }
+        // isErr()    { return !!this.err; }
+        isErr()    { return typeof this.err !== 'undefined'; }
         toString() { return JSON.stringify(this, null, 4); }
+        match(matcher: IResultMatcher) {
+            if(this.isOk()) {
+                return matcher.ok.apply(this, arguments);
+            } else {
+                return matcher._ ? matcher._.apply(this, arguments) : matcher.err.apply(this, arguments);
+            }
+        }
+        show(): IResult<S, E> {
+            if (this.isErr()) g.showMessageDialog(null, this.toString());
+            return this;
+        }
     }
 
+
+    export class UserException implements IException<ex>, IShowableError<UserException> {
+        public readonly type: ex;
+        public readonly name: string;
+        public readonly where: string;
+        public readonly message: string;
+        /**
+         * @param {ex} type enum type number
+         * @param {string | Function} where the exception occurred, if function is passed, it will be attempted to extract the name, may fail anonymous and class member functions
+         * @param {string} message exception details
+         * @constructor
+         */
+        constructor (type: ex, where: string | Function, message?: string) {
+            this.type    = type;
+            this.name    = ex[type];
+            this.where   = typeof where === 'string' ? where : g.funcNameExtractor(where);
+            this.message = message || '<no message passed>';
+        }
+        toString(): string {
+            return this.name + ' (' + this.type + ') @ ' + this.where + '\n' + this.message;
+        }
+        show(): UserException {
+            g.showMessageDialog(null, this.toString());
+            return this;
+        }
+    }
 
     /*
                 8888888888 888     888 888b    888  .d8888b. 88888888888 8888888  .d88888b.  888b    888  .d8888b.
@@ -597,11 +759,11 @@ namespace g {
      * It cannot parse 'anonymous' methods, incl. exposed method names in singletons, e.g. funcNameExtractor(actions.getFunc).
      *
      * There is no debugger for DOpus user scripts, blame the universe not me.
+     *
      * @function funcNameExtractor
      * @param {function} fnFunc
      * @param {string=} parentName
      * @returns {string}
-     * @throws {Error}
      */
     export function funcNameExtractor(fnFunc: Function, parentName?: string): string {
         let reExtractor = new RegExp(/^function\s+(\w+)\(.+/),
@@ -613,7 +775,7 @@ namespace g {
             return cache[fnFunc];
         }
         if (typeof fnFunc !== 'function') {
-            abortWith(new Error(sprintf('%s -- Given parameter is not a function\n%s', fnName, dumpObject(fnFunc))));
+            abortWith(UserExc(ex.DeveloperStupidityException, fnName,  'Given parameter is not a function\n' + dumpObject(fnFunc)).err);
         }
         var matches = fnFunc.toString().match(reExtractor),
             out = matches ? matches[1] : 'Anonymous -- ' + dumpObject(fnFunc, true).value.replace(/\n|^\s+|\s+$/mg, '');
@@ -631,11 +793,14 @@ namespace g {
      * @returns {Result}
      */
     export function ResultOk(okValue?: any, addInfo?: any): IResult<typeof okValue, any> {
-        // return new Result(okValue||true, false);
-        // var res = okValue instanceof Result ? okValue : new Result(okValue||true, false);
         var res = okValue instanceof Result ? okValue : new Result(okValue !== undefined ? okValue : true, undefined);
-        if (addInfo !== undefined)
+        if (addInfo !== undefined && okValue instanceof Result) {
+            res.stack.push([okValue.ok, addInfo]);
+        } else if (addInfo !== undefined) {
             res.stack.push(addInfo);
+        } else if (okValue instanceof Result) {
+            res.stack.push( okValue.ok);
+        }
         return res;
     }
 
@@ -646,11 +811,14 @@ namespace g {
      * @returns {Result}
      */
     export function ResultErr(errValue?: any, addInfo?: any): Result<any, typeof errValue> {
-        // return new Result(false, errValue||true);
-        // var res = errValue instanceof Result ? errValue : new Result(false, errValue||true);
         var res = errValue instanceof Result ? errValue : new Result(undefined, errValue !== undefined ? errValue : true);
-        if (addInfo !== undefined)
+        if (addInfo !== undefined && errValue instanceof Result) {
+            res.stack.push([errValue.err, addInfo]);
+        } else if (addInfo !== undefined) {
             res.stack.push(addInfo);
+        } else if (errValue instanceof Result) {
+            res.stack.push( errValue.err);
+        }
         return res;
     }
 
@@ -729,8 +897,6 @@ namespace g {
      *   foo3 => [ 'val1', 'val2' ]
      * ```
      *
-     * @throws Exception when empty enum is passed
-     *
      * @example
      *   // caller method
      *   public getKeys(): LOGLEVEL[] {
@@ -752,7 +918,7 @@ namespace g {
             keys = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'string');
         }
         if (!keys.length) {
-            throw new Error('splitEnum(): empty or unknown enum passed, cannot continue!');
+            abortWith(UserExc(ex.DeveloperStupidityException, 'splitEnum()', 'empty or unknown enum passed, cannot continue!').err);
         }
         const vals = keys.map(k => enumObject[k as any]);
         // @ts-ignore
@@ -810,6 +976,48 @@ namespace g {
         showMessageDialog(null, err);
         throw oErr;
     }
+
+
+    // /**
+    //  * Do not call this with DIALOG in main/global block of your script
+    //  * otherwise script might fail to initialize!
+    //  * @param {ERROR_MODES} newErrorMode next error mode
+    //  * @returns {ERROR_MODES} previous error mode
+    //  */
+    // export function setErrorMode(newErrorMode: ERROR_MODES): ERROR_MODES {
+    //     var current = ERROR_MODE,
+    //         msg: string;
+    //     if (!ERROR_MODES.hasOwnProperty(newErrorMode)) {
+    //         msg = 'Error mode ' + newErrorMode + ' is not supported';
+    //         DOpus.output(msg);
+    //         g.showMessageDialog(null, msg);
+    //     } else {
+    //         msg = 'I understand that changing default error mode may lead to freezes and bugs which escape my attention!\n\nNew error mode: ' + newErrorMode;
+    //         g.showMessageDialog(null, msg);
+    //         ERROR_MODE = newErrorMode;
+    //     }
+    //     return current;
+    // }
+    // export function getErrorMode(): ERROR_MODES {
+    //     return ERROR_MODE;
+    // }
+    // export function showError(err: any): typeof err {
+    //     libLogger.current.serror(err);
+    //     switch (ERROR_MODE) {
+    //         case ERROR_MODES.RESULT:
+    //             return g.ResultErr(err);  // mainly for development
+    //         case ERROR_MODES.ERROR:
+    //             throw new Error(err);     // mainly for development
+    //         case ERROR_MODES.DIALOG:
+    //             g.showMessageDialog(null, err);
+    //             return false;
+    //         default:
+    //             throw new Error('Unexpected error mode ' + ERROR_MODE + ', contact the developer!');
+    //     }
+    // }
+
+
+
 
     export function getUniqueID(simple = true):string {
         // Believe it or not

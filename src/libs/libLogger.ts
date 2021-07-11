@@ -2,39 +2,42 @@
 ///<reference path='../std/libStdDev.ts' />
 
 namespace libLogger {
-    export const LOGLEVEL_DEF = LOGLEVEL.ERROR;
-    class CLogger implements ILogger {
-        private level: LOGLEVEL;
-        constructor(level: LOGLEVEL = LOGLEVEL_DEF) {
+
+    class StandardLogger implements ILogger {
+        private level: g.LOGLEVEL;
+        constructor(level: g.LOGLEVEL = g.LOGLEVEL.ERROR) {
             this.level = level;
         }
-        private _baseout(level: LOGLEVEL, message?: string) { if (level <= this.level) DOpus.output(message || ''); }
-        // typescript methods are public by default
-        getLevels(): LOGLEVEL[]                     { return g.splitEnum(LOGLEVEL).keys as unknown as LOGLEVEL[]; }
-        getLevel(): LOGLEVEL                        { return this.level; }
-        getLevelIndex(): IResult<number, boolean>   { return g.findIndexOfValue(LOGLEVEL, this.level); }
-        setLevel(level: LOGLEVEL)                   { this.level = level; }
 
-        force(message?: string): void               { this._baseout(LOGLEVEL.FORCE,     message); }
-        none(message?: string): void                { this._baseout(LOGLEVEL.NONE,      message); }
-        error(message?: string): void               { this._baseout(LOGLEVEL.ERROR,     message); }
-        warn(message?: string): void                { this._baseout(LOGLEVEL.WARN,      message); }
-        normal(message?: string): void              { this._baseout(LOGLEVEL.NORMAL,    message); }
-        info(message?: string): void                { this._baseout(LOGLEVEL.INFO,      message); }
-        verbose(message?: string): void             { this._baseout(LOGLEVEL.VERBOSE,   message); }
-        sforce(...args: any): void                  { this._baseout(LOGLEVEL.FORCE,     g.sprintf.apply(g.sprintf, args)); }
-        snone(...args: any): void                   { this._baseout(LOGLEVEL.NONE,      g.sprintf.apply(g.sprintf, args)); }
-        serror(...args: any): void                  { this._baseout(LOGLEVEL.ERROR,     g.sprintf.apply(g.sprintf, args)); }
-        swarn(...args: any): void                   { this._baseout(LOGLEVEL.WARN,      g.sprintf.apply(g.sprintf, args)); }
-        snormal(...args: any): void                 { this._baseout(LOGLEVEL.NORMAL,    g.sprintf.apply(g.sprintf, args)); }
-        sinfo(...args: any): void                   { this._baseout(LOGLEVEL.INFO,      g.sprintf.apply(g.sprintf, args)); }
-        sverbose(...args: any): void                { this._baseout(LOGLEVEL.VERBOSE,   g.sprintf.apply(g.sprintf, args)); }
+        private _baseout(level: g.LOGLEVEL, message?: string) { if (level <= this.level) DOpus.output(message || ''); }
+        // typescript methods are public by default
+        getLevels(): g.LOGLEVEL[]                   { return g.splitEnum(g.LOGLEVEL).keys as unknown as g.LOGLEVEL[]; }
+        getLevel(): g.LOGLEVEL                      { return this.level; }
+        getLevelIndex(): IResult<number, boolean>   { return g.findIndexOfValue(g.LOGLEVEL, this.level); }
+        setLevel(level: g.LOGLEVEL)                 { this.level = level; }
+        show(message?: any): typeof message         { DOpus.output(message); return message; }
+        force(message?: string): void               { this._baseout(g.LOGLEVEL.FORCE,     message); }
+        none(message?: string): void                { this._baseout(g.LOGLEVEL.NONE,      message); }
+        error(message?: string): void               { this._baseout(g.LOGLEVEL.ERROR,     message); }
+        warn(message?: string): void                { this._baseout(g.LOGLEVEL.WARN,      message); }
+        normal(message?: string): void              { this._baseout(g.LOGLEVEL.NORMAL,    message); }
+        info(message?: string): void                { this._baseout(g.LOGLEVEL.INFO,      message); }
+        verbose(message?: string): void             { this._baseout(g.LOGLEVEL.VERBOSE,   message); }
+        sforce(...args: any): void                  { this._baseout(g.LOGLEVEL.FORCE,     g.sprintf.apply(g.sprintf, args)); }
+        snone(...args: any): void                   { this._baseout(g.LOGLEVEL.NONE,      g.sprintf.apply(g.sprintf, args)); }
+        serror(...args: any): void                  { this._baseout(g.LOGLEVEL.ERROR,     g.sprintf.apply(g.sprintf, args)); }
+        swarn(...args: any): void                   { this._baseout(g.LOGLEVEL.WARN,      g.sprintf.apply(g.sprintf, args)); }
+        snormal(...args: any): void                 { this._baseout(g.LOGLEVEL.NORMAL,    g.sprintf.apply(g.sprintf, args)); }
+        sinfo(...args: any): void                   { this._baseout(g.LOGLEVEL.INFO,      g.sprintf.apply(g.sprintf, args)); }
+        sverbose(...args: any): void                { this._baseout(g.LOGLEVEL.VERBOSE,   g.sprintf.apply(g.sprintf, args)); }
     }
+
     class NullLogger implements ILogger {
-        getLevel(): LOGLEVEL                        { return LOGLEVEL.NONE; }
-        setLevel(level: LOGLEVEL): void             { }
-        getLevels(): LOGLEVEL[]                     { return []; }
+        getLevel(): g.LOGLEVEL                      { return g.LOGLEVEL.NONE; }
+        setLevel(level: g.LOGLEVEL): void           { }
+        getLevels(): g.LOGLEVEL[]                   { return []; }
         getLevelIndex(): IResult<number, boolean>   { return g.ResultOk(0); }
+        show(message?: any): typeof message         { return message; }
         force(message?: string): void               { }
         none(message?: string): void                { }
         error(message?: string): void               { }
@@ -50,10 +53,13 @@ namespace libLogger {
         sinfo(...args: any): void                   { }
         sverbose(...args: any): void                { }
     }
+
     /** standard logger */
-    export const def = new CLogger();
-    /** null logger */
+    export const std = new StandardLogger();
+
+    /** null logger - only for benchmarking purposes */
     export const nil = new NullLogger();
-    /** default logger */
-    export const std = def;
+
+    /** current logger, can be set externally, ALWAYS prefer this */
+    export var current = std;
 }

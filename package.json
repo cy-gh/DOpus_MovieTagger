@@ -19,5 +19,7 @@
   },
   "homepage": "https://github.com/cy-gh/DOpus_MovieTagger#readme",
   "devDependencies": {},
-  "dependencies": {}
+  "dependencies": {
+    "eslint": "^7.30.0"
+  }
 }
