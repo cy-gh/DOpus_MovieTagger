@@ -9,7 +9,7 @@ namespace libLogger {
             this.level = level;
         }
 
-        private _baseout(level: g.LOGLEVEL, message?: string) { if (level <= this.level) DOpus.output(message || ''); }
+        private _baseout(level: g.LOGLEVEL, message?: string, isError = false, withTimestamp = false) { if (level <= this.level) DOpus.output(message || '', isError, withTimestamp); }
         // typescript methods are public by default
         getLevels(): g.LOGLEVEL[]                   { return g.splitEnum(g.LOGLEVEL).keys as unknown as g.LOGLEVEL[]; }
         getLevel(): g.LOGLEVEL                      { return this.level; }
@@ -18,7 +18,7 @@ namespace libLogger {
         show(message?: any): typeof message         { DOpus.output(message); return message; }
         force(message?: string): void               { this._baseout(g.LOGLEVEL.FORCE,     message); }
         none(message?: string): void                { this._baseout(g.LOGLEVEL.NONE,      message); }
-        error(message?: string): void               { this._baseout(g.LOGLEVEL.ERROR,     message); }
+        error(message?: string): void               { this._baseout(g.LOGLEVEL.ERROR,     message, true); }
         warn(message?: string): void                { this._baseout(g.LOGLEVEL.WARN,      message); }
         normal(message?: string): void              { this._baseout(g.LOGLEVEL.NORMAL,    message); }
         info(message?: string): void                { this._baseout(g.LOGLEVEL.INFO,      message); }

@@ -133,7 +133,6 @@ interface IShowableError<T> {
  *   resRead.match({
  *     ok:  (ok)  => { DOpus.output('file contents:\n' + res.ok); }
  *     err: (err) => { DOpus.output('Error occurred!\n' + res.err); }
- *     _:   (err) => { } // _ is a synonym for err in matchers
  *   })
  * ```
  *
@@ -189,9 +188,7 @@ interface IResultMatcher {
     /** function to execute if result is ok */
     ok: Function,
     /** function to execute if result is error */
-    err: Function,
-    /** synonym for err */
-    _: Function,
+    err: Function
 }
 
 /**
@@ -262,44 +259,44 @@ interface IException<T> extends IShowableError<IException<T>> {
     readonly where: string;
 }
 
-function UserExc(type: ex, where: string | Function, message?: string): IResult<any, IException<ex>> {
+function Exc(type: ex, where: string | Function, message?: string): IResult<any, IException<ex>> {
     return new g.Result(false, new g.UserException(type, where, message));
 }
 
 enum ex {
     /** Method/function not implemented yet */
-    NotImplementedYetException,
+    NotImplementedYet,
     /** Requirements have not been initialized yet  */
-    UninitializedException,
+    Uninitialized,
     /** The dev made a stupid mistake, it's a bug that should have been caught */
-    DeveloperStupidityException,
+    DeveloperStupidity,
     /** MTH Manager does not recognize given command */
-    InvalidManagerCommandException,
+    InvalidManagerCommand,
     /** Given string is not valid JSON */
-    JSONParsingException,
+    InvalidJSON,
     /** Given parameter type does not match expected type */
-    InvalidParameterTypeException,
+    InvalidParameterType,
     /** Given parameter value is not accepted */
-    InvalidParameterValueException,
+    InvalidParameterValue,
     /** Requested key does not exist in the object */
-    InvalidKeyException,
+    InvalidKey,
     /** Errors while reading from or writing into ADS stream */
-    StreamReadWriteException,
+    StreamReadWrite,
     /** File could not be created */
-    FileCreateException,
+    FileCreate,
     /** File could not be read */
-    FileReadException,
+    FileRead,
 
 
-    InvalidFormatException,
-    UnsupportedFormatException,
-    ThreadPoolMissException,
-    InvalidNumberException,
-    UserAbortedException,
-    SanityCheckException,
-    KeyAlreadyExistsException,
-    KeyDoesNotExistException,
-    InvalidUserParameterException,
+    InvalidFormat,
+    UnsupportedFormat,
+    ThreadPoolMiss,
+    InvalidNumber,
+    UserAborted,
+    SanityCheckFail,
+    KeyAlreadyExists,
+    KeyDoesNotExist,
+    InvalidUserParameter,
 }
 
 
@@ -390,7 +387,7 @@ String.prototype.normalizeTrailingBackslashes = function () {
 String.prototype.asInt = function () : IResult<number, IException<ex>> {
     var num = parseInt(this.valueOf(), 10);
     if (isNaN(num)) {
-        return UserExc(ex.InvalidNumberException, 'asInt', 'This string cannot be parsed as a number: ' + this.valueOf());
+        return Exc(ex.InvalidNumber, 'asInt', 'This string cannot be parsed as a number: ' + this.valueOf());
     }
     return g.ResultOk(num);
 };
@@ -402,32 +399,6 @@ String.prototype.toHash = function () : string {
 };
 
 
-
-// // @ts-ignore
-// Function.prototype.name = function (parentName?: string) {
-//     let reExtractor = new RegExp(/^function\s+(\w+)\s*\(.+/),
-//         fnName      = 'funcNameExtractor';
-//     let cache: DOpusMap;
-//     if (!DOpus.vars.exists(g.VAR_NAMES.SCRIPT_FNAME_CACHE)) {
-//         cache = DOpus.create().map();
-//     }
-//     // @ts-ignore
-//     if (cache[fnFunc]) {
-//         logger.sforce('%s -- found in cache: %s', fnName, cache[fnFunc]);
-//         // @ts-ignore
-//         return cache[fnFunc];
-//     }
-//     if (typeof fnFunc !== 'function') {
-//         abortWith(UserExc(ex.DeveloperStupidityException, fnName,  'Given parameter is not a function\n' + dumpObject(fnFunc)).err);
-//     }
-//     var matches = fnFunc.toString().match(reExtractor),
-//         out = matches ? matches[1] : 'Anonymous -- ' + dumpObject(fnFunc, true).value.replace(/\n|^\s+|\s+$/mg, '');
-//     if (parentName)
-//         out = parentName + '.' + out;
-//     // @ts-ignore
-//     cache[fnFunc] = out;
-//     return out;
-// };
 
 
 /*
@@ -709,9 +680,9 @@ namespace g {
         }
         match(matcher: IResultMatcher) {
             if(this.isOk()) {
-                return matcher.ok.apply(this, arguments);
+                return matcher.ok.apply(matcher.ok);
             } else {
-                return matcher._ ? matcher._.apply(this, arguments) : matcher.err.apply(this, arguments);
+                return matcher.err.apply(matcher.err);
             }
         }
         show(): IResult<S, E> {
@@ -773,7 +744,7 @@ namespace g {
     }
     export function getScriptPathVars(): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
         if (!Script.vars.exists(VAR_NAMES.SCRIPT_FILE_PATH)) {
-            return UserExc(ex.UninitializedException, 'g.getScriptPathVars', 'InitData has not been set yet, call g.init(scriptInitData) in your OnInit() first').show();
+            return Exc(ex.Uninitialized, 'g.getScriptPathVars', 'InitData has not been set yet, call g.init(scriptInitData) in your OnInit() first').show();
         }
         const oThisScriptsPath = DOpus.fsUtil().getItem(Script.vars.get(VAR_NAMES.SCRIPT_FILE_PATH));
         return g.ResultOk({
@@ -784,7 +755,7 @@ namespace g {
     }
     export function getScriptUniqueID(): IResult<string, IException<ex>> {
         if (!Script.vars.exists(VAR_NAMES.SCRIPT_UNIQUE_ID)) {
-            return UserExc(ex.UninitializedException, 'g.getScriptPathVars', 'InitData has not been set yet, call g.init(scriptInitData) in your OnInit() first').show();
+            return Exc(ex.Uninitialized, 'g.getScriptPathVars', 'InitData has not been set yet, call g.init(scriptInitData) in your OnInit() first').show();
         }
         return g.ResultOk(Script.vars.get(VAR_NAMES.SCRIPT_UNIQUE_ID));
     }
@@ -844,20 +815,22 @@ namespace g {
      * There is no debugger for DOpus user scripts, blame the universe not me.
      *
      * @function funcNameExtractor
-     * @param {function} fnFunc
-     * @param {string=} parentName
+     * @param {function} fnFunc function to get the name of
+     * @param {string=} parentName prefix the function name with the parent name, for singletons & some nested classes.
+     * @param {boolean=false} suppressWarning only for script initialization phase, during which fname's cannot be extracted
      * @returns {string}
      */
-    export function funcNameExtractor(fnFunc: Function, parentName?: string): string {
+    export function funcNameExtractor(fnFunc: Function, parentName?: string, suppressWarning = false): string {
         const fname = 'funcNameExtractor';
 
         if (typeof fnFunc !== 'function') {
-            abortWith(UserExc(ex.DeveloperStupidityException, fname,  'Given parameter is not a function\n' + dumpObject(fnFunc)).err);
+            abortWith(Exc(ex.DeveloperStupidity, fname,  'Given parameter is not a function\n' + dumpObject(fnFunc)).err);
         }
-        if (typeof fnFunc.fname === 'undefined') {
-            UserExc(ex.NotImplementedYetException, 'funcNameExtractor', 'given method has not set the property \'fname\' yet, found: ' + fnFunc.fname + ',source:\n' + fnFunc.toString().slice(0,200)).show();
-        } else {
-            logger.force('found: ' + fnFunc.fname);
+        if (typeof fnFunc.fname === 'undefined' && suppressWarning !== true) {
+            Exc(ex.NotImplementedYet, 'funcNameExtractor', 'given method has not set the property \'fname\' yet, found: ' + fnFunc.fname + ',source:\n' + fnFunc.toString().slice(0,200) + '...').show();
+        }
+        if (fnFunc.fname) {
+            return fnFunc.fname;
         }
 
         let reExtractor = new RegExp(/^function\s+(\w+)\(.+/),
@@ -1011,7 +984,7 @@ namespace g {
             keys = Object.keys(enumObject).filter(k => typeof enumObject[k as any] === 'string');
         }
         if (!keys.length) {
-            abortWith(UserExc(ex.DeveloperStupidityException, 'splitEnum()', 'empty or unknown enum passed, cannot continue!').err);
+            abortWith(Exc(ex.DeveloperStupidity, 'splitEnum()', 'empty or unknown enum passed, cannot continue!').err);
         }
         const vals = keys.map(k => enumObject[k as any]);
         // @ts-ignore
@@ -1060,7 +1033,7 @@ namespace g {
      */
     export function abortWith(oErr: Error) {
         // memory.clearCache();
-        var err = oErr.name + ' occurred in ' + oErr.where + ':\n\n' + oErr.message;
+        var err = oErr.name + ' error occurred in ' + oErr.where + ':\n\n' + oErr.message;
         DOpus.output('');
         DOpus.output('');
         DOpus.output('');

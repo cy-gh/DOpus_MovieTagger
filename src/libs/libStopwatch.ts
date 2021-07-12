@@ -17,8 +17,6 @@ namespace SW {
     class Stopwatch {
         private myName = myName + '.Stopwatch';
 
-        private static myName = 'stopwatch';
-
         /**
          * Mapping between id and start timestamp,
          * we do not need a finish timestamp
@@ -31,14 +29,14 @@ namespace SW {
             const fname = this.ensureExists.fname = myName + '.ensureExists';
             if(this._running[id]) return;
             var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must exist)', fname, id, action);
-            g.abortWith(UserExc(ex.InvalidParameterValueException, fname, msg).err);
+            g.abortWith(Exc(ex.InvalidParameterValue, fname, msg).err);
         }
 
         private ensureNotExists(id: string | number, action: string) {
             const fname = this.ensureNotExists.fname = myName + '.ensureNotExists';
             if(!this._running[id]) return;
             var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must not exist)', fname, id, action);
-            g.abortWith(UserExc(ex.InvalidParameterValueException, fname, msg).err);
+            g.abortWith(Exc(ex.InvalidParameterValue, fname, msg).err);
         }
 
         /**

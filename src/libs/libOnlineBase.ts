@@ -24,7 +24,7 @@ namespace extOnline {
         constructor() {}
         getRandomKeyFrom(keysList: string[]): IResult<string, any> {
             if (keysList.length === 0) {
-                return UserExc(ex.NotImplementedYetException, arguments.callee, 'API key reading logic');
+                return Exc(ex.NotImplementedYet, arguments.callee, 'API key reading logic');
             }
             function getRandomInt(max: number) {
                 return Math.floor(Math.random() * max);

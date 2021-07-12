@@ -177,8 +177,32 @@
 namespace config {
     const myName = 'config';
 
+
     // only JSON-ifiable objects are allowed
     // regexps must be passed as string, but are automatically validated if they can be converted to RegExp
+    /**
+     * Only supported object types supported are:
+     *
+     *  * primitive JS types: boolean, number, string -- NO objects, arrays, functions
+     *  * DOpus types like DOpusMap, DOpusVector, DOpusItem, etc.
+     *
+     * Regexp's and POJOs are stored in JSON-ified form and parsed on request.
+     *
+     * This is due to the fact that DOpus user scripts are stateless.
+     *
+     * Script.vars & DOpus.vars allow putting objects, arrays & functions,
+     * but after a script finishes, most likely DOpus or WSH cleans up the references
+     * to these objects, and since they're no more used you will not get back
+     * the objects from Script.Vars or DOpus.Vars.
+     * Both .Vars seem to remember only primitive JS-types and own DOpus types,
+     * between 2 consequtive runs.
+     *
+     * When a script is unloaded can be seen via advanced setting:
+     *  script_output_level = All
+     *
+     * DOpus.vars might work, but it'd be a shame if a script would
+     * pollute the global, persisted
+     */
     export enum TYPE {
         BOOLEAN  = 'BOOLEAN',
         STRING   = 'STRING',
@@ -239,23 +263,6 @@ namespace config {
             return this;
         }
 
-        // /**
-        //  * Reads the fullpath, path name and isOSP flag of this script.
-        //  * The DOpusItem can be easily got with the fullpath and you have access to all other properties besides path.
-        //  * @param {string} scriptID unique script ID, which will be used to retrieve the script's fullpath from initData
-        //  */
-        // getScriptPathVars(scriptID: string): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
-        //     const oThisScriptsPath:DOpusItem = DOpus.vars.get(scriptID + Base.globalVarSuffix);
-        //     if (!oThisScriptsPath) {
-        //         return UserExc(ex.UninitializedException, 'Base.getScriptPathVars', 'InitData has not been set yet, call setInitData() in your OnInit() first');
-        //     }
-        //     return g.ResultOk({
-        //         fullpath: (''+oThisScriptsPath.realpath),
-        //         path    : (''+oThisScriptsPath.path).normalizeTrailingBackslashes(),
-        //         isOSP   : (''+oThisScriptsPath.ext).toLowerCase() === '.osp'
-        //     });
-        // }
-
         /**
          * @param {string} key config key
          * @param {config.TYPE} type value type
@@ -269,15 +276,15 @@ namespace config {
             : IResult<true, IException<ex>> {
             var msg;
             if (typeof this.initData === 'undefined') {
-                return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first').show();
+                return Exc(ex.Uninitialized, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first').show();
             }
             if (this.items.hasOwnProperty(key)) {
                 msg = key + ' already exists';
-                return UserExc(ex.KeyAlreadyExistsException, 'Base.AddValue', msg).show();
+                return Exc(ex.KeyAlreadyExists, 'Base.AddValue', msg).show();
             }
             if (!!!bypassValidation && !this.isValid(val, type)) {
                 msg = 'type ' + type + ' does not accept given value ' + val;
-                return UserExc(ex.InvalidParameterValueException, 'Base.AddValue', msg).show();
+                return Exc(ex.InvalidParameterValue, 'Base.AddValue', msg).show();
             }
             this.cntItems++;
             this.items[key] = <ConfigValue>{ type: type, val: val, default: val, group: group, desc: desc };
@@ -292,7 +299,7 @@ namespace config {
          */
         finalize(): IResult<true, IException<ex>> {
             if (typeof this.initData === 'undefined') {
-                return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first').show();
+                return Exc(ex.Uninitialized, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first').show();
             }
             var config_groups = this.initData.config_groups || DOpus.create().map();
             var config_desc   = this.initData.config_desc   || DOpus.create().map();
@@ -425,7 +432,7 @@ namespace config {
             var usingConfigVal = false;
             if (!this.items.hasOwnProperty(key)) {
                 DOpus.output('this.items:\n' + JSON.stringify(this.items, null, 4));
-                return UserExc(ex.InvalidKeyException, this.getValue, key + ' does not exist');
+                return Exc(ex.InvalidKey, this.getValue, key + ' does not exist');
             }
 
             var valueToProbe;
@@ -433,11 +440,11 @@ namespace config {
             if (autoGetDOpusValue && typeof Script.config !== 'undefined' && typeof this.items[key].key !== 'undefined') {
                 valueToProbe = Script.config[<string>this.items[key].key];
                 if (typeof valueToProbe === 'undefined' || valueToProbe === null) {
-                    return UserExc(ex.InvalidParameterValueException, this.getValue, 'Script config has no value for ' + key);
+                    return Exc(ex.InvalidParameterValue, this.getValue, 'Script config has no value for ' + key);
                 }
                 valueToProbe = this.convert(valueToProbe, this.items[key].type);
                 if (typeof valueToProbe === 'undefined') {
-                    return UserExc(ex.InvalidParameterValueException, this.getValue, 'Config value ' + this.items[key].key + ' is not valid');
+                    return Exc(ex.InvalidParameterValue, this.getValue, 'Config value ' + this.items[key].key + ' is not valid');
                 }
                 usingConfigVal = true;
             } else {
@@ -446,7 +453,7 @@ namespace config {
             logger.sinfo('%s -- valueToProbe: %s, key: %s, type: %s', 'Base.getValue()', g.dumpObject(valueToProbe), key, this.items[key].type);
 
             if (!this.isValid(valueToProbe, this.items[key].type)) {
-                return UserExc(ex.InvalidParameterValueException, this.getValue, 'Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].key : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
+                return Exc(ex.InvalidParameterValue, this.getValue, 'Invalid value!\n\nKey:\t' + (usingConfigVal ? this.items[key].key : key) + '\nValue:\t' + valueToProbe + '\nUsing:\t' + (usingConfigVal ? 'User Config' : 'Default'));
             }
             return valueToProbe;
         }
@@ -481,7 +488,7 @@ namespace config {
          */
         getType(key: string): IResult<config.TYPE, IException<ex>> {
             if (!this.items[key]) {
-                return UserExc(ex.InvalidKeyException, this.getType, key + ' does not exist').show();
+                return Exc(ex.InvalidKey, this.getType, key + ' does not exist').show();
             }
             return g.ResultOk(this.items[key].type);
         }
@@ -491,11 +498,11 @@ namespace config {
          */
         setValue(key: string, val: any): IResult<any, IException<ex>> {
             if (!this.items.hasOwnProperty(key)) {
-                return UserExc(ex.InvalidKeyException, this.getType, key + ' does not exist').show();
+                return Exc(ex.InvalidKey, this.getType, key + ' does not exist').show();
                 // return this.showError(key + ' does not exist');
             }
             if (!this.isValid(val, this.items[key].type)) {
-                return UserExc(ex.InvalidParameterTypeException, this.setValue, key + ' must have type ' + this.items[key].type + ', given: ' + typeof val).show();
+                return Exc(ex.InvalidParameterType, this.setValue, key + ' must have type ' + this.items[key].type + ', given: ' + typeof val).show();
                 // return this.showError(key + ' must have type ' + this.items[key].type + ', given: ' + typeof val);
             }
             this.items[key].val = val;
@@ -506,7 +513,7 @@ namespace config {
          */
         delKey(key: string): IResult<any, IException<ex>> {
             if (!this.items.hasOwnProperty(key)) {
-                return UserExc(ex.InvalidKeyException, this.delKey, key + ' does not exist').show();
+                return Exc(ex.InvalidKey, this.delKey, key + ' does not exist').show();
                 // return this.showError(key + ' does not exist');
             }
             this.cntItems--;
@@ -591,7 +598,7 @@ namespace config {
             return super.addValue(key, config.TYPE.POJO, parsed);
         }
         finalize(): IResult<true, IException<ex>> {
-            return UserExc(ex.UninitializedException, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
+            return Exc(ex.Uninitialized, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
         }
 
     }

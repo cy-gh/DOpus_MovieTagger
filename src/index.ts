@@ -133,7 +133,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
     var _vDebugLevels = DOpus.create().vector();
     var resDefaultLoggerLevel = logger.getLevelIndex();
     if (resDefaultLoggerLevel.isErr()) {
-        g.abortWith(UserExc(ex.DeveloperStupidityException, setupConfigVars, 'Logger default level is not set correctly').err);
+        g.abortWith(Exc(ex.DeveloperStupidity, setupConfigVars, 'Logger default level is not set correctly').err);
         return;
     }
     _vDebugLevels.push_back(logger.getLevelIndex().ok); // ignore Error in this case, we know logger is safe
@@ -865,7 +865,7 @@ function OnInit(initData: DOpusScriptInitData) {
     initData.group          = 'cuneytyilmaz.com';
 
     DOpus.clearOutput();
-    DOpus.output('Script initialization started');
+    DOpus.output('<b>Script initialization started</b>');
 
     g.init(initData);
 
@@ -884,7 +884,6 @@ function OnInit(initData: DOpusScriptInitData) {
         false
     );
 
-
     // let logger1 = new libLogger.CLogger(libLogger.LOGLEVEL.NORMAL);
     let logger = libLogger.current;
     logger.force("This variant does not work with node anymore...");
@@ -898,119 +897,38 @@ function OnInit(initData: DOpusScriptInitData) {
     logger.sforce('%s', new Date().getTime().formatAsDateTimeCompact());
     logger.sforce('%s', new Date().getTime().formatAsDuration());
 
-    // var oItem = doh.fsu.getItem('Y:\\VeraCrypt.rar');
-    // var id = oItem.modify;
-    // logger.force('id: ' + id);
-    // var d = new Date('2021-06-28 T18:09:04.206Z');
-    // // var d1 = doh.dc.date('D2021-06-28 T18:09:04');
-    // // var d2 = doh.dc.date('2021-06-28 T18:09:04.206Z');
-    // // var d3 = doh.dc.date(d.getTime());
-    // var d1 = doh.dc.date(id);
-    // var d2 = doh.dc.date(new Date());
-    // var d3 = doh.dc.date(new Date().valueOf());
-
-    // logger.sforce('d1: ' + d1);
-    // logger.sforce('d2: ' + d2);
-    // logger.sforce('d3: ' + d3);
-    // logger.sforce('d1: ' + d1 + '\t' + d1.format('D#yyyy-MM-dd T#HH:mm:ss'));
-    // logger.sforce('d2: ' + d2 + '\t' + d2.format('D#yyyy-MM-dd T#HH:mm:ss'));
-    // logger.sforce('d3: ' + d3 + '\t' + d3.format('D#yyyy-MM-dd T#HH:mm:ss'));
-
-    // DOpus.output('myname: ' + g.funcNameExtractor(OnInit));
-    // DOpus.output('unique simple: ' + g.getUniqueID());
-    // DOpus.output('unique non-simple: ' + g.getUniqueID(false));
-    // DOpus.output(libSprintfjs.sprintf('%s: %d', 'prefix', 12))
-
-    // let adsStream = new ads.Stream('SHA1');
-    // DOpus.output(adsStream.hasHashStream(doh.getItem('Y:\\simple.txt')));
-    // var res = urlTools.getFromURLRaw('https://avatars.githubusercontent.com/u/71272476?v=4');
-    // fs.saveFile('Y:\\cyghss.png', (<IDownloadedFile>res.ok).content);
-
-
-
-
-    // config.user.addString('test', 'this is the default value', 'TEST_FOR_DOPUS');
-    // DOpus.output(sprintfjs.sprintf(
-    //     'name: %s, type: %s, binding: %s',
-    //     'test',
-    //     config.user.getValue('test'),
-    //     config.user.getBinding('test')
-    // ));
-
-    // enum Enum {
-    //     A = 1,
-    // }
-    // let a = Enum.A;
-    // let nameOfA = Enum[a]; // "A"
-    // DOpus.output('nameOfA: ' + nameOfA);
-
-    // enum foo {
-    //     bar = <any> { type: config.TYPE.STRING, bla: 'x'},
-    //     baz = <any> { type: config.TYPE.NUMBER, bla: 'y'},
-    //     // baz = <any> 'barString'
-    // }
-    // // enum foo {
-    // //     bar = 1,
-    // //     baz = 2
-    // // }
-    // DOpus.output('test -- key: ' + foo[foo.bar] + ', val: ' + foo.bar);
-    // DOpus.output(JSON.stringify(foo, null, 4));
-
-    // DOpus.output(ex.UninitializedException);
-    // DOpus.output(JSON.stringify(ex, null, 4));
-
-
-
     // var loglevels = logger.getLevels();
     // DOpus.output('loglevels Untyped: ' + JSON.stringify(loglevels, null, 4))
     // DOpus.output('loglevels Typed: ' + JSON.stringify(g.splitEnum(libLogger.LOGLEVEL), null, 4))
     // DOpus.output('loglevels Typed Keys: ' + JSON.stringify(g.getEnumKeys(libLogger.LOGLEVEL), null, 4))
     // DOpus.output('loglevels Typed Vals: ' + JSON.stringify(g.getEnumVals(libLogger.LOGLEVEL), null, 4))
-
     enum foo1 {
         key1,
         key2,
     }
     // DOpus.output('foo1 orig: ' + JSON.stringify(foo1, null, 4))
     // DOpus.output('foo1 Typed: ' + JSON.stringify(g.splitNumberBasedEnum(foo1), null, 4))
-
     enum foo2 {
         key1 = 'this is val 1',
         key2 = 'this is val 2',
     }
-    enum foo3 {
-
-    }
+    enum foo3 {}
     // DOpus.output('foo2 orig: ' + JSON.stringify(foo2, null, 4))
     // DOpus.output('foo2 Typed: ' + JSON.stringify(g.splitStringBasedEnum(foo2), null, 4))
-
     // DOpus.output('LOGLEVEL orig: ' + JSON.stringify(libLogger.LOGLEVEL, null, 4))
     // DOpus.output('LOGLEVEL Typed - Number: ' + JSON.stringify(g.splitNumberBasedEnum(libLogger.LOGLEVEL), null, 4))
     // DOpus.output('LOGLEVEL Typed - String: ' + JSON.stringify(g.splitStringBasedEnum(libLogger.LOGLEVEL), null, 4))
-
     // DOpus.output('foo1 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo1), null, 4))
     // DOpus.output('foo2 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo2), null, 4))
     // DOpus.output('foo2 Typed Auto-split: ' + JSON.stringify(g.splitEnum(foo3), null, 4))
-
-
     // DOpus.output('foo Typed split: ' + JSON.stringify(g.splitNumberBasedEnum(foo).keys, null, 4))
     // DOpus.output('foo Typed keys: ' + JSON.stringify(g.getNumberBasedEnumKeys(foo), null, 4))
     // DOpus.output('foo Typed vals: ' + JSON.stringify(g.getNumberBasedEnumVals(foo), null, 4))
-
-
     // DOpus.output('split: ' + JSON.stringify(g.splitNumberBasedEnum(libLogger.LOGLEVEL), null, 4))
     // DOpus.output('keys: ' + JSON.stringify(g.getNumberBasedEnumKeys(libLogger.LOGLEVEL), null, 4))
     // DOpus.output('vals: ' + JSON.stringify(g.getNumberBasedEnumVals(libLogger.LOGLEVEL), null, 4))
-
     // return Object.keys(LOGLEVEL).filter(k => typeof LOGLEVEL[k as any] === "number").map(k => LOGLEVEL[k as any]);
     // DOpus.output( JSON.stringify(Object.keys(libLogger.LOGLEVEL), null, 4) );
-
-
-    initData.vars.set('f2k', 'set in OnInit()');
-
-    DOpus.output('initData.file: ' + typeof Script);
-    DOpus.output('initData.file: ' + typeof Script.vars);
-
 
 
     var dummy = DOpus.create().map();
@@ -1020,8 +938,22 @@ function OnInit(initData: DOpusScriptInitData) {
 
     // g.init(initData);
 
-    DOpus.output('Script initialization finished');
+    DOpus.output('<b>Script initialization finished</b>');
 
+}
+function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
+    const fname = OnGetHelpContent.fname = 'OnGetHelpContent';
+    DOpus.output(fname + ' started');
+    var helpContent = `<html>
+<head>
+    <title>Hello world</title>
+</head>
+<body>
+    <h1>Hello world</h1>
+    <p>This is the body.</p>
+</body></html>
+`;
+    helpData.addHelpPage('This is the name', 'This is the title', helpContent);
 }
 
 
@@ -1040,18 +972,15 @@ function _addCommand(name: string, fnFunction: Function, initData: DOpusScriptIn
     const fname = _addCommand.fname = '_addCommand';
 
     logger.sforce('%s -- started', fname);
-
     logger.sforce('%s -- adding: %s', fname, name);
-
     var cmd         = initData.addCommand();
     cmd.name        = (Global.SCRIPT_NAME_SHORT||'') + name;
-    cmd.method      = g.funcNameExtractor(fnFunction);
+    cmd.method      = g.funcNameExtractor(fnFunction, undefined, true);
     cmd.template    = template || '';
     // cmd.icon		= icon && _getIcon(icon) || '';
     cmd.label		= label || '';
     cmd.desc        = desc || label;
     cmd.hide        = typeof hide !== 'undefined' && hide || false;
-
     logger.sforce('%s -- cmd.name: %s', fname, cmd.name);
     logger.sforce('%s -- finished', fname);
 }
@@ -1075,7 +1004,14 @@ function CustomCommand() {
     DOpus.output('function in map - typeof: ' + typeof Script.vars.get('foo'));
     DOpus.output('function in map: ' + Script.vars.get('foo'));
     // DOpus.output('function in map: ' + g.funcNameExtractor.fname);
-    // DOpus.output('extracted name: ' + g.funcNameExtractor(CustomCommand));
+    // DOpus.output('extracted name: ' + g.funcNameExtractor('CustomCommand'));
+    DOpus.output('extracted name: ' + g.funcNameExtractor(CustomCommand));
+
+    var fr = fs.readFile('Y:\\foo.txt');
+    fr.match({
+        ok: () => { DOpus.output('result is ok: ' + fr.ok); },
+        err: () => { DOpus.output('result is err: ' + JSON.stringify(fr, null, 4)); }
+    });
 
     // var stream = ads.adsStreamCreator('dummy');
     var stream = new ads.Stream('dummy');

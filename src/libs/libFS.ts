@@ -30,9 +30,9 @@ namespace fs {
      * @returns {IResult.<string, string>} file contents on success, error string on error
      */
     export function readFile(path:string, decodeFormat?:string): IResult<string, string> {
-        const fname = readFile.fname = myName + 'readFile';
+        const fname = readFile.fname = myName + '.readFile';
 
-        if (!isValidPath(path)) { return g.ResultErr(); }
+        if (!isValidPath(path)) { return g.ResultErr(g.sprintf('%s -- File does not exist: %s', fname, path)); }
 
         var fh = doh.fsu.openFile(path); // default read mode
         if(fh.error !== 0) return g.ResultErr(g.sprintf('%s -- File exists but cannot be read - error: %s, file: %s', fname, fh.error, path));
@@ -72,7 +72,7 @@ namespace fs {
      * @returns {IResult.<number, string>} number of bytes written on success, error string on error
      */
      export function saveFile(path: string, contents: string): IResult<number, string> {
-        const fname = saveFile.fname = myName + 'saveFile';
+        const fname = saveFile.fname = myName + '.saveFile';
 
         // if (path.length > 240 && path.indexOf('\\\\?\\') === -1) {
         //   path   = '\\\\?\\' + path;
@@ -104,7 +104,7 @@ namespace fs {
      * @returns {boolean} true if file exists
      */
     export function isValidPath(path: string): boolean {
-        const fname = isValidPath.fname = myName + 'isValidPath';
+        const fname = isValidPath.fname = myName + '.isValidPath';
         return doh.fsu.exists(path);
     }
 
@@ -114,7 +114,7 @@ namespace fs {
      * @returns {IResult.<string, boolean>} drive type, e.g. HDD, SSD on success
      */
     export function detectDriveType(driveLetters: object): IResult<string, boolean> {
-        const fname = detectDriveType.fname = myName + 'detectDriveType';
+        const fname = detectDriveType.fname = myName + '.detectDriveType';
         var cmd;
 
         var ts = g.now();
