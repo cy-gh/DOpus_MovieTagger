@@ -3,6 +3,7 @@
 /* eslint-disable no-inner-declarations */
 /* global ActiveXObject Enumerator DOpus Script */
 /* eslint indent: [2, 4, {"SwitchCase": 1}] */
+
 ///<reference path='./std/libStdDev.ts' />
 ///<reference path='./libs/formatters.ts' />
 ///<reference path='./libs/libCache.ts' />
@@ -130,16 +131,10 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
     group = 'Listers';
 
+
     var _vDebugLevels = DOpus.create().vector();
-    var resDefaultLoggerLevel = logger.getLevelIndex();
-    if (resDefaultLoggerLevel.isErr()) {
-        g.abortWith(Exc(ex.DeveloperStupidity, setupConfigVars, 'Logger default level is not set correctly').err);
-        return;
-    }
-    _vDebugLevels.push_back(logger.getLevelIndex().ok); // ignore Error in this case, we know logger is safe
-    for (var i=0, keys=logger.getLevels(); i<keys.length; i++) {
-        _vDebugLevels.push_back(keys[i]);
-    }
+    _vDebugLevels.push_back(logger.getLevelIndex().show().ok); // try to ignore Error in this case, we know logger is safe
+    _vDebugLevels.append(logger.getLevels());
     cfg.addValue(
         CfgV.DEBUG_LEVEL,
         config.TYPE.DROPDOWN,
@@ -147,6 +142,8 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         group,
         'How much information should be put to DOpus output window - Beware of anything above & incl. NORMAL, it might crash your DOpus!\nSome crucial messages or commands like Dump ADS, Dump MediaInfo, Estimate Bitrate are not affected'
     );
+
+
     /**
      * auto refresh lister after updating metadata
      *
@@ -1016,6 +1013,39 @@ function CustomCommand() {
     // var stream = ads.adsStreamCreator('dummy');
     var stream = new ads.Stream('dummy');
     stream.setLogger(logger);
+
+    DOpus.clearOutput();
+
+    var inputEls = [
+        'Y:\\SourceFolder',
+        'Y:\\Junction-Mklink-Junction',
+        'Y:\\Junction-Mklnk',
+        'Y:\\SymLink-Mklink-DirSymLinkToFile',
+        'Y:\\SymLinkD-Mklink-DirSymLink',
+        'Y:\\SymLinkD-Mklink-HardLink',
+        'Y:\\SymLinkD-Mklink-PlainLink',
+        'Y:\\SourceFile.txt',
+        'Y:\\HardLink-Mklink.txt',
+        'Y:\\HardLink-Mklnk.txt',
+        'Y:\\SymLink--Mklink-JunctionToFile.txt',
+        'Y:\\SymLink--Mklink-PlanLinkToFile.txt',
+        'Y:\\SimpleShortcut - SourceFile.lnk'
+    ]
+    for (let i = 0; i < inputEls.length; i++) {
+        const el = inputEls[i];
+        const oi = DOpus.fsUtil().getItem(el);
+        logger.sforce(
+            '\n%s --\n\tis_file (!is_dir): %t\n\tis_dir: %t\n\tis_junction: %t\n\tis_symlink: %t',
+            ''+oi.realpath,
+            !oi.is_dir,
+            oi.is_dir,
+            oi.is_junction,
+            oi.is_symlink
+            )
+    }
+
+
+
 
     logger.sforce('%s -- finished', fname);
 }

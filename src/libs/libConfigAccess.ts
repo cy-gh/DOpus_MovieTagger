@@ -282,7 +282,7 @@ namespace config {
                 msg = key + ' already exists';
                 return Exc(ex.KeyAlreadyExists, 'Base.AddValue', msg).show();
             }
-            if (!!!bypassValidation && !this.isValid(val, type)) {
+            if (!bypassValidation && !this.isValid(val, type)) {
                 msg = 'type ' + type + ' does not accept given value ' + val;
                 return Exc(ex.InvalidParameterValue, 'Base.AddValue', msg).show();
             }

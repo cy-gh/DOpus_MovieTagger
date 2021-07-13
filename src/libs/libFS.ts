@@ -34,7 +34,7 @@ namespace fs {
 
         if (!isValidPath(path)) { return g.ResultErr(g.sprintf('%s -- File does not exist: %s', fname, path)); }
 
-        var fh = doh.fsu.openFile(path); // default read mode
+        var fh = g.fsu.openFile(path); // default read mode
         if(fh.error !== 0) return g.ResultErr(g.sprintf('%s -- File exists but cannot be read - error: %s, file: %s', fname, fh.error, path));
 
         try {
@@ -43,7 +43,7 @@ namespace fs {
             return g.ResultErr(g.sprintf('%s -- FSUtil.Read() error: %s, file: %s', fname, e.description, path));
         }
         try {
-            var res = ''+doh.st.decode(blob, decodeFormat||FORMAT_FOR_DECODE); // "utf-8" seems to be standard, "auto" does not work for me
+            var res = ''+g.st.decode(blob, decodeFormat||FORMAT_FOR_DECODE); // "utf-8" seems to be standard, "auto" does not work for me
         } catch(e) {
             return g.ResultErr(g.sprintf('%s -- StringTools.Decode() error: %s, file: %s', fname, e.description, path));
         }
@@ -79,7 +79,7 @@ namespace fs {
         // }
 
         // wa: wa - create a new file, always. If the file already exists it will be overwritten. (This is the default.)
-        var fh = doh.fsu.openFile(path, 'wa');
+        var fh = g.fsu.openFile(path, 'wa');
         if(fh.error !== 0) {
             return g.ResultErr(g.sprintf('%s -- FSUtil.OpenFile() error: %s, file: %s', fname, fh.error, path));
         }
@@ -105,7 +105,7 @@ namespace fs {
      */
     export function isValidPath(path: string): boolean {
         const fname = isValidPath.fname = myName + '.isValidPath';
-        return doh.fsu.exists(path);
+        return g.fsu.exists(path);
     }
 
 
@@ -120,8 +120,8 @@ namespace fs {
         var ts = g.now();
         cmd = 'wmic logicaldisk get deviceid,volumeserialnumber > Y:\\test.txt';
         logger.sverbose('Running: %s', cmd);
-        doh.shell.Run(cmd, 0, true); // 0: hidden, true: wait
-        doh.out('WMIC Partition Query Duration: ' + (g.now() - ts) + ' ms');
+        g.shell.Run(cmd, 0, true); // 0: hidden, true: wait
+        g.out('WMIC Partition Query Duration: ' + (g.now() - ts) + ' ms');
 
         /**
          * First time:
@@ -145,11 +145,11 @@ namespace fs {
             // cmd = 'PowerShell.exe "Get-Partition –DriveLetter ' + driveLetter.slice(0,1) + ' | Get-Disk | Get-PhysicalDisk | Select MediaType | Select-String \'(HDD|SSD)\'" -encoding ascii > "' + tempPSOutFile + '"';
             cmd = 'PowerShell.exe ( "Get-Partition -DriveLetter ' + driveLetter.slice(0,1) + ' | Get-Disk | Get-PhysicalDisk | Select MediaType | Select-String \'(HDD|SSD|Unspecified)\' -encoding ascii | Out-String" ).trim() > "' + tempPSOutFile + '"';
             logger.sforce('%s -- Running: %s', fname, cmd);
-            doh.shell.Run(cmd, 0, true); // 0: hidden, true: wait
+            g.shell.Run(cmd, 0, true); // 0: hidden, true: wait
 
             var res = readFile(tempPSOutFile, 'utf-16');
 
-            doh.cmd.runCommand('Delete /quiet /norecycle "' + tempPSOutFile + '"');
+            g.cmd.runCommand('Delete /quiet /norecycle "' + tempPSOutFile + '"');
             if (res.isErr() || !res.ok) {
                 logger.snormal('%s -- Could not determine disk type of %s, assuming SSD', fname, driveLetter);
             } else {
