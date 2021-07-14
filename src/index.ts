@@ -20,17 +20,12 @@
 
 
 // temporary vars
-
-type globalType = {
-    [k: string]: any
-}
 var logger = libLogger.current;
-
 var cfg = config.user;
 var ext = config.ext;
 
 
-const ScriptMeta: g.ScriptMeta = {
+const scriptMeta: g.ScriptMeta = {
     NAME        : 'CuMediaExtenders',
     NAME_SHORT  : 'MExt',
     VERSION     : '0.93',
@@ -43,12 +38,8 @@ const ScriptMeta: g.ScriptMeta = {
     PREFIX      : 'MExt', // prefix for field checks, log outputs, progress windows, etc. - do not touch
     LICENSE     : 'Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)',
 }
-ScriptMeta.NAME = 'cuMovieTagger';
-ScriptMeta.NAME = 'DOpus_MovieTagger';
-
-
-
-
+scriptMeta.NAME = 'cuMovieTagger';
+scriptMeta.NAME = 'DOpus_MovieTagger';
 
 enum CfgV {
     DEBUG_LEVEL                         = 'DEBUG_LEVEL',
@@ -99,7 +90,6 @@ enum CfgV {
     config_file_name                    = 'config_file_name'
 }
 
-
 const CfgVGroups: { [key in CfgV]: string } = {
     DEBUG_LEVEL                         : 'Listers',
     FORCE_REFRESH_AFTER_UPDATE          : 'Listers',
@@ -145,25 +135,11 @@ const CfgVGroups: { [key in CfgV]: string } = {
     config_file_name                    : ''
 }
 
-/*
-    addToConfigVar(initData, GROUP, 'templess_mode',
-        'EXPERIMENTAL: Get the MediaInfo output without using temporary files.\nUse at your own risk, might not work!\n'
-    );
-    addToConfigVar(initData, GROUP, 'templess_chunk_size',
-        'EXPERIMENTAL: Reading chunk size in Templess Mode; do not set too low!\nIf the value does not work, try 16384, 8192, 4096 and so on.\n'
-    );
-*/
-
 
 // CONFIG - DEFAULT VALUES
 function setupConfigVars(initData: DOpusScriptInitData) {
     setupConfigVars.fname = 'setupConfigVars';
 
-    // let _GROUP = '';
-
-
-
-    // _GROUP = ' DO NOT CHANGE UNLESS NECESSARY'; // first char is nbsp;
     /**
      * Name of the ADS stream, can be also used via "dir /:" or "type file:stream_name" commands
      *
@@ -184,9 +160,6 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         CfgVGroups[CfgV.META_STREAM_NAME],
         'Name of NTFS stream (ADS) to use\nWARNING: DELETE existing ADS from all files before you change this, otherwise old streams will be orphaned'
     ).show();
-
-
-    // _GROUP = 'Paths';
 
 
     cfg.addValue(
@@ -790,7 +763,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
      */
     var config_file_dir_raw = '/dopusdata\\Script AddIns';
     var config_file_dir_resolved = DOpus.fsUtil().resolve(config_file_dir_raw) + '\\';
-    var ext_config_file = ScriptMeta.SCRIPT_NAME + '.json';
+    var ext_config_file = scriptMeta.NAME + '.json';
     var config_file_contents = `
     {
         // To customize the column headers
@@ -815,7 +788,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
         // use any replacement for any column
         // if a name for a column cannot be found, script default will be used
-        // note all internal column names start with: ${ScriptMeta.SCRIPT_PREFIX}
+        // note all internal column names start with: ${scriptMeta.PREFIX}
         //
         // replacement values must be valid JS string, i.e. quoted
         // e.g.
@@ -871,16 +844,16 @@ function setupConfigVars(initData: DOpusScriptInitData) {
     cfg.addValue(CfgV.REF_NAME_CLEANUP, config.TYPE.STRING, name_cleanup.normalizeLeadingWhiteSpace(), CfgVGroups[CfgV.REF_NAME_CLEANUP]);
     cfg.addValue(CfgV.NAME_CLEANUP, config.TYPE.POJO, JSON.parse(name_cleanup), CfgVGroups[CfgV.NAME_CLEANUP]);
 
-
-
     cfg.finalize();
+
+
 
     // var config_file_dir_raw = '/dopusdata/Script AddIns';
     // var config_file_dir_resolved = DOpus.fsUtil().resolve(config_file_dir_raw) + '\\';
     // var config_file_name = Global.SCRIPT_NAME + '.json';
     // var config_file_dir_raw = '/dopusdata/Script AddIns';
     // var ext_config_file = DOpus.fsUtil().resolve('/dopusdata/Script AddIns') + '\\' + Global.SCRIPT_NAME + '.json';
-    var ext_config_file = g.SCRIPTSDIR + ScriptMeta.SCRIPT_NAME + '.json';
+    var ext_config_file = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
     var res = ext.addPOJOFromFile('ext_config_pojo', ext_config_file).show();
     ext.finalize();
 
@@ -892,17 +865,13 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 /** @param {DOpusScriptInitData=} initData */
 // eslint-disable-next-line no-unused-vars
 function OnInit(initData: DOpusScriptInitData) {
-
-    initData.group          = 'cuneytyilmaz.com';
-
     DOpus.clearOutput();
     DOpus.output('<b>Script initialization started</b>');
 
-    g.init(initData, ScriptMeta);
+    g.init(initData, scriptMeta);
 
-    // cfg.finalize();
-    cfg.setInitData(ScriptMeta.SCRIPT_NAME, initData);
-    ext.setInitData(ScriptMeta.SCRIPT_NAME, initData);
+    cfg.setInitData(scriptMeta.NAME, initData);
+    ext.setInitData(scriptMeta.NAME, initData);
     setupConfigVars(initData);
 
     _addCommand('DOpusMovieTagger_CustomCommand',
@@ -915,8 +884,8 @@ function OnInit(initData: DOpusScriptInitData) {
         false
     );
 
-    DOpus.output('<b>Script initialization finished</b>');
 
+    DOpus.output('<b>Script initialization finished</b>');
 }
 function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
     const fname = OnGetHelpContent.fname = 'OnGetHelpContent';
@@ -953,7 +922,7 @@ function _addCommand(name: string, fnFunction: Function, initData: DOpusScriptIn
     logger.sforce('%s -- started', fname);
     logger.sforce('%s -- adding: %s', fname, name);
     var cmd         = initData.addCommand();
-    cmd.name        = (ScriptMeta.SCRIPT_NAME_SHORT||'') + name;
+    cmd.name        = (scriptMeta.NAME_SHORT ||'') + name;
     cmd.method      = g.funcNameExtractor(fnFunction, undefined, true);
     cmd.template    = template || '';
     // cmd.icon		= icon && _getIcon(icon) || '';

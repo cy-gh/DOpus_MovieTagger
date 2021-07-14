@@ -587,16 +587,16 @@ if (!Array.prototype.map) {
 namespace g {
 
     interface ScriptMetaKnown {
-        COPYRIGHT?     : string,
-        DEFAULT_ENABLE?: boolean,
+        NAME           : string,
         DESC?          : string,
-        EARLY_DBLCLK?  : boolean,
         GROUP?         : string,
-        LOG_PREFIX?    : string,
-        MIN_VERSION?   : string,
-        NAME?          : string,
+        COPYRIGHT?     : string,
         URL?           : string,
         VERSION?       : string,
+        MIN_VERSION?   : string,
+        LOG_PREFIX?    : string,
+        EARLY_DBLCLK?  : boolean,
+        DEFAULT_ENABLE?: boolean,
     }
     export interface ScriptMeta extends ScriptMetaKnown {
         [key: string]: any;
