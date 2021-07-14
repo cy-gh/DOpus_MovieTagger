@@ -8,6 +8,14 @@
             "problemMatcher": [],
             "label": "npm: CompileAndCopy",
             "detail": "compile to a single file and copy to DOpus script addins directory"
+        },
+        {
+            "type": "npm",
+            "script": "CompileAndCopyNoComments",
+            "group": "build",
+            "problemMatcher": [],
+            "label": "npm: CompileAndCopyNoComments",
+            "detail": "npx tsc --target es3 --lib es5,scripthost --allowJS --newline LF --noImplicitOverride --strictNullChecks --strictPropertyInitialization --removeComments --out bin\\DOpus_MovieTagger.js src\\index.ts & copy bin\\DOpus_MovieTagger.js \"%HOMEDRIVE%%HOMEPATH%\\AppData\\Roaming\\GPSoftware\\Directory Opus\\Script AddIns\""
         }
     ]
 }

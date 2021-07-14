@@ -614,17 +614,3 @@ namespace config {
     export const ext = new ScriptExt();
 
 }
-
-// namespace config {
-
-//     export namespace test {
-
-//         export function addValue() {
-
-//             user.addValue('dummy', config.TYPE.BOOLEAN, false);
-//             user.addValue('dummy', config.TYPE.BOOLEAN, 1);
-//         }
-
-//     }
-
-// }

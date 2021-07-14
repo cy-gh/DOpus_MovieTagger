@@ -1014,38 +1014,6 @@ function CustomCommand() {
     var stream = new ads.Stream('dummy');
     stream.setLogger(logger);
 
-    DOpus.clearOutput();
-
-    var inputEls = [
-        'Y:\\SourceFolder',
-        'Y:\\Junction-Mklink-Junction',
-        'Y:\\Junction-Mklnk',
-        'Y:\\SymLink-Mklink-DirSymLinkToFile',
-        'Y:\\SymLinkD-Mklink-DirSymLink',
-        'Y:\\SymLinkD-Mklink-HardLink',
-        'Y:\\SymLinkD-Mklink-PlainLink',
-        'Y:\\SourceFile.txt',
-        'Y:\\HardLink-Mklink.txt',
-        'Y:\\HardLink-Mklnk.txt',
-        'Y:\\SymLink--Mklink-JunctionToFile.txt',
-        'Y:\\SymLink--Mklink-PlanLinkToFile.txt',
-        'Y:\\SimpleShortcut - SourceFile.lnk'
-    ]
-    for (let i = 0; i < inputEls.length; i++) {
-        const el = inputEls[i];
-        const oi = DOpus.fsUtil().getItem(el);
-        logger.sforce(
-            '\n%s --\n\tis_file (!is_dir): %t\n\tis_dir: %t\n\tis_junction: %t\n\tis_symlink: %t',
-            ''+oi.realpath,
-            !oi.is_dir,
-            oi.is_dir,
-            oi.is_junction,
-            oi.is_symlink
-            )
-    }
-
-
-
 
     logger.sforce('%s -- finished', fname);
 }
