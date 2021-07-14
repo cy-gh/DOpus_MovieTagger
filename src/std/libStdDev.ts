@@ -586,6 +586,23 @@ if (!Array.prototype.map) {
 // see https://www.typescriptlang.org/docs/handbook/namespaces-and-modules.html
 namespace g {
 
+    interface ScriptMetaKnown {
+        COPYRIGHT?     : string,
+        DEFAULT_ENABLE?: boolean,
+        DESC?          : string,
+        EARLY_DBLCLK?  : boolean,
+        GROUP?         : string,
+        LOG_PREFIX?    : string,
+        MIN_VERSION?   : string,
+        NAME?          : string,
+        URL?           : string,
+        VERSION?       : string,
+    }
+    export interface ScriptMeta extends ScriptMetaKnown {
+        [key: string]: any;
+    }
+
+
     /*
             8888888888 888b    888 888     888 888b     d888  .d8888b.
             888        8888b   888 888     888 8888b   d8888 d88P  Y88b
@@ -646,11 +663,20 @@ namespace g {
     */
 
     /**
-     * System temp directory, resolved from %TEMP%
+     * System temp directory, resolved from *%TEMP%*
      * @type {string}
      */
-    export const SYSTEMP: string = ''+DOpus.fsUtil().resolve('%TEMP%');
+    export const SYSTEMP: string    = ''+DOpus.fsUtil().resolve('%TEMP%');
+    /**
+     * DOpus scripts directory, resolved from *dopusdata/Script AddIns* -- has a trailing backslash
+     * @type {string}
+     */
+    export const SCRIPTSDIR: string = DOpus.fsUtil().resolve('/dopusdata/Script AddIns') + '\\';
 
+    /**
+     * Unique script ID for memory operations via DOpus.vars, Script.Vars and alike
+     * @type {string}
+     */
     export let SCRIPT_UNIQUE_ID: string;
 
     /*
@@ -751,9 +777,21 @@ namespace g {
                 888         "Y88888P"  888    Y888  "Y8888P"     888     8888888  "Y88888P"  888    Y888  "Y8888P"
     */
 
-    export function init(initData: DOpusScriptInitData) {
+    export function init(initData: DOpusScriptInitData, scriptMeta?: ScriptMeta) {
         initData.vars.set(VAR_NAMES.SCRIPT_FILE_PATH, initData.file);
         initData.vars.set(VAR_NAMES.SCRIPT_UNIQUE_ID, initData.file.toHash());
+        if (scriptMeta) {
+            initData.name           = scriptMeta.NAME           || '';
+            initData.version        = scriptMeta.VERSION        || '';
+            initData.copyright      = scriptMeta.COPYRIGHT      || '';
+            initData.url            = scriptMeta.URL            || '';
+            initData.desc           = scriptMeta.DESC           || '';
+            initData.min_version    = scriptMeta.MIN_VERSION    || '';
+            initData.group          = scriptMeta.GROUP          || '';
+            initData.log_prefix     = scriptMeta.LOG_PREFIX     || '';
+            initData.default_enable = scriptMeta.DEFAULT_ENABLE || true;
+            initData.early_dblclk   = scriptMeta.EARLY_DBLCLK   || false;
+        }
     }
     export function getScriptPathVars(): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
         if (!Script.vars.exists(VAR_NAMES.SCRIPT_FILE_PATH)) {
