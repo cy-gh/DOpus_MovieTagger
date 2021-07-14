@@ -177,9 +177,6 @@
 namespace config {
     const myName = 'config';
 
-
-    // only JSON-ifiable objects are allowed
-    // regexps must be passed as string, but are automatically validated if they can be converted to RegExp
     /**
      * Only supported object types supported are:
      *
@@ -616,5 +613,18 @@ namespace config {
      */
     export const ext = new ScriptExt();
 
-
 }
+
+// namespace config {
+
+//     export namespace test {
+
+//         export function addValue() {
+
+//             user.addValue('dummy', config.TYPE.BOOLEAN, false);
+//             user.addValue('dummy', config.TYPE.BOOLEAN, 1);
+//         }
+
+//     }
+
+// }

@@ -45,13 +45,13 @@ namespace libLogger {
         normal(message?: string): void              { }
         info(message?: string): void                { }
         verbose(message?: string): void             { }
-        sforce(...args: any): void                  { }
-        snone(...args: any): void                   { }
-        serror(...args: any): void                  { }
-        swarn(...args: any): void                   { }
-        snormal(...args: any): void                 { }
-        sinfo(...args: any): void                   { }
-        sverbose(...args: any): void                { }
+        sforce(): void                              { }
+        snone(): void                               { }
+        serror(): void                              { }
+        swarn(): void                               { }
+        snormal(): void                             { }
+        sinfo(): void                               { }
+        sverbose(): void                            { }
     }
 
     /** standard logger */

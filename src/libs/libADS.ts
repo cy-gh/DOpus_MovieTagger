@@ -130,6 +130,7 @@ namespace ads {
         public readonly last_size_friendly: string;
 
         constructor(oItem: DOpusItem, modify?: Date, size?: number, ...args: any) {
+            // @ts-ignore
             let _date = modify || new Date(oItem.modify);
             let _size = size || parseInt(''+oItem.size, 10);
 
