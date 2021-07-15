@@ -39,7 +39,7 @@ For the JSON formatted variables, please keep these in mind:
 | NAME_CLEANUP           |  |  | Currently only for internal use. |
 
 
-
+<!--
 <style>
 #write {
     max-width: unset;
@@ -55,3 +55,4 @@ For the JSON formatted variables, please keep these in mind:
 	}
 }
 </style>
+-->
