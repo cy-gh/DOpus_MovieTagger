@@ -54,14 +54,12 @@
     8888888 888    Y888     888     8888888888 888   T88b 888     d88P     888  "Y8888P"  8888888888  "Y8888P"
 */
 
+/** function name imitation for JScript */
 interface Function {
     fname: string;
 }
 
-
-/**
- * Showable errors, mainly for Results and Exceptions
- */
+/** Showable errors, mainly for Results and Exceptions */
 interface IShowableError<T> {
     /** should show if this is an error and return the same object */
     show(): T;
@@ -178,12 +176,11 @@ interface IResult<S, E> extends IShowableError<IResult<S, E>> {
     toString(): string;
     match(matcher: IResultMatcher): any;
 }
+/** constructor */
 declare var IResult: {
     new (success: any, error: any): IResult<typeof success, typeof error>;
 }
-/**
- * Helper structure for Result
- */
+/** Helper structure for Result */
 interface IResultMatcher {
     /** function to execute if result is ok */
     ok: Function,
@@ -191,11 +188,7 @@ interface IResultMatcher {
     err: Function
 }
 
-/**
- * Standard logger interface.
- *
- * Implemented in libLogger.ts.
- */
+/** Standard logger interface, implemented in libLogger.ts. */
 interface ILogger extends IShowableError<string> {
     getLevel()                  : g.LOGLEVEL;
     setLevel(level: g.LOGLEVEL) : void;
@@ -217,9 +210,7 @@ interface ILogger extends IShowableError<string> {
     sverbose(...args: any)      : void;
 }
 
-/**
- * All library classes MUST implement this interface!
- */
+/** All library classes MUST implement this interface! */
 interface ILibrary {
     /**
      * Injects a custom logger, instead of the default one.
@@ -618,20 +609,19 @@ namespace g {
     // export const dop        = DOpus;
     // export const scr        = Script;
     // export const dc         = DOpus.create();
+    // export const dv         = DOpus.vars;
+    // export const sv         = Script.vars;
     export const cmd        = DOpus.create().command();
     export const st         = DOpus.create().stringTools();
     export const fsu        = DOpus.fsUtil();
-    // export const dv         = DOpus.vars;
-    // export const sv         = Script.vars;
     export const shell      = new ActiveXObject('WScript.shell');
     export const dopusrt    = 'dopusrt /acmd';
 
 
     export enum ERROR_MODES {
         ONLY_EXCEPTIONS = 'ONLY_EXCEPTIONS',
-        ALL_RESULTS = 'ALL_RESULTS',
+        ALL_RESULTS     = 'ALL_RESULTS',
     }
-
     export var ERROR_MODE:ERROR_MODES = ERROR_MODES.ONLY_EXCEPTIONS;
 
     export enum LOGLEVEL {
@@ -650,6 +640,7 @@ namespace g {
         SCRIPT_CONFIG_DUMP  = 'SCRIPT_CONFIG_DUMP',
         SCRIPT_FNAME_CACHE  = 'SCRIPT_FNAME_CACHE',
     }
+
 
     /*
                 888     888      d8888 8888888b.   .d8888b.

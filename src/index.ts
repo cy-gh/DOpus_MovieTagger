@@ -43,51 +43,46 @@ scriptMeta.NAME = 'DOpus_MovieTagger';
 
 enum CfgV {
     DEBUG_LEVEL                         = 'DEBUG_LEVEL',
-    META_STREAM_NAME                    = 'META_STREAM_NAME',
-    MEDIAINFO_PATH                      = 'MEDIAINFO_PATH',
     FORCE_REFRESH_AFTER_UPDATE          = 'FORCE_REFRESH_AFTER_UPDATE',
+    MEDIAINFO_PATH                      = 'MEDIAINFO_PATH',
+    TEMP_FILES_DIR                      = 'TEMP_FILES_DIR',
+    TEMPLESS_MODE                       = 'TEMPLESS_MODE',
+    TEMPLESS_CHUNK_SIZE                 = 'TEMPLESS_CHUNK_SIZE',
     KEEP_ORIG_MODTS                     = 'KEEP_ORIG_MODTS',
     CACHE_ENABLED                       = 'CACHE_ENABLED',
 
-    REF_ALL_AVAILABLE_FIELDS            = 'REF_ALL_AVAILABLE_FIELDS',
     TOGGLEABLE_FIELDS_ESSENTIAL         = 'TOGGLEABLE_FIELDS_ESSENTIAL',
-    TOGGLEABLE_FIELDS_OPTIONAL          = 'TOGGLEABLE_FIELDS_OPTIONAL',
-    TOGGLEABLE_FIELDS_OTHER             = 'TOGGLEABLE_FIELDS_OTHER',
-    TOGGLEABLE_FIELDS_VERBOSE           = 'TOGGLEABLE_FIELDS_VERBOSE',
     TOGGLEABLE_FIELDS_ESSENTIAL_AFTER   = 'TOGGLEABLE_FIELDS_ESSENTIAL_AFTER',
+    TOGGLEABLE_FIELDS_OPTIONAL          = 'TOGGLEABLE_FIELDS_OPTIONAL',
     TOGGLEABLE_FIELDS_OPTIONAL_AFTER    = 'TOGGLEABLE_FIELDS_OPTIONAL_AFTER',
+    TOGGLEABLE_FIELDS_OTHER             = 'TOGGLEABLE_FIELDS_OTHER',
     TOGGLEABLE_FIELDS_OTHER_AFTER       = 'TOGGLEABLE_FIELDS_OTHER_AFTER',
+    TOGGLEABLE_FIELDS_VERBOSE           = 'TOGGLEABLE_FIELDS_VERBOSE',
     TOGGLEABLE_FIELDS_VERBOSE_AFTER     = 'TOGGLEABLE_FIELDS_VERBOSE_AFTER',
-
-    REF_LOOKUP_RESOLUTIONS              = 'REF_LOOKUP_RESOLUTIONS',
-    LOOKUP_RESOLUTIONS                  = 'LOOKUP_RESOLUTIONS',
-
-    REF_LOOKUP_DURATION_GROUPS          = 'REF_LOOKUP_DURATION_GROUPS',
-    LOOKUP_DURATION_GROUPS              = 'LOOKUP_DURATION_GROUPS',
-
-    REF_LOOKUP_CODECS                   = 'REF_LOOKUP_CODECS',
-    LOOKUP_CODECS                       = 'LOOKUP_CODECS',
-
-    REF_LOOKUP_CHANNELS                 = 'REF_LOOKUP_CHANNELS',
-    LOOKUP_CHANNELS                     = 'LOOKUP_CHANNELS',
 
     CODEC_USE_SHORT_VARIANT             = 'CODEC_USE_SHORT_VARIANT',
     CODEC_APPEND_ADDINFO                = 'CODEC_APPEND_ADDINFO',
     RESOLUTION_APPEND_VERTICAL          = 'RESOLUTION_APPEND_VERTICAL',
+    LOOKUP_RESOLUTIONS                  = 'LOOKUP_RESOLUTIONS',
+    LOOKUP_DURATION_GROUPS              = 'LOOKUP_DURATION_GROUPS',
+    LOOKUP_CODECS                       = 'LOOKUP_CODECS',
+    LOOKUP_CHANNELS                     = 'LOOKUP_CHANNELS',
+
     FORMATS_REGEX_VBR                   = 'FORMATS_REGEX_VBR',
     FORMATS_REGEX_LOSSLESS              = 'FORMATS_REGEX_LOSSLESS',
     FORMATS_REGEX_LOSSY                 = 'FORMATS_REGEX_LOSSY',
 
-    TEMP_FILES_DIR                      = 'TEMP_FILES_DIR',
+    REF_ALL_AVAILABLE_FIELDS            = 'REF_ALL_AVAILABLE_FIELDS',
+    REF_LOOKUP_RESOLUTIONS              = 'REF_LOOKUP_RESOLUTIONS',
+    REF_LOOKUP_DURATION_GROUPS          = 'REF_LOOKUP_DURATION_GROUPS',
+    REF_LOOKUP_CODECS                   = 'REF_LOOKUP_CODECS',
+    REF_LOOKUP_CHANNELS                 = 'REF_LOOKUP_CHANNELS',
     REF_CONFIG_FILE                     = 'REF_CONFIG_FILE',
     REF_NAME_CLEANUP                    = 'REF_NAME_CLEANUP',
+
+
+    META_STREAM_NAME                    = 'META_STREAM_NAME',
     NAME_CLEANUP                        = 'NAME_CLEANUP',
-
-    TEMPLESS_MODE                       = 'TEMPLESS_MODE',
-    TEMPLESS_CHUNK_SIZE                 = 'TEMPLESS_CHUNK_SIZE',
-
-    config_file_dir_resolved            = 'config_file_dir_resolved',
-    config_file_name                    = 'config_file_name'
 }
 
 const CfgVGroups: { [key in CfgV]: string } = {
@@ -99,7 +94,6 @@ const CfgVGroups: { [key in CfgV]: string } = {
     TEMPLESS_CHUNK_SIZE                 : 'Paths',
     KEEP_ORIG_MODTS                     : 'System',
     CACHE_ENABLED                       : 'System',
-    META_STREAM_NAME                    : 'zzDO NOT CHANGE UNLESS NECESSARY',
 
     TOGGLEABLE_FIELDS_ESSENTIAL         : 'Toggleable Columns',
     TOGGLEABLE_FIELDS_ESSENTIAL_AFTER   : 'Toggleable Columns',
@@ -113,13 +107,14 @@ const CfgVGroups: { [key in CfgV]: string } = {
     CODEC_USE_SHORT_VARIANT             : 'Formatting',
     CODEC_APPEND_ADDINFO                : 'Formatting',
     RESOLUTION_APPEND_VERTICAL          : 'Formatting',
-    FORMATS_REGEX_VBR                   : 'Formatting',
-    FORMATS_REGEX_LOSSLESS              : 'Formatting',
-    FORMATS_REGEX_LOSSY                 : 'Formatting',
     LOOKUP_RESOLUTIONS                  : 'Formatting',
     LOOKUP_DURATION_GROUPS              : 'Formatting',
     LOOKUP_CODECS                       : 'Formatting',
     LOOKUP_CHANNELS                     : 'Formatting',
+
+    FORMATS_REGEX_VBR                   : 'Formatting / ADS Update Necessary',
+    FORMATS_REGEX_LOSSLESS              : 'Formatting / ADS Update Necessary',
+    FORMATS_REGEX_LOSSY                 : 'Formatting / ADS Update Necessary',
 
     REF_ALL_AVAILABLE_FIELDS            : 'Reference Only - Changes ignored',
     REF_LOOKUP_RESOLUTIONS              : 'Reference Only - Changes ignored',
@@ -129,10 +124,51 @@ const CfgVGroups: { [key in CfgV]: string } = {
     REF_CONFIG_FILE                     : 'Reference Only - Changes ignored',
     REF_NAME_CLEANUP                    : 'Reference Only - Changes ignored',
 
-
+    META_STREAM_NAME                    : 'zzDO NOT CHANGE UNLESS NECESSARY',
     NAME_CLEANUP                        : 'zzInternal Use',
-    config_file_dir_resolved            : '',
-    config_file_name                    : ''
+}
+
+const CfgVDescs: { [key in CfgV]: string } = {
+    DEBUG_LEVEL                         : 'Level of output messages in the Script Log (aka Output Log) shown by the script.\nLevels INFO & VERBOSE might slow down/freeze your DOpus',
+    FORCE_REFRESH_AFTER_UPDATE          : 'Force refresh lister after updating metadata (retains current selection)',
+    MEDIAINFO_PATH                      : 'Path to MediaInfo.exe; folder aliases and %envvar% are auto-resolved\nportable/CLI version can be downloaded from https://mediaarea.net/en/MediaInfo/Download/Windows',
+    TEMP_FILES_DIR                      : 'Temp dir for MediaInfo output files, folder aliases and %envvar% are auto-resolved\nTemp files are immediately deleted after a file has been processed',
+    TEMPLESS_MODE                       : 'EXPERIMENTAL: Get the MediaInfo output without using temporary files.\nUse at your own risk, might not work!',
+    TEMPLESS_CHUNK_SIZE                 : 'EXPERIMENTAL: Reading chunk size in Templess Mode\nIf it works, increase further, if not decrease.',
+    KEEP_ORIG_MODTS                     : 'Keep the original "last modified timestamp" after updating/deleting ADS data\nMust be TRUE if you use \'Dirty/Needs Update\' column',
+    CACHE_ENABLED                       : 'Enable in-memory cache\nRead help for more info',
+
+    TOGGLEABLE_FIELDS_ESSENTIAL         : 'Essential Fields (sorted) - used exclusively by supplied action Toggle Essential, otherwise no impact on functionality\nYou can use DOpus fields as well, e.g. FOURCC, mp3songlength...',
+    TOGGLEABLE_FIELDS_ESSENTIAL_AFTER   : 'Put essential fields after this column; if invalid/invisible then columns are added at the end',
+    TOGGLEABLE_FIELDS_OPTIONAL          : 'Optional fields (sorted) - used exclusively by supplied action Toggle Optional, otherwise no impact on functionality\nYou can use DOpus fields as well, e.g. FOURCC, mp3songlength...',
+    TOGGLEABLE_FIELDS_OPTIONAL_AFTER    : 'Put optional fields after this column; if invalid/invisible then columns are added at the end',
+    TOGGLEABLE_FIELDS_OTHER             : 'Other fields (sorted) - used exclusively by supplied action Toggle Optional, otherwise no impact on functionality\nYou can use DOpus fields as well, e.g. FOURCC, mp3songlength...',
+    TOGGLEABLE_FIELDS_OTHER_AFTER       : 'Put other fields after this column; if invalid/invisible then columns are added at the end',
+    TOGGLEABLE_FIELDS_VERBOSE           : 'Verbose fields (sorted) - used exclusively by supplied action Toggle Optional, otherwise no impact on functionality\nYou can use DOpus fields as well, e.g. FOURCC, mp3songlength...',
+    TOGGLEABLE_FIELDS_VERBOSE_AFTER     : 'Put verbose fields after this column; if invalid/invisible then columns are added at the end',
+
+    CODEC_USE_SHORT_VARIANT             : 'Use shorter version of codecs, e.g. APE instead of Monkey\'s Audio or MP3 instead of MP3 (v2)',
+    CODEC_APPEND_ADDINFO                : 'Append \'additional codec info\' after main codec info, e.g. AAC, DTS will be displayed as AAC (LC), DTS (XLL) etc.\nTo change the main codec info (e.g. MP3 (v1)--> MP3), try CODEC_USE_SHORT_VARIANT=TRUE first, only then LOOKUP_CODECS',
+    RESOLUTION_APPEND_VERTICAL          : 'Append (Vertical) to resolutions if height > width',
+    LOOKUP_RESOLUTIONS                  : 'Resolution lookup hash (JSON), use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like\nMust be valid JSON. See help for reference.',
+    LOOKUP_DURATION_GROUPS              : 'Durations lookup hash (JSON) - only for group columns, leave empty for normal value or use too short, too long, etc.; always sorted alphabetically\nMust be valid JSON. See help for reference.',
+    LOOKUP_CODECS                       : 'Codecs lookup hash (JSON) - SEE SOURCE CODE for more info\nMust be valid JSON. See help for reference.',
+    LOOKUP_CHANNELS                     : 'Channel count lookup hash (JSON)\nMust be valid JSON. See help for reference.',
+
+    FORMATS_REGEX_VBR                   : 'Formats which do not report a VBR flag but are by definition VBR\nWARNING: Stored in ADS, i.e. if you change this, UPDATE is necessary, lister refresh will not suffice',
+    FORMATS_REGEX_LOSSLESS              : 'Formats which do not report a Lossless flag but are by definition Lossless\nWARNING: Stored in ADS, i.e. if you change this, UPDATE is necessary, lister refresh will not suffice',
+    FORMATS_REGEX_LOSSY                 : 'Formats which do not report a Lossy flag but are by definition Lossy\nWARNING: Stored in ADS, i.e. if you change this, UPDATE is necessary, lister refresh will not suffice',
+
+    REF_ALL_AVAILABLE_FIELDS            : 'For reference only - Changes ignored.\nList of all available columns; this list is used internally to calculate script defaults, change the TOGGLEABLE FIELDS options instead',
+    REF_LOOKUP_RESOLUTIONS              : 'For reference only - Changes ignored.\nResolution lookup hash help',
+    REF_LOOKUP_DURATION_GROUPS          : 'For reference only - Changes ignored.\nDurations lookup hash help',
+    REF_LOOKUP_CODECS                   : 'For reference only - Changes ignored.\nCodecs lookup hash help',
+    REF_LOOKUP_CHANNELS                 : 'For reference only - Changes ignored.\nChannel count lookup hash help',
+    REF_CONFIG_FILE                     : 'For reference only - Changes ignored.\nExternal config file to customize column headers',
+    REF_NAME_CLEANUP                    : 'For reference only - Changes ignored.\nName cleanup regexes help\nInternal use only at the moment.',
+
+    META_STREAM_NAME                    : 'Name of NTFS stream (ADS) to use\nWARNING: DELETE existing ADS from all files before you change this, otherwise old streams will be orphaned',
+    NAME_CLEANUP                        : 'Internal use only',
 }
 
 
@@ -142,8 +178,6 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
     /**
      * Name of the ADS stream, can be also used via "dir /:" or "type file:stream_name" commands
-     *
-     * ADJUST AS YOU SEE FIT
      *
      * WARNING:
      * Make sure you use a long-term name for this stream.
@@ -158,7 +192,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         config.TYPE.STRING,
         'MExt_MediaInfo',
         CfgVGroups[CfgV.META_STREAM_NAME],
-        'Name of NTFS stream (ADS) to use\nWARNING: DELETE existing ADS from all files before you change this, otherwise old streams will be orphaned'
+        CfgVDescs[CfgV.META_STREAM_NAME]
     ).show();
 
 
@@ -167,7 +201,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         config.TYPE.PATH,
         '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe',
         CfgVGroups[CfgV.MEDIAINFO_PATH],
-        'Path to MediaInfo.exe; folder aliases and %envvar% are auto-resolved\nportable/CLI version can be downloaded from https://mediaarea.net/en/MediaInfo/Download/Windows',
+        CfgVDescs[CfgV.MEDIAINFO_PATH],
         true // bypass=true - otherwise people will get an error on initial installation
     );
 
@@ -180,14 +214,12 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         config.TYPE.DROPDOWN,
         _vDebugLevels,
         CfgVGroups[CfgV.DEBUG_LEVEL],
-        'How much information should be put to DOpus output window - Beware of anything above & incl. NORMAL, it might crash your DOpus!\nSome crucial messages or commands like Dump ADS, Dump MediaInfo, Estimate Bitrate are not affected'
+        CfgVDescs[CfgV.DEBUG_LEVEL]
     );
 
 
     /**
      * auto refresh lister after updating metadata
-     *
-     * ADJUST AS YOU SEE FIT
      *
      * please keep in mind, auto-refresh is not an automatic win
      * if you select a single in big folder, the whole folder must be refreshed,
@@ -202,28 +234,22 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         config.TYPE.BOOLEAN,
         true,
         CfgVGroups[CfgV.FORCE_REFRESH_AFTER_UPDATE],
-        'Force refresh lister after updating metadata (retains current selection)'
+        CfgVDescs[CfgV.FORCE_REFRESH_AFTER_UPDATE]
     );
 
 
 
-    /**
-     * keep the original "last modified timestamp" after updating/deleting ADS; TRUE highly recommended
-     *
-     * ADJUST AS YOU SEE FIT
-     */
+    /** keep the original "last modified timestamp" after updating/deleting ADS; TRUE highly recommended */
     cfg.addValue(
         CfgV.KEEP_ORIG_MODTS,
         config.TYPE.BOOLEAN,
         true,
         CfgVGroups[CfgV.KEEP_ORIG_MODTS],
-        'Keep the original "last modified timestamp" after updating/deleting ADS data\nMust be TRUE if you use \'Dirty/Needs Update\' column'
+        CfgVDescs[CfgV.KEEP_ORIG_MODTS]
     );
 
     /**
      * cache metadata JS objects in memory for unchanged files to speed up process (the gain remains questionable IMO)
-     *
-     * ADJUST AS YOU SEE FIT
      *
      * the information stored in ADS is usually small, typically ~1 KB per file
      * the cache is used only and only if this script runs, i.e. automatically when any of the columns is visible (incl. in InfoTips/Tiles)
@@ -251,7 +277,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         config.TYPE.BOOLEAN,
         true,
         CfgVGroups[CfgV.CACHE_ENABLED],
-        'Enable in-memory cache\nRead About->Features for more info'
+        CfgVDescs[CfgV.CACHE_ENABLED]
     );
 
 
@@ -306,6 +332,8 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         "MExt_AFormatVersion"             : "optional",
         "MExt_AProfile"                   : "optional",
         "MExt_EncoderApp"                 : "optional",
+        "MExt_DateEncoded"                : "optional",
+        "MExt_DateTagged"                 : "optional",
 
         "MExt_HelperContainer"            : "other",
         "MExt_HelperVideoCodec"           : "other",
@@ -332,22 +360,68 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         }
     };
 
-    cfg.addValue(CfgV.TOGGLEABLE_FIELDS_ESSENTIAL,       config.TYPE.ARRAY, fields_essential,     CfgVGroups[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL]);
-    cfg.addValue(CfgV.TOGGLEABLE_FIELDS_OPTIONAL,        config.TYPE.ARRAY, fields_optional,      CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OPTIONAL]);
-    cfg.addValue(CfgV.TOGGLEABLE_FIELDS_OTHER,           config.TYPE.ARRAY, fields_other,         CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OTHER]);
-    cfg.addValue(CfgV.TOGGLEABLE_FIELDS_VERBOSE,         config.TYPE.ARRAY, fields_verbose,       CfgVGroups[CfgV.TOGGLEABLE_FIELDS_VERBOSE]);
-    cfg.addValue(CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER, config.TYPE.STRING, 'Comments',          CfgVGroups[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER]);
-    cfg.addValue(CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER,  config.TYPE.STRING, 'MExt_SubtitleLang', CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER]);
-    cfg.addValue(CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER,     config.TYPE.STRING, '',                  CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER]);
-    cfg.addValue(CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER,   config.TYPE.STRING, '',                  CfgVGroups[CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER]);
+    cfg.addValue(
+        CfgV.TOGGLEABLE_FIELDS_ESSENTIAL,
+        config.TYPE.ARRAY,
+        fields_essential,
+        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL],
+        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL]
+    );
+    cfg.addValue(
+        CfgV.TOGGLEABLE_FIELDS_OPTIONAL,
+        config.TYPE.ARRAY,
+        fields_optional,
+        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OPTIONAL],
+        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_OPTIONAL]
+    );
+    cfg.addValue(
+        CfgV.TOGGLEABLE_FIELDS_OTHER,
+        config.TYPE.ARRAY,
+        fields_other,
+        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OTHER],
+        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_OTHER]
+    );
+    cfg.addValue(
+        CfgV.TOGGLEABLE_FIELDS_VERBOSE,
+        config.TYPE.ARRAY,
+        fields_verbose,
+        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_VERBOSE],
+        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_VERBOSE]
+    );
+    cfg.addValue(
+        CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER,
+        config.TYPE.STRING,
+        'Comments',
+        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER],
+        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER]
+    );
+    cfg.addValue(
+        CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER,
+        config.TYPE.STRING,
+        'MExt_SubtitleLang',
+        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER],
+        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER]
+    );
+    cfg.addValue(
+        CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER,
+        config.TYPE.STRING,
+        '',
+        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER],
+        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER]
+    );
+    cfg.addValue(
+        CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER,
+        config.TYPE.STRING,
+        '',
+        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER],
+        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER]
+    );
 
 
     /**
      * video resolution translation hash
      *
      * use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like
-     *
-     * ADJUST AS YOU SEE FIT
      */
     // var lookup_resolutions = function(){return{
     var lookup_resolutions = `
@@ -370,18 +444,18 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
         // do not put , in the last line
     }`;
-    JSON.stringify(JSON.parse(lookup_resolutions)); // test parseability on script load, do not remove
-    cfg.addValue(
-        CfgV.REF_LOOKUP_RESOLUTIONS,
-        config.TYPE.STRING,
-        lookup_resolutions.normalizeLeadingWhiteSpace(),
-        CfgVGroups[CfgV.REF_LOOKUP_RESOLUTIONS]
-    );
+    // cfg.addValue(
+    //     CfgV.REF_LOOKUP_RESOLUTIONS,
+    //     config.TYPE.STRING,
+    //     lookup_resolutions.normalizeLeadingWhiteSpace(),
+    //     CfgVGroups[CfgV.REF_LOOKUP_RESOLUTIONS]
+    // );
     cfg.addValue(
         CfgV.LOOKUP_RESOLUTIONS,
         config.TYPE.POJO,
         JSON.parse(lookup_resolutions),
-        CfgVGroups[CfgV.LOOKUP_RESOLUTIONS]
+        CfgVGroups[CfgV.LOOKUP_RESOLUTIONS],
+        CfgVDescs[CfgV.LOOKUP_RESOLUTIONS]
     );
 
 
@@ -415,24 +489,22 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         "999999":   "Over 3h"
         // do not put , in the last line
     }`;
-    JSON.stringify(JSON.parse(lookup_duration_groups)); // test parseability on script load, do not remove
-    cfg.addValue(
-        CfgV.REF_LOOKUP_DURATION_GROUPS,
-        config.TYPE.STRING,
-        lookup_duration_groups.normalizeLeadingWhiteSpace(),
-        CfgVGroups[CfgV.REF_LOOKUP_DURATION_GROUPS]
-    );
+    // cfg.addValue(
+    //     CfgV.REF_LOOKUP_DURATION_GROUPS,
+    //     config.TYPE.STRING,
+    //     lookup_duration_groups.normalizeLeadingWhiteSpace(),
+    //     CfgVGroups[CfgV.REF_LOOKUP_DURATION_GROUPS]
+    // );
     cfg.addValue(
         CfgV.LOOKUP_DURATION_GROUPS,
         config.TYPE.POJO,
         JSON.parse(lookup_duration_groups),
-        CfgVGroups[CfgV.LOOKUP_DURATION_GROUPS]
+        CfgVGroups[CfgV.LOOKUP_DURATION_GROUPS],
+        CfgVDescs[CfgV.LOOKUP_DURATION_GROUPS]
     );
 
     /**
      * video & audio codecs translation hash
-     *
-     * ADJUST AS YOU SEE FIT
      *
      * you might have to experiment a little bit to have the output suitable for your needs
      * I've tried to keep them as close to DOpus as possible, but concerning how wild the MPEG specs are
@@ -487,6 +559,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         "HUFFYUV-V_MS/VFW/FOURCC / HFYU"                         : ["HuffYUV", "HFYU"],
         "HUFFYUV"                                                : ["HuffYUV", "HFYU"],
 
+        "MPEG-4 VISUAL-DIV3"                                     : "Div3",
         "MPEG-4 VISUAL-V_MPEG4/MS/V3"                            : "Div3",
         "MPEG-4 VISUAL-DIVX"                                     : "DivX",
         "MPEG-4 VISUAL-V_MPEG4/ISO/ASP"                          : "DivX",
@@ -500,7 +573,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         "MPEG-4 VISUAL-V_MS/VFW/FOURCC / DX50"                   : "DivX5",
         "MPEG-4 VISUAL-MP43"                                     : "MP43",
         "MPEG-4 VISUAL-XVID"                                     : "XviD",
-        "MPEG-4 VISUAL-DIV3"                                     : "DivX",
+        // "MPEG-4 VISUAL-DIV3"                                     : "DivX",
         "XVID-XVID"                                              : "XviD",
         "XVID"                                                   : "XviD",
         "MPEG VIDEO-MP4V-6A"                                     : "MPG1",
@@ -650,66 +723,77 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
         // do not put , in the last line
     }`;
-    // }.toString().slice(17, -3);
-    JSON.stringify(JSON.parse(lookup_codecs)); // test parseability on script load, do not remove
     cfg.addValue(
         CfgV.REF_LOOKUP_CODECS,
         config.TYPE.STRING,
         lookup_codecs.normalizeLeadingWhiteSpace(),
-        CfgVGroups[CfgV.REF_LOOKUP_CODECS]
+        CfgVGroups[CfgV.REF_LOOKUP_CODECS],
+        CfgVDescs[CfgV.REF_LOOKUP_CODECS]
     );
     cfg.addValue(
         CfgV.LOOKUP_CODECS,
         config.TYPE.POJO,
         JSON.parse(lookup_codecs),
-        CfgVGroups[CfgV.LOOKUP_CODECS]
+        CfgVGroups[CfgV.LOOKUP_CODECS],
+        CfgVDescs[CfgV.LOOKUP_CODECS]
     );
 
-    /**
-     * use short variants of codecs, found via LOOKUP_CODECS
-     *
-     * ADJUST AS YOU SEE FIT
-     */
-    cfg.addValue(CfgV.CODEC_USE_SHORT_VARIANT, config.TYPE.BOOLEAN, false, CfgVGroups[CfgV.CODEC_USE_SHORT_VARIANT]);
+    /** use short variants of codecs, found via LOOKUP_CODECS */
+    cfg.addValue(
+        CfgV.CODEC_USE_SHORT_VARIANT,
+        config.TYPE.BOOLEAN,
+        false,
+        CfgVGroups[CfgV.CODEC_USE_SHORT_VARIANT],
+        CfgVDescs[CfgV.CODEC_USE_SHORT_VARIANT]
+    );
 
     /**
      * add container or codec-specific information to the container/video/audio codec fields automatically
      * e.g. if an AAC file is encoded with 'LC SBR' it is shown as 'AAC (LC SPR)'
-     *
-     * ADJUST AS YOU SEE FIT
      */
-    cfg.addValue(CfgV.CODEC_APPEND_ADDINFO, config.TYPE.BOOLEAN, true, CfgVGroups[CfgV.CODEC_APPEND_ADDINFO]);
+    cfg.addValue(
+        CfgV.CODEC_APPEND_ADDINFO,
+        config.TYPE.BOOLEAN,
+        true,
+        CfgVGroups[CfgV.CODEC_APPEND_ADDINFO],
+        CfgVDescs[CfgV.CODEC_APPEND_ADDINFO]
+    );
 
-    /**
-     * append '(Vertical)' to video resolutions
-     *
-     * ADJUST AS YOU SEE FIT
-     */
-    cfg.addValue(CfgV.RESOLUTION_APPEND_VERTICAL, config.TYPE.BOOLEAN, true, CfgVGroups[CfgV.RESOLUTION_APPEND_VERTICAL]);
+    /** append '(Vertical)' to vertical  video resolutions */
+    cfg.addValue(
+        CfgV.RESOLUTION_APPEND_VERTICAL,
+        config.TYPE.BOOLEAN,
+        true,
+        CfgVGroups[CfgV.RESOLUTION_APPEND_VERTICAL],
+        CfgVDescs[CfgV.RESOLUTION_APPEND_VERTICAL]
+    );
 
-    /**
-     * Audio formats which do not store a VBR/CBR/ABR information separately but are VBR by definition
-     *
-     * do not touch
-     */
-    // cfg.addValue(CfgV.FORMATS_REGEX_VBR, config.TYPE.REGEXP, new RegExp(/ALAC|Monkey's Audio|TAK|DSD/));
-    cfg.addValue(CfgV.FORMATS_REGEX_VBR, config.TYPE.REGEXP, '/ALAC|Monkey\'s Audio|TAK|DSD/', CfgVGroups[CfgV.FORMATS_REGEX_VBR]);
+    /** Audio formats which do not store a VBR/CBR/ABR information separately but are VBR by definition */
+    cfg.addValue(
+        CfgV.FORMATS_REGEX_VBR,
+        config.TYPE.REGEXP,
+        '/ALAC|Monkey\'s Audio|TAK|DSD/',
+        CfgVGroups[CfgV.FORMATS_REGEX_VBR],
+        CfgVDescs[CfgV.FORMATS_REGEX_VBR]
+    );
 
-    /**
-     * Audio formats which do not store a lossy/lossless information separately but are lossless by definition
-     *
-     * do not touch
-     */
-    // cfg.addValue(CfgV.FORMATS_REGEX_LOSSLESS, config.TYPE.REGEXP, new RegExp(/ALAC|PCM|TTA|DSD/));
-    // cfg.addValue(CfgV.FORMATS_REGEX_LOSSY, config.TYPE.REGEXP, new RegExp(/AMR/));
-    cfg.addValue(CfgV.FORMATS_REGEX_LOSSLESS, config.TYPE.REGEXP, '/ALAC|PCM|TTA|DSD/', CfgVGroups[CfgV.FORMATS_REGEX_LOSSLESS]);
-    cfg.addValue(CfgV.FORMATS_REGEX_LOSSY, config.TYPE.REGEXP, '/AMR/', CfgVGroups[CfgV.FORMATS_REGEX_LOSSY]);
+    /** Audio formats which do not store a lossy/lossless information separately but are lossless by definition */
+    cfg.addValue(
+        CfgV.FORMATS_REGEX_LOSSLESS,
+        config.TYPE.REGEXP,
+        '/ALAC|PCM|TTA|DSD/',
+        CfgVGroups[CfgV.FORMATS_REGEX_LOSSLESS],
+        CfgVDescs[CfgV.FORMATS_REGEX_LOSSLESS]
+    );
+    cfg.addValue(
+        CfgV.FORMATS_REGEX_LOSSY,
+        config.TYPE.REGEXP,
+        '/AMR/',
+        CfgVGroups[CfgV.FORMATS_REGEX_LOSSY],
+        CfgVDescs[CfgV.FORMATS_REGEX_LOSSY]
+    );
 
-    /**
-     * audio channels translation hash
-     *
-     * ADJUST AS YOU SEE FIT
-     */
+    /** audio channels translation hash */
     var lookup_channels = `
     {
         // This is just the help variable for your reference
@@ -740,36 +824,39 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
         // do not put , in the last line
     }`;
-    JSON.stringify(JSON.parse(lookup_channels)); // test parseability on script load, do not remove
-    cfg.addValue(CfgV.REF_LOOKUP_CHANNELS, config.TYPE.STRING, lookup_channels.normalizeLeadingWhiteSpace(), CfgVGroups[CfgV.REF_LOOKUP_CHANNELS]);
-    cfg.addValue(CfgV.LOOKUP_CHANNELS, config.TYPE.POJO, JSON.parse(lookup_channels), CfgVGroups[CfgV.LOOKUP_CHANNELS]);
+    cfg.addValue(
+        CfgV.REF_LOOKUP_CHANNELS,
+        config.TYPE.STRING,
+        lookup_channels.normalizeLeadingWhiteSpace(),
+        CfgVGroups[CfgV.REF_LOOKUP_CHANNELS],
+        CfgVDescs[CfgV.REF_LOOKUP_CHANNELS]
+    );
+    cfg.addValue(
+        CfgV.LOOKUP_CHANNELS,
+        config.TYPE.POJO,
+        JSON.parse(lookup_channels),
+        CfgVGroups[CfgV.LOOKUP_CHANNELS],
+        CfgVDescs[CfgV.LOOKUP_CHANNELS]
+    );
 
 
-    /**
-     * directory in which temporary files (selected_files_name.JSON) are created
-     *
-     * ADJUST AS YOU SEE FIT
-     *
-     * NO trailing slashes & backslashes must be 'escaped', i.e. C:\MyTempDir\SubDir\ --> should be put as C:\\MyTempDir\\SubDir
-     *
-     * can include environment variables
-     */
-    cfg.addValue(CfgV.TEMP_FILES_DIR, config.TYPE.PATH, '%TEMP%', CfgVGroups[CfgV.TEMP_FILES_DIR]);
+    /** directory in which temporary files (selected_files_name.JSON) are created */
+    cfg.addValue(
+        CfgV.TEMP_FILES_DIR,
+        config.TYPE.PATH,
+        '%TEMP%',
+        CfgVGroups[CfgV.TEMP_FILES_DIR],
+        CfgVDescs[CfgV.TEMP_FILES_DIR]
+    );
 
-    /**
-     * external configuration file to adjust column headers
-     *
-     * ADJUST AS YOU SEE FIT
-     */
-    var config_file_dir_raw = '/dopusdata\\Script AddIns';
-    var config_file_dir_resolved = DOpus.fsUtil().resolve(config_file_dir_raw) + '\\';
-    var ext_config_file = scriptMeta.NAME + '.json';
+
+    /** external configuration file to adjust column headers */
     var config_file_contents = `
     {
         // To customize the column headers
-        // create a file with the name: ${ext_config_file}
-        // under: ${config_file_dir_raw}
-        // (usually: ${config_file_dir_resolved})
+        // create a file with the name: ${scriptMeta.NAME}.json
+        // under: /dopusdata/Script AddIns
+        // (usually: ${g.SCRIPTSDIR})
         //
         // DOpus does not allow column headers to be changed during runtime
         // but only during initialization.
@@ -799,21 +886,17 @@ function setupConfigVars(initData: DOpusScriptInitData) {
             // do not put , in the last line
         }
         // do not put , in the last line
-    }`
-    .substituteVars();
-    JSON.stringify(JSON.parse(config_file_contents)); // test parseability on script load, do not remove
-    cfg.addValue(CfgV.REF_CONFIG_FILE, config.TYPE.STRING, config_file_contents.normalizeLeadingWhiteSpace(), CfgVGroups[CfgV.REF_CONFIG_FILE]);
+    }`.substituteVars();
+    cfg.addValue(
+        CfgV.REF_CONFIG_FILE,
+        config.TYPE.STRING,
+        config_file_contents.normalizeLeadingWhiteSpace(),
+        CfgVGroups[CfgV.REF_CONFIG_FILE],
+        CfgVDescs[CfgV.REF_CONFIG_FILE]
+    );
 
 
-
-
-    /**
-     * name cleanup array
-     *
-     * use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like
-     *
-     * ADJUST AS YOU SEE FIT
-     */
+    /** name cleanup array; use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like */
     var name_cleanup = `
     {
         // This is just the help variable for your reference
@@ -840,19 +923,19 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         ]
         // do not put , in the last line
     }`;
-    JSON.stringify(JSON.parse(name_cleanup)); // test parseability on script load, do not remove
-    cfg.addValue(CfgV.REF_NAME_CLEANUP, config.TYPE.STRING, name_cleanup.normalizeLeadingWhiteSpace(), CfgVGroups[CfgV.REF_NAME_CLEANUP]);
-    cfg.addValue(CfgV.NAME_CLEANUP, config.TYPE.POJO, JSON.parse(name_cleanup), CfgVGroups[CfgV.NAME_CLEANUP]);
+    // cfg.addValue(CfgV.REF_NAME_CLEANUP, config.TYPE.STRING, name_cleanup.normalizeLeadingWhiteSpace(), CfgVGroups[CfgV.REF_NAME_CLEANUP]);
+    cfg.addValue(
+        CfgV.NAME_CLEANUP,
+        config.TYPE.POJO,
+        JSON.parse(name_cleanup),
+        CfgVGroups[CfgV.NAME_CLEANUP],
+        CfgVDescs[CfgV.NAME_CLEANUP]
+    );
 
     cfg.finalize();
 
 
 
-    // var config_file_dir_raw = '/dopusdata/Script AddIns';
-    // var config_file_dir_resolved = DOpus.fsUtil().resolve(config_file_dir_raw) + '\\';
-    // var config_file_name = Global.SCRIPT_NAME + '.json';
-    // var config_file_dir_raw = '/dopusdata/Script AddIns';
-    // var ext_config_file = DOpus.fsUtil().resolve('/dopusdata/Script AddIns') + '\\' + Global.SCRIPT_NAME + '.json';
     var ext_config_file = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
     var res = ext.addPOJOFromFile('ext_config_pojo', ext_config_file).show();
     ext.finalize();
@@ -861,8 +944,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
 
 
-// called by DOpus
-/** @param {DOpusScriptInitData=} initData */
+/** called by DOpus @param {DOpusScriptInitData=} initData */
 // eslint-disable-next-line no-unused-vars
 function OnInit(initData: DOpusScriptInitData) {
     DOpus.clearOutput();
@@ -887,20 +969,27 @@ function OnInit(initData: DOpusScriptInitData) {
 
     DOpus.output('<b>Script initialization finished</b>');
 }
-function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
-    const fname = OnGetHelpContent.fname = 'OnGetHelpContent';
-    DOpus.output(fname + ' started');
-    var helpContent = `<html>
-<head>
-    <title>Hello world</title>
-</head>
-<body>
-    <p>This is the body.</p>
-</body></html>
-`;
-    helpData.addHelpPage('index.html', 'C&uuml;\'s Movie Tagger', helpContent);
 
-    helpData.addHelpPage('details.html', 'More details', helpContent);
+function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
+//     const fname = OnGetHelpContent.fname = 'OnGetHelpContent';
+//     DOpus.output(fname + ' started');
+//     var helpContent = `<html>
+// <head>
+//     <title>Hello world</title>
+// </head>
+// <body>
+//     <p>This is the body.</p>
+// </body></html>
+// `;
+//     helpData.addHelpPage('index.html', 'C&uuml;\'s Movie Tagger', helpContent);
+
+//     helpData.addHelpPage('details.html', 'More details', helpContent);
+
+// var cfgopt = fs.readFile('C:\\Users\\cu\\AppData\\Roaming\\GPSoftware\\Directory Opus\\Script AddIns\\configOptions.html').ok;
+// DOpus.output('cfgopt: ' + cfgopt.slice(0,1000));
+// DOpus.output('cfgopt: ' + cfgopt.length);
+
+//     helpData.addHelpPage('configOptions.html', 'Configuration', cfgopt);
 
 }
 
