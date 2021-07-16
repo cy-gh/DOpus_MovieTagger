@@ -19,27 +19,44 @@
 
 
 
+
+
+interface ScriptMeta extends g.ScriptMetaKnown {
+    NAME_SHORT?             : string,
+    DATE?                   : string,
+    PREFIX?                 : string,
+    LICENSE?                : string,
+    CUSTCOL_MAP_NAME        : string,
+    CUSTCOL_NAME_PREFIX?    : string,
+    CUSTCOL_LABEL_PREFIX?   : string,
+}
+const scriptMeta: ScriptMeta = {
+    NAME                    : 'CuMediaExtenders',
+    NAME_SHORT              : 'MExt',
+    VERSION                 : '0.93',
+    COPYRIGHT               : '© 2021 cuneytyilmaz.com',
+    URL                     : 'https://github.com/cy-gh/DOpus_CuMediaExtenders/',
+    DESC                    : 'Extended fields for multimedia files (movie & audio) with the help of MediaInfo & NTFS ADS\nSee Help for more info.',
+    MIN_VERSION             : '12.24.1',
+    DATE                    : '20210714',
+    GROUP                   : 'cuneytyilmaz.com',
+    PREFIX                  : 'MExt', // prefix for field checks, log outputs, progress windows, etc. - do not touch
+    LICENSE                 : 'Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)',
+    CUSTCOL_MAP_NAME        : 'colExtraMap',
+    CUSTCOL_NAME_PREFIX     : 'MExt_',
+    CUSTCOL_LABEL_PREFIX    : 'ME ',
+}
+
+
+// TODO - REMOVE
 // temporary vars
 var logger = libLogger.current;
 var cfg = config.user;
 var ext = config.ext;
-
-
-const scriptMeta: g.ScriptMeta = {
-    NAME        : 'CuMediaExtenders',
-    NAME_SHORT  : 'MExt',
-    VERSION     : '0.93',
-    COPYRIGHT   : '© 2021 cuneytyilmaz.com',
-    URL         : 'https://github.com/cy-gh/DOpus_CuMediaExtenders/',
-    DESC        : 'Extended fields for multimedia files (movie & audio) with the help of MediaInfo & NTFS ADS\nSee Help for more info.',
-    MIN_VERSION : '12.24.1',
-    DATE        : '20210714',
-    GROUP       : 'cuneytyilmaz.com',
-    PREFIX      : 'MExt', // prefix for field checks, log outputs, progress windows, etc. - do not touch
-    LICENSE     : 'Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)',
-}
 scriptMeta.NAME = 'cuMovieTagger';
 scriptMeta.NAME = 'DOpus_MovieTagger';
+
+
 
 enum CfgV {
     DEBUG_LEVEL                         = 'DEBUG_LEVEL',
@@ -83,6 +100,8 @@ enum CfgV {
 
     META_STREAM_NAME                    = 'META_STREAM_NAME',
     NAME_CLEANUP                        = 'NAME_CLEANUP',
+
+    EXT_CONFIG_POJO                     = 'EXT_CONFIG_POJO',
 }
 
 const CfgVGroups: { [key in CfgV]: string } = {
@@ -171,10 +190,557 @@ const CfgVDescs: { [key in CfgV]: string } = {
     NAME_CLEANUP                        : 'Internal use only',
 }
 
+type CommandTemplate = {
+    // name: string,
+    func  : Function,
+    tmpl  : string,
+    icon  : string,
+    label : string,
+    desc  : string,
+    hide? : boolean
+}
+
+const AllCommands: { [key: string]: CommandTemplate } = {
+    /*
+        Available icon names, used by GetIcon()
+            Calculate
+            ClearCache
+            Add
+            Remove
+            Delete
+            Info
+            Settings
+            Toggle_Off
+            Toggle_On
+            Update
+    */
+    'CustomCommand': {
+        func: CustomCommand,
+        tmpl: '',
+        icon: '',
+        label: '',
+        desc: ''
+    },
+
+    'ME_Update': {
+        func: OnME_Update,
+        tmpl: 'FILE/K',
+        icon: 'AddUpdate',
+        label: 'MExt Update Metadata',
+        desc: 'Update video and audio metadata (read by MediaInfo) in custom ADS stream'
+    },
+
+    'ME_Delete': {
+        func: OnME_Delete,
+        tmpl: 'FILE/K',
+        icon: 'Delete',
+        label: 'MExt Delete Metadata',
+        desc: 'Delete video and audio metadata from custom ADS stream'
+    },
+
+    'ME_ClearCache': {
+        func: OnME_ClearCache,
+        tmpl: '',
+        icon: 'ClearCache',
+        label: 'MExt Clear Cache',
+        desc: 'Clear the in-memory cache'
+    },
+
+    'ME_ADSDump': {
+        func: OnME_ADSDump,
+        tmpl: 'FILE/K',
+        icon: 'Info',
+        label: 'MExt Dump Metadata',
+        desc: 'Dump video and audio metadata stored in ADS to DOpus output window'
+    },
+
+    'ME_ADSCopy': {
+        func: OnME_ADSCopy,
+        tmpl: 'FILE/K',
+        icon: 'Info',
+        label: 'MExt Copy Metadata',
+        desc: 'Copy video and audio metadata stored in ADS to clipboard'
+    },
+
+    'ME_MediaInfoDump': {
+        func: OnME_MediaInfoDump,
+        tmpl: 'FILE/K',
+        icon: 'Info',
+        label: 'MExt Dump MediaInfo',
+        desc: 'Dump video and audio metadata (read by MediaInfo) to DOpus output window, without writing it to the ADS stream'
+    },
+
+    'ME_MediaInfoCopy': {
+        func: OnME_MediaInfoCopy,
+        tmpl: 'FILE/K',
+        icon: 'Info',
+        label: 'MExt Copy MediaInfo',
+        desc: 'Copy video and audio metadata (read by MediaInfo) to Clipboard, without writing it to the ADS stream'
+    },
+
+    'ME_EstimateBitrates': {
+        func: OnME_EstimateBitrates,
+        tmpl: 'FILE/K',
+        icon: 'Calculate',
+        label: 'MExt Estimate Bitrate',
+        desc: 'Calculate estimated bitrates for various target Bitrate/Pixel values'
+    },
+
+    'ME_ToggleEssentialColumns': {
+        func: OnME_ToggleEssentialColumns,
+        tmpl: '',
+        icon: 'ToggleGroup1',
+        label: 'MExt Toggle Essential',
+        desc: 'Toggle essential columns only'
+    },
+
+    'ME_ToggleOptionalColumns': {
+        func: OnME_ToggleOptionalColumns,
+        tmpl: '',
+        icon: 'ToggleGroup2',
+        label: 'MExt Toggle Optional',
+        desc: 'Toggle optional columns'
+    },
+
+    'ME_ToggleOtherColumns': {
+        func: OnME_ToggleOtherColumns,
+        tmpl: '',
+        icon: 'ToggleGroup3',
+        label: 'MExt Toggle Other',
+        desc: 'Toggle other columns'
+    },
+
+    'ME_ToggleVerboseColumns': {
+        func: OnME_ToggleVerboseColumns,
+        tmpl: '',
+        icon: 'ToggleGroup4',
+        label: 'MExt Toggle Verbose',
+        desc: 'Toggle verbose columns'
+    },
+
+    'ME_ConfigValidate': {
+        func: OnME_ConfigValidate,
+        tmpl: 'DEBUG/S,SHOWVALUES/S',
+        icon: 'Settings',
+        label: 'MExt Validate Config',
+        desc: 'Validate current configuration'
+    },
+
+    'ME_TestMethod1': {
+        func: OnME_TestMethod1,
+        tmpl: '',
+        icon: 'Settings',
+        label: 'MExt Test Method 1',
+        desc: 'Test Method 1',
+        hide: true
+    },
+
+    'ME_TestMethod2': {
+        func: OnME_TestMethod2,
+        tmpl: '',
+        icon: 'Settings',
+        label: 'MExt Test Method 2',
+        desc: 'Test Method 2',
+        hide: true
+    },
+
+}
+
+enum ColumnJustify {
+    Left  = 'left',
+    Right = 'right'
+}
+type ColumnTemplate = {
+    // name: string,
+    func       : Function,
+    label      : string,
+    justify    : ColumnJustify,
+    autoGroup  : boolean,
+    autoRefresh: boolean,
+    multiCol   : boolean
+}
+const AllColumns: { [key: string]: ColumnTemplate } = {
+    'MExt_HasMetadata': {
+        func: OnMExt_HasMetadata,
+        label: 'Available',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: false
+    },
+    'MExt_NeedsUpdate': {
+        func: OnMExt_MultiColRead,
+        label: 'Dirty',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VideoCount': {
+        func: OnMExt_MultiColRead,
+        label: 'VCount',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AudioCount': {
+        func: OnMExt_MultiColRead,
+        label: 'ACount',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_TextCount': {
+        func: OnMExt_MultiColRead,
+        label: 'TCount',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_OthersCount': {
+        func: OnMExt_MultiColRead,
+        label: 'OCount',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VideoCodec': {
+        func: OnMExt_MultiColRead,
+        label: 'VCodec',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VideoBitrate': {
+        func: OnMExt_MultiColRead,
+        label: 'VBitrate',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_TotalBitrate': {
+        func: OnMExt_MultiColRead,
+        label: 'TBitrate',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AudioCodec': {
+        func: OnMExt_MultiColRead,
+        label: 'ACodec',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AudioBitrate': {
+        func: OnMExt_MultiColRead,
+        label: 'ABitrate',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_TotalDuration': {
+        func: OnMExt_MultiColRead,
+        label: 'TDuration',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VideoDuration': {
+        func: OnMExt_MultiColRead,
+        label: 'VDuration',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AudioDuration': {
+        func: OnMExt_MultiColRead,
+        label: 'ADuration',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_CombinedDuration': {
+        func: OnMExt_MultiColRead,
+        label: 'Duration (Combined)',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_MultiAudio': {
+        func: OnMExt_MultiColRead,
+        label: 'Multi-Audio',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AudioChannels': {
+        func: OnMExt_MultiColRead,
+        label: 'Audio Channels',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AudioLang': {
+        func: OnMExt_MultiColRead,
+        label: 'Audio Language',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VARDisplay': {
+        func: OnMExt_MultiColRead,
+        label: 'Aspect Ratio (Display)',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VARRaw': {
+        func: OnMExt_MultiColRead,
+        label: 'Aspect Ratio (Raw)',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VARCombined': {
+        func: OnMExt_MultiColRead,
+        label: 'Aspect Ratio (Combined)',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    // justified to right, it is basically a number-based field, left as DOpus uses, does not make sense to me
+    'MExt_VDimensions': {
+        func: OnMExt_MultiColRead,
+        label: 'Dimensions',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    // justified to right, it is basically a number-based field, left as DOpus uses, does not make sense to me
+    'MExt_VResolution': {
+        func: OnMExt_MultiColRead,
+        label: 'Resolution',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VFrameRate': {
+        func: OnMExt_MultiColRead,
+        label: 'Frame Rate',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VFrameCount': {
+        func: OnMExt_MultiColRead,
+        label: 'Frame Count',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AudioBitrateMode': {
+        func: OnMExt_MultiColRead,
+        label: 'ABitrate Mode',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AudioCompressionMode': {
+        func: OnMExt_MultiColRead,
+        label: 'Audio Compression Mode',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_HasReplayGain': {
+        func: OnMExt_MultiColRead,
+        label: 'RG',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_SubtitleLang': {
+        func: OnMExt_MultiColRead,
+        label: 'Subtitle Lang',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_GrossByterate': {
+        func: OnMExt_MultiColRead,
+        label: 'Gross KBps',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VBitratePerPixel': {
+        func: OnMExt_MultiColRead,
+        label: 'VBitrate/Pixel',
+        justify: ColumnJustify.Right,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VEncLib': {
+        func: OnMExt_MultiColRead,
+        label: 'Encoded Library',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VEncLibName': {
+        func: OnMExt_MultiColRead,
+        label: 'Encoded Library Name',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_VCodecID': {
+        func: OnMExt_MultiColRead,
+        label: 'Video Codec ID',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_ACodecID': {
+        func: OnMExt_MultiColRead,
+        label: 'Audio Codec ID',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AFormatVersion': {
+        func: OnMExt_MultiColRead,
+        label: 'Audio Format Version',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_AProfile': {
+        func: OnMExt_MultiColRead,
+        label: 'Audio Format Profile',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_EncoderApp': {
+        func: OnMExt_MultiColRead,
+        label: 'Container Encoder App',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_DateEncoded': {
+        func: OnMExt_MultiColRead,
+        label: 'Container Encoded Date',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_DateTagged': {
+        func: OnMExt_MultiColRead,
+        label: 'Container Tagged Date',
+        justify: ColumnJustify.Left,
+        autoGroup: false,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_HelperContainer': {
+        func: OnMExt_MultiColRead,
+        label: 'Helper (Container)',
+        justify: ColumnJustify.Left,
+        autoGroup: true,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_HelperVideoCodec': {
+        func: OnMExt_MultiColRead,
+        label: 'Helper (VCodec)',
+        justify: ColumnJustify.Left,
+        autoGroup: true,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_HelperAudioCodec': {
+        func: OnMExt_MultiColRead,
+        label: 'Helper (ACodec)',
+        justify: ColumnJustify.Left,
+        autoGroup: true,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_CleanedUpName': {
+        func: OnMExt_MultiColRead,
+        label: 'Helper (CleanName)',
+        justify: ColumnJustify.Left,
+        autoGroup: true,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_ADSDataFormatted': {
+        func: OnMExt_MultiColRead,
+        label: 'ADSData (Formatted)',
+        justify: ColumnJustify.Left,
+        autoGroup: true,
+        autoRefresh: true,
+        multiCol: true
+    },
+    'MExt_ADSDataRaw': {
+        func: OnMExt_MultiColRead,
+        label: 'ADSData (Raw)',
+        justify: ColumnJustify.Left,
+        autoGroup: true,
+        autoRefresh: true,
+        multiCol: true
+    },
+
+
+}
+
 
 // CONFIG - DEFAULT VALUES
-function setupConfigVars(initData: DOpusScriptInitData) {
-    setupConfigVars.fname = 'setupConfigVars';
+function _initConfigDefaults(initData: DOpusScriptInitData) {
+    _initConfigDefaults.fname = 'setupConfigVars';
+
+    cfg.setInitData(scriptMeta.NAME, initData);
+    ext.setInitData(scriptMeta.NAME, initData);
 
     /**
      * Name of the ADS stream, can be also used via "dir /:" or "type file:stream_name" commands
@@ -419,11 +985,7 @@ function setupConfigVars(initData: DOpusScriptInitData) {
 
 
     /**
-     * video resolution translation hash
-     *
-     * use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like
-     */
-    // var lookup_resolutions = function(){return{
+     * video resolution translation hash, use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like */
     var lookup_resolutions = `
     {
         // This is just the help variable for your reference
@@ -932,15 +1494,104 @@ function setupConfigVars(initData: DOpusScriptInitData) {
         CfgVDescs[CfgV.NAME_CLEANUP]
     );
 
-    cfg.finalize();
-
 
 
     var ext_config_file = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
-    var res = ext.addPOJOFromFile('ext_config_pojo', ext_config_file).show();
+    var res = ext.addPOJOFromFile(CfgV.EXT_CONFIG_POJO, ext_config_file).show();
+
+
+    cfg.finalize();
     ext.finalize();
 
 }
+
+
+// internal method called by OnInit()
+function _initCommands(initData: DOpusScriptInitData) {
+    const fname = _initCommands.fname = '_initCommands';
+
+    logger.snormal('%s -- started', fname);
+    for (const commandName in AllCommands) {
+        if (Object.prototype.hasOwnProperty.call(AllCommands, commandName)) {
+            const commandParams = AllCommands[commandName];
+            logger.snormal('%s -- adding command: %s', fname, commandName);
+            var cmd         = initData.addCommand();
+            cmd.name        = (scriptMeta.NAME_SHORT ||'') + name;
+            cmd.method      = commandParams.func.fname;
+            cmd.template    = commandParams.tmpl || '';
+            // cmd.icon		= icon && _getIcon(icon) || '';
+            cmd.label		= commandParams.label || '';
+            cmd.desc        = commandParams.desc || commandParams.label;
+            cmd.hide        = typeof commandParams.hide !== 'undefined' && commandParams.hide || false;
+        }
+    }
+    logger.snormal('%s -- finished', fname);
+}
+
+
+// internal method called by OnInit()
+function _initColumns(initData: DOpusScriptInitData) {
+    const fname = _initColumns.fname = '_initColumns';
+
+    logger.snormal('%s -- started', fname);
+
+    var col,
+        msg,
+        colPrefix = scriptMeta.CUSTCOL_LABEL_PREFIX,
+        extConfigRes = ext.getValue(CfgV.EXT_CONFIG_POJO),
+        extConfig;
+
+    if (extConfigRes.isErr()) {
+        msg = g.sprintf('%s -- External config file does not exist or is invalid JSON', fname);
+        g.abortWith(Exc(ex.InvalidJSON, fname, msg).err);
+    } else {
+        extConfig = extConfigRes.ok;
+    }
+
+    for (const columnName in AllColumns) {
+        if (Object.prototype.hasOwnProperty.call(AllColumns, columnName)) {
+            const columnParams = AllColumns[columnName];
+            logger.snormal('%s -- adding column: %s', fname, columnName);
+            col             = initData.addColumn();
+            col.method      = columnParams.func.fname;
+            col.name        = columnName;
+            col.label       = (extConfig && extConfig.colPrefix || colPrefix)
+                            + (extConfig && typeof extConfig.colRepl === 'object' && extConfig.colRepl[columnName] || columnParams.label);
+            col.justify     = columnParams.justify;
+            col.autoGroup   = columnParams.autoGroup;
+            col.autoRefresh = columnParams.autoRefresh;
+            col.multiCol    = columnParams.multiCol;
+        }
+    }
+
+    // add user-customizable columns from Container.Extra fields, e.g.
+    // "colExtra": {
+    //   "com_apple_quicktime_model": "Camera Make"
+    // }
+    // var extConfig = config.get(CfgV.EXT_CONFIG_POJO);
+    if (typeof extConfig !== 'undefined' && typeof extConfig.colExtra === 'object') {
+        /** @type {DOpusMap} */
+        var colExtraMap = DOpus.create().map();
+        for(var ecitem in extConfig.colExtra) {
+            logger.snormal('%s -- adding custom column with key: %s', fname, ecitem);
+            col             = initData.addColumn();
+            col.method      = OnMExt_MultiColRead.fname;
+            col.name        = scriptMeta.CUSTCOL_NAME_PREFIX + ecitem;
+            col.label       = (extConfig && extConfig.colPrefix || colPrefix)
+                            + (extConfig && typeof extConfig.colRepl === 'object' && extConfig.colRepl[ecitem]);
+            col.justify     = ColumnJustify.Left;
+            col.autoGroup   = true;
+            col.autoRefresh = true;
+            col.multiCol    = true;
+            // add to custom column lookup cache, so that we don't have to go through this again
+            colExtraMap.set(ecitem, extConfig.colExtra[ecitem]);
+        }
+        initData.vars.set(scriptMeta.CUSTCOL_MAP_NAME, colExtraMap);
+    }
+
+    logger.snormal('%s -- finished', fname);
+}
+
 
 
 
@@ -952,20 +1603,9 @@ function OnInit(initData: DOpusScriptInitData) {
 
     g.init(initData, scriptMeta);
 
-    cfg.setInitData(scriptMeta.NAME, initData);
-    ext.setInitData(scriptMeta.NAME, initData);
-    setupConfigVars(initData);
-
-    _addCommand('DOpusMovieTagger_CustomCommand',
-        CustomCommand,
-        initData,
-        '',
-        'ignored',
-        'Custom Command',
-        'n/a',
-        false
-    );
-
+    _initConfigDefaults(initData);
+    _initCommands(initData);
+    _initColumns(initData);
 
     DOpus.output('<b>Script initialization finished</b>');
 }
@@ -994,33 +1634,13 @@ function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
 }
 
 
-/**
- * internal method called by OnInit() directly or indirectly
- * @param {string} name command name, prefix will be added automatically
- * @param {function} fnFunction function which implements the command
- * @param {DOpusScriptInitData} initData DOpus InitData
- * @param {string} template command template, e.g. FILE/O...
- * @param {string} icon icon name, internal
- * @param {string} label command label
- * @param {string} desc command description
- * @param {boolean=} hide if true, command is hidden from commands list
- */
-function _addCommand(name: string, fnFunction: Function, initData: DOpusScriptInitData, template: string, icon: string, label: string, desc: string, hide: boolean | undefined) {
-    const fname = _addCommand.fname = '_addCommand';
 
-    logger.sforce('%s -- started', fname);
-    logger.sforce('%s -- adding: %s', fname, name);
-    var cmd         = initData.addCommand();
-    cmd.name        = (scriptMeta.NAME_SHORT ||'') + name;
-    cmd.method      = g.funcNameExtractor(fnFunction, undefined, true);
-    cmd.template    = template || '';
-    // cmd.icon		= icon && _getIcon(icon) || '';
-    cmd.label		= label || '';
-    cmd.desc        = desc || label;
-    cmd.hide        = typeof hide !== 'undefined' && hide || false;
-    logger.sforce('%s -- cmd.name: %s', fname, cmd.name);
-    logger.sforce('%s -- finished', fname);
-}
+
+
+
+
+
+
 
 function CustomCommand() {
     const fname = CustomCommand.fname = 'CustomCommand';
@@ -1056,4 +1676,1359 @@ function CustomCommand() {
 
 
     logger.sforce('%s -- finished', fname);
+}
+
+
+
+
+
+
+
+
+
+
+// called by 'Has Metadata' column
+function OnMExt_HasMetadata(scriptColData: DOpusScriptColumnData) {
+    const fname = OnMExt_HasMetadata.fname = 'OnMExt_HasMetadata';
+    // var selected_item = scriptColData.item;
+    // if (selected_item.is_dir || selected_item.is_reparse || selected_item.is_junction || selected_item.is_symlink) {
+    //     return;
+    // }
+    // logger.normal("...Processing " + selected_item.name);
+    // // var fh = DOpus.FSUtil.OpenFile(selected_item.realpath + ':' + config.get('MetaStreamName')); // default read mode
+    // // var res = fh.error !== 0 ? false : true;
+    // // fh.Close();
+    // var res = DOpus.FSUtil.Exists(selected_item.realpath + ':' + config.get('MetaStreamName'));
+    // scriptColData.value = res ? 'Yes' : 'No';
+    // scriptColData.group = 'Has Metadata: ' + scriptColData.value;
+    // return res;
+}
+
+// called by all other columns than 'Has Metadata'
+function OnMExt_MultiColRead(scriptColData: DOpusScriptColumnData) {
+    const fname = OnMExt_MultiColRead.fname = 'OnMExt_MultiColRead';
+    // var ts1 = new Date().getTime();
+
+    // var selected_item   = scriptColData.item;
+    // if (selected_item.is_dir || selected_item.is_reparse || selected_item.is_junction || selected_item.is_symlink ) {
+    //     return;
+    // }
+    // logger.normal('...Processing ' + selected_item.name);
+
+    // // get tags object
+    // var item_props = ReadMetadataADS(selected_item);
+    // if (item_props === false || typeof item_props === 'undefined' || !isObject(item_props)) {
+    //     logger.normal(selected_item.name + ': Metadata does not exist or INVALID');
+    //     return;
+    // }
+
+    // var _vcodec, _acodec, _resolution;
+    // var colExtraMap = Script.vars.get(CUSTCOL_MAP_NAME);
+
+    // // iterate over requested columns
+    // for (var e = new Enumerator(scriptColData.columns); !e.atEnd(); e.moveNext()) {
+    //     var key = e.item();
+
+    //     var outstr = '', _tmp0, _tmp1, _tmp2, _tmp3, _tmp4, _tmp5, _tmp6, _tmp7;
+    //     switch(key) {
+    //         case 'MExt_NeedsUpdate':
+    //             if (!config.get('keep_orig_modts')) {
+    //                 scriptColData.columns(key).value = 'meaningless if KEEP_ORIG_MODTS is set to false';
+    //                 break;
+    //             }
+    //             outstr = new Date(selected_item.modify).valueOf() === item_props.last_modify ? 0 : 1;
+    //             logger.verbose('Old: ' + new Date(selected_item.modify).valueOf() + ' <> ' + item_props.last_modify);
+    //             scriptColData.columns(key).group = 'Needs update: ' + (outstr ? 'Yes' : 'No');
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_ADSDataRaw':
+    //             scriptColData.columns(key).value = JSON.stringify(item_props);
+    //             break;
+
+    //         case 'MExt_ADSDataFormatted':
+    //             scriptColData.columns(key).value = JSON.stringify(item_props, null, "\t");
+    //             break;
+
+    //         case 'MExt_HelperContainer':
+    //             outstr = 'Format: [' + item_props.container_format + '], Codec: [' + item_props.container_codec + '], EncApp: [' + item_props.container_enc_app + '], VCount: [' + item_props.video_count + '], ACount: [' + item_props.audio_count + '], TCount: [' + item_props.text_count + '], OCount: [' + item_props.others_count + '], Additional: [' + item_props.format_additional + '], Extra: [' + JSON.stringify(item_props.extra) + ']';
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_HelperVideoCodec':
+    //             outstr = 'Format: [' + item_props.video_format + '], Codec: [' + item_props.video_codec + '], EncLibName: [' + item_props.video_enc_libname + '], Additional: [' + item_props.video_format_additional + '], Extra: [' + JSON.stringify(item_props.video_extra) + ']';
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_HelperAudioCodec':
+    //             outstr = 'Format: [' + item_props.audio_format + '], Codec: [' + item_props.audio_codec + '], Version: [' + item_props.audio_format_version + '], Profile: [' + item_props.audio_format_profile + '], Settings Mode: [' + item_props.audio_format_set_mode + '], Additional: [' + item_props.audio_format_additional + '], Extra: [' + JSON.stringify(item_props.audio_extra) + ']';
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VideoCount':
+    //             outstr = item_props.video_count || 0;
+    //             scriptColData.columns(key).group = '# Video Streams: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_AudioCount':
+    //             outstr = item_props.audio_count || 0;
+    //             scriptColData.columns(key).group = '# Audio Streams: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_TextCount':
+    //             outstr = item_props.text_count || 0;
+    //             scriptColData.columns(key).group = '# Text/Subtitle Streams: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_OthersCount':
+    //             outstr = item_props.others_count || 0;
+    //             scriptColData.columns(key).group = '# Other Streams: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+
+    //         case 'MExt_CleanedUpName':
+    //         case 'MExt_VideoCodec':
+    //             if (!item_props.video_count) {
+    //                 scriptColData.columns(key).sort = 0;
+    //                 // this grouping makes sense mainly in mixed-format directories
+    //                 scriptColData.columns(key).group = 'Video Codec: ' + (item_props.audio_count ? '<Audio Only>' : '');
+    //                 break;
+    //             }
+    //             // add alternative '' to the end if you concatenate multiple fields
+    //             _tmp0 = item_props.container_format.toUpperCase();
+    //             _tmp1 = (item_props.video_format + '-' + item_props.video_codec + '-' + item_props.video_enc_libname).toUpperCase() || '';	// note last ''
+    //             _tmp2 = (item_props.video_format + '-' + item_props.video_codec).toUpperCase() || '';										// note last ''
+    //             _tmp3 = (item_props.video_format + '-' + item_props.video_enc_libname).toUpperCase() || '';	// note last ''
+    //             _tmp4 = (item_props.video_format).toUpperCase() || '';
+    //             _tmp5 = (item_props.video_codec).toUpperCase() || '';
+
+    //             var lcv = config.get('lookup_codecs');
+    //             outstr = 	lcv[_tmp0+'-'+_tmp1] ||
+	// 						lcv[_tmp0+'-'+_tmp2] ||
+	// 						lcv[_tmp0+'-'+_tmp3] ||
+	// 						lcv[_tmp0+'-'+_tmp4] ||
+	// 						lcv[_tmp0+'-'+_tmp5] ||
+	// 						lcv[_tmp1] ||
+	// 						lcv[_tmp2] ||
+	// 						lcv[_tmp3] ||
+	// 						lcv[_tmp4] ||
+	// 						lcv[_tmp5];
+    //             if (outstr && outstr.length === 2) {
+    //                 outstr = config.get('codec_use_short_variant') === true ? outstr[1] : outstr[0];
+    //             }
+    //             outstr = outstr ||
+	// 						(
+	// 						    item_props.video_format +
+	// 							' (Fallback, adjust LOOKUP_CODECS)'
+	// 							// (item_props.video_format_additional ? ' (' + item_props.video_format_additional + ')' : '')
+	// 						);
+    //             scriptColData.columns(key).group = 'Video Codec: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             _vcodec = outstr; // buffer for 'Clean Name'
+    //             break;
+
+
+    //         case 'MExt_CleanedUpName':
+    //         case 'MExt_AudioCodec':
+    //             if (!item_props.audio_count) {
+    //                 scriptColData.columns(key).sort = 0;
+    //                 // this grouping makes sense mainly in mixed-format directories
+    //                 scriptColData.columns(key).group = 'Audio Codec: ' + (item_props.video_count ? '<Video Only>' : '');
+    //                 break;
+    //             }
+    //             // add alternative '' to the end if you concatenate multiple fields
+    //             _tmp0 = item_props.container_format.toUpperCase();
+    //             _tmp1 = (item_props.audio_format + '-' + item_props.audio_codec + '-' + item_props.audio_format_version + '-' + item_props.audio_format_profile + '-' + item_props.audio_format_set_mode).toUpperCase() || '';	// note last ''
+    //             _tmp2 = (item_props.audio_format + '-' + item_props.audio_codec + '-' + item_props.audio_format_version + '-' + item_props.audio_format_profile).toUpperCase() || '';	// note last ''
+    //             _tmp3 = (item_props.audio_format + '-' + item_props.audio_codec + '-' + item_props.audio_format_version).toUpperCase() || ''; 											// note last ''
+    //             _tmp4 = (item_props.audio_format + '-' + item_props.audio_codec).toUpperCase() || ''; 																					// note last ''
+    //             _tmp5 = (item_props.audio_format).toUpperCase() || ''; 																													// note last ''
+    //             _tmp6 = (item_props.audio_codec).toUpperCase() || '';
+    //             _tmp7 = (item_props.audio_format + '-' + item_props.audio_format_profile).toUpperCase() || ''; 																			// note last ''
+
+
+    //             logger.verbose(selected_item.name + "\t" + '_tmp0: ' + _tmp0 + ', _tmp1: ' + _tmp1 + ', _tmp2: ' + _tmp2 + ', _tmp3: ' + _tmp3 + ', _tmp4: ' + _tmp4 + ', _tmp5: ' + _tmp5 + ', _tmp6: ' + _tmp6 + ', _tmp7: ' + _tmp7);
+
+    //             var lca = config.get('lookup_codecs');
+    //             outstr = 	lca[_tmp0+'-'+_tmp1] ||
+	// 						lca[_tmp0+'-'+_tmp2] ||
+	// 						lca[_tmp0+'-'+_tmp3] ||
+	// 						lca[_tmp0+'-'+_tmp4] ||
+	// 						lca[_tmp0+'-'+_tmp5] ||
+	// 						lca[_tmp1] ||
+	// 						lca[_tmp2] ||
+	// 						lca[_tmp3] ||
+	// 						lca[_tmp4] ||
+	// 						lca[_tmp5] ||
+	// 						lca[_tmp6] ||
+	// 						lca[_tmp7];
+    //             if (outstr && outstr.length === 2) {
+    //                 outstr = config.get('codec_use_short_variant') === true ? outstr[1] : outstr[0];
+    //             }
+
+    //             outstr = outstr || (
+    //                 item_props.audio_format +
+	// 							' (Fallback, adjust LOOKUP_CODECS)'
+	// 							// (item_props.audio_format_additional ? ' (' + item_props.audio_format_additional + ')' : '')
+    //             );
+    //             scriptColData.columns(key).group = outstr;
+    //             // add additional info always to the end, some codecs like AAC, DSD use this heavily
+    //             if (config.get('codec_append_addinfo')) {
+    //                 outstr += (item_props.audio_format_additional ? ' (' + item_props.audio_format_additional + ')' : '');
+    //             }
+    //             scriptColData.columns(key).group = 'Audio Codec: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             _acodec = outstr; // buffer for 'Clean Name'
+    //             break;
+
+    //         case 'MExt_VideoBitrate':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             if (item_props.container_format === 'Flash Video' && item_props.video_format ===  'Sorenson Spark') {
+    //                 item_props.video_bitrate = item_props.overall_bitrate - item_props.audio_bitrate;
+    //                 logger.error(selected_item.name + ' -- FALLBACK 1 detected while calculating video bitrate: ' + item_props.video_bitrate);
+    //             }
+    //             outstr = Math.floor((item_props.video_bitrate || 0) / 1000);
+    //             scriptColData.columns(key).sort = outstr;
+    //             outstr = outstr ? outstr + ' kbps' : '';
+    //             scriptColData.columns(key).group = 'Video Bitrate: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_AudioBitrate':
+    //             if (!item_props.audio_count) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = Math.floor((item_props.audio_bitrate || 0) / 1000);
+    //             if (!outstr) {
+    //             // try alternative methods: filesize or streamsize * 8 / duration
+    //             // it will fail for raw AAC files, since they do not store any bitrate or duration info at all
+    //             // but might work for other files
+    //                 var duration = item_props.audio_duration || item_props.duration || selected_item.metadata.mp3songlength || 0;
+    //                 if (duration) {
+    //                     if (item_props.audio_stream_size) {
+    //                         outstr = item_props.audio_stream_size * 8 / duration;
+    //                     } else if (item_props.video_count === 0 && item_props.file_size && item_props.audio_count) {
+    //                         outstr = item_props.file_size * 8 / duration;
+    //                     }
+
+    //                     outstr = Math.round(outstr / 1000);
+    //                     if (selected_item.metadata && selected_item.metadata.video && selected_item.metadata.video.mp3bitrate) {
+    //                     // this is only for audio-only .TS files, for which MediaInfo cannot parse the audio bitrate
+    //                     // but if we have the overall bitrate, we can subtract the 'video bitrate', which are in fact for DVD menus, etc.
+    //                         outstr = selected_item.metadata.video.mp3bitrate;
+    //                         logger.normal(selected_item.name + ' -- FALLBACK 1 detected while calculating audio bitrate: ' + outstr);
+    //                     }
+    //                 }
+    //                 if (!outstr && selected_item.metadata && selected_item.metadata.audio && selected_item.metadata.audio.mp3bitrate) {
+    //                     outstr = selected_item.metadata.audio.mp3bitrate;
+    //                     logger.normal(selected_item.name + ' -- FALLBACK 2 detected while calculating audio bitrate: ' + outstr);
+    //                 }
+    //             }
+    //             scriptColData.columns(key).sort = outstr;
+    //             outstr = outstr ? outstr + ' kbps' : '';
+    //             scriptColData.columns(key).group = 'Audio Bitrate: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_TotalBitrate':
+    //             outstr = Math.floor((item_props.overall_bitrate || 0) / 1000);
+    //             scriptColData.columns(key).sort = outstr;
+    //             outstr = outstr ? outstr + ' kbps' : '';
+    //             scriptColData.columns(key).group = 'Total Bitrate: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+
+    //         case 'MExt_TotalDuration':
+    //         case 'MExt_VideoDuration':
+    //         case 'MExt_AudioDuration':
+    //         case 'MExt_CombinedDuration':
+    //             var td = item_props.duration,
+    //                 vd = item_props.video_duration,
+    //                 ad = item_props.audio_duration;
+    //             var tolerance = 5;
+    //             var extended_info_on_mismatch = false;
+    //             var grpPrefix;
+    //             switch(key) {
+    //                 case 'MExt_TotalDuration':		grpPrefix = 'Total '; break;
+    //                 case 'MExt_VideoDuration':		grpPrefix = 'Video '; break;
+    //                 case 'MExt_AudioDuration':		grpPrefix = 'Audio '; break;
+    //                 case 'MExt_CombinedDuration':	grpPrefix = ''; break;
+    //             }
+
+    //             if (key === 'MExt_AudioDuration' && !item_props.audio_count) {
+    //                 logger.normal('Col: ' + key + "\t" + selected_item.name + ' -- FALLBACK A1 - No audio');
+    //                 scriptColData.columns(key).value = item_props.audio_bitrate ? '≠00:00' : '';
+    //                 scriptColData.columns(key).sort  = scriptColData.columns(key).value || '00:00';
+    //                 scriptColData.columns(key).group = grpPrefix + 'Duration: No Audio';
+    //                 break;
+    //             } else if (key === 'MExt_VideoDuration' && !item_props.video_count) {
+    //                 logger.normal('Col: ' + key + "\t" + selected_item.name + ' -- FALLBACK V1 - No video');
+    //                 scriptColData.columns(key).value = item_props.video_bitrate ? '≠00:00' : '';
+    //                 scriptColData.columns(key).sort  = '00:00';
+    //                 scriptColData.columns(key).group = grpPrefix + 'Duration: No Video';
+    //                 break;
+    //             } else if ((key === 'MExt_TotalDuration' || key === 'MExt_CombinedDuration') && !item_props.video_count && !item_props.audio_count) {
+    //                 logger.force('Col: ' + key + "\t" + selected_item.name + ' -- This should have never happened!\nVideo count: ' + item_props.video_count + ', Audio count: ' + item_props.audio_count);
+    //                 break;
+    //             }
+
+    //             if (key === 'MExt_AudioDuration' && ad) {
+    //                 outstr = SecondsToHHmm(ad);
+    //             } else if (key === 'MExt_VideoDuration' && vd) {
+    //                 outstr = SecondsToHHmm(vd);
+    //             } else if (key === 'MExt_TotalDuration' && td) {
+    //                 outstr = SecondsToHHmm(td);
+    //             } else if (key === 'MExt_CombinedDuration') {
+    //                 outstr = SecondsToHHmm(td);
+    //             }
+
+    //             if (key === 'MExt_CombinedDuration') {
+    //                 if (td && vd && ad) {
+    //                 // all 3 exist
+    //                     if (
+    //                         (td === vd || (td >= vd && td-tolerance <= vd) || (td <= vd && td-tolerance >= vd) ) &&
+	// 						(td === ad || (td >= ad && td-tolerance <= ad) || (td <= ad && td-tolerance >= ad) ) &&
+	// 						(vd === ad || (td >= ad && td-tolerance <= ad) || (td <= ad && td-tolerance >= ad) )
+    //                     ) {
+    //                         logger.info(sprintf("All exist, all within tolerance limits -- td: %s, vd: %s, ad: %s", td, vd, ad));
+    //                         outstr = SecondsToHHmm(td);
+    //                     } else {
+    //                         logger.info(sprintf("Col: %s\t%s All exist, some outside tolerance limits -- td: %s, vd: %s, ad: %s", key, selected_item.name, td, vd, ad));
+    //                         outstr += (!extended_info_on_mismatch ? ' (!)' :
+    //                             ' ('
+	// 									+ ( td ? 'T: '  + SecondsToHHmm(td) : '' )
+	// 									+ ( vd ? ' V: ' + SecondsToHHmm(vd) : '' )
+	// 									+ ( ad ? ' A: ' + SecondsToHHmm(ad) : '' )
+	// 									+ ')');
+    //                     }
+    //                 } else if (!td && !vd && !ad) {
+    //                 // none of 3 exists - but if we are this far, we have at least 1 video or audio stream
+    //                     outstr = '≠00:00';
+    //                 } else {
+    //                     logger.info(sprintf("Only some exist -- td: %s, vd: %s, ad: %s", td, vd, ad));
+    //                     // check for tolerance
+    //                     if 	(
+    //                         (td && vd && td >= vd && td - tolerance <= vd) ||	// only slightly longer
+	// 							(td && ad && td >= ad && td - tolerance <= ad) ||	// only slightly longer
+	// 							(vd && ad && vd >= ad && vd - tolerance <= ad) ||	// only slightly longer
+	// 							(td && vd && td <= vd && td + tolerance >= vd) ||	// only slightly shorter
+	// 							(td && ad && td <= ad && td + tolerance >= ad) ||	// only slightly shorter
+	// 							(vd && ad && vd <= ad && vd + tolerance >= ad) 	// only slightly shorter
+    //                     ) {
+    //                     // within tolerance limit
+    //                         logger.verbose(sprintf("Some within tolerance limits -- td: %s, vd: %s, ad: %s", td, vd, ad));
+    //                         logger.verbose(sprintf("Some within tolerance limits -- %s <= %s <= %s", (td - tolerance), vd, (td + tolerance) ));
+    //                         logger.verbose(sprintf("Some within tolerance limits -- %s <= %s <= %s", (td - tolerance), ad, (td + tolerance) ));
+    //                         outstr = SecondsToHHmm(td);
+    //                     } else {
+    //                         logger.verbose(sprintf("Some outside tolerance limits -- td: %s, vd: %s, ad: %s", td, vd, ad));
+    //                         logger.verbose(sprintf("Some outside tolerance limits -- %s <= %s <= %s", (td - tolerance), vd, (td + tolerance) ));
+    //                         logger.verbose(sprintf("Some outside tolerance limits -- %s <= %s <= %s", (td - tolerance), ad, (td + tolerance) ));
+    //                         outstr += (!extended_info_on_mismatch ? ' (!)' :
+    //                             ' ('
+	// 									+ ( td ? 'T: '  + SecondsToHHmm(td) : '' )
+	// 									+ ( vd ? ' V: ' + SecondsToHHmm(vd) : '' )
+	// 									+ ( ad ? ' A: ' + SecondsToHHmm(ad) : '' )
+	// 									+ ')');
+    //                     }
+    //                 }
+    //             }
+
+    //             var ldg = config.get('lookup_duration_groups');
+    //             if (ldg) {
+    //                 for (var kd in ldg) {
+    //                     if (item_props.audio_duration <= parseInt(kd)) {
+    //                         scriptColData.columns(key).group = grpPrefix + 'Duration: ' + ldg[kd]; break;
+    //                     }
+    //                 }
+    //             } else {
+    //                 scriptColData.columns(key).group = grpPrefix + 'Duration: ' + outstr;
+    //             }
+
+    //             switch(key) {
+    //                 case 'MExt_TotalDuration':
+    //                     scriptColData.columns(key).sort  = outstr || (item_props.overall_bitrate || item_props.duration ? '00:01' : '00:00');
+    //                     scriptColData.columns(key).value = outstr || (item_props.overall_bitrate || item_props.duration ? '≠00:00' : '');
+    //                     break;
+    //                 case 'MExt_VideoDuration':
+    //                     scriptColData.columns(key).sort  = outstr || (item_props.video_bitrate || item_props.video_count ? '00:01' : '00:00');
+    //                     scriptColData.columns(key).value = outstr || (item_props.video_bitrate || item_props.video_count ? '≠00:00' : '');
+    //                     break;
+    //                 case 'MExt_AudioDuration':
+    //                     scriptColData.columns(key).sort  = outstr || (item_props.audio_bitrate || item_props.audio_count ? '00:01' : '00:00');
+    //                     scriptColData.columns(key).value = outstr || (item_props.audio_bitrate || item_props.audio_count ? '≠00:00' : '');
+    //                     break;
+    //                 case 'MExt_CombinedDuration':
+    //                     scriptColData.columns(key).sort  = outstr;
+    //                     scriptColData.columns(key).value = outstr;
+    //                     break;
+    //             }
+    //             break;
+
+
+    //         case 'MExt_MultiAudio':
+    //             outstr = (item_props.audio_count > 1 ? 'Yes' : 'No');
+    //             scriptColData.columns(key).group = 'Has Multi-Track Audio: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_AudioChannels':
+    //             outstr = item_props.audio_channels || '';
+    //             if (!outstr) {
+    //                 if (item_props.audio_count) {
+    //                 // audio track does not report number of channels but file has audio! - only happens with Musepack & Raw DTS in my tests
+    //                     scriptColData.columns(key).sort = 1;
+    //                     outstr = 'X';
+    //                 } else {
+    //                     scriptColData.columns(key).sort = 0;
+    //                     outstr = '0';
+    //                 }
+    //             }
+    //             scriptColData.columns(key).group = 'Audio Channels: ' + (outstr || ''); // must come before next line, outstr is ' ' for empty!
+    //             var lc = config.get('lookup_channels');
+    //             if (lc) {
+    //                 outstr = lc[outstr] ? lc[outstr] : outstr;
+    //                 scriptColData.columns(key).group = 'Audio Channels: ' + (outstr === lc['0'] ? 'None' : outstr);
+    //             }
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+
+    //         case 'MExt_AudioLang':
+    //             if (!item_props.audio_count) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.audio_language ? item_props.audio_language.toUpperCase() : '';
+    //             scriptColData.columns(key).group = 'Audio Language: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VARDisplay':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.video_display_AR || '';
+    //             scriptColData.columns(key).group = 'Display Aspect Ratio: ' + outstr;
+    //             scriptColData.columns(key).sort = outstr || 0;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VARRaw':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             // outstr = item_props.video_width && item_props.video_height ? Math.toPrecision( item_props.video_width / item_props.video_height, 3) : 'n/a' ;
+    //             // no toPrecision() support in JScript
+    //             outstr = item_props.video_width && item_props.video_height ? Math.round(1000*item_props.video_width/item_props.video_height)/1000 : 'n/a' ;
+    //             scriptColData.columns(key).group = 'Raw Aspect Ratio: ' + outstr;
+    //             scriptColData.columns(key).sort = outstr || 0;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VARCombined':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             var _rawAR  = item_props.video_width && item_props.video_height ? Math.round(1000*item_props.video_width/item_props.video_height)/1000 : '';
+    //             var _dispAR = item_props.video_display_AR || '';
+    //             logger.verbose(selected_item.name + ', raw: ' + _rawAR + ', disp: ' + _dispAR);
+    //             // outstr = _rawAR + (_rawAR != _dispAR ? ' (' + _dispAR + ')' : ''); // display
+    //             outstr = _rawAR + (_rawAR != _dispAR ? ' (' + _dispAR + ')' : '');
+    //             scriptColData.columns(key).group = 'Combined Aspect Ratio: ' + outstr;
+    //             scriptColData.columns(key).sort  = _rawAR || 0;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VDimensions':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             // Variant 1: default to MediaInfo value
+    //             outstr = (item_props.video_width && item_props.video_height ? item_props.video_width + ' x ' + item_props.video_height : selected_item.metadata.video.dimensions) || '' ;
+    //             // Variant 2: default to DOpus value - not tested
+    //             // outstr = selected_item.metadata.video.dimensions || (item_props.video_width && item_props.video_height ? item_props.video_width + ' x ' + item_props.video_height : '');
+    //             scriptColData.columns(key).group = 'Dimensions: ' + outstr;
+    //             scriptColData.columns(key).sort  = outstr || 0;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+
+    //         case 'MExt_CleanedUpName':
+    //         case 'MExt_VResolution':
+    //             if (!item_props.video_count || !item_props.video_width || !item_props.video_height) { scriptColData.columns(key).sort = 0; break; }
+    //             var res_val = Math.min(item_props.video_height, item_props.video_width);
+    //             var lr = config.get('lookup_resolutions');
+    //             for (var kr in lr) {
+    //                 if (res_val <= parseInt(kr)) {
+    //                     outstr = lr[kr];
+    //                     break; // for
+    //                 }
+    //             }
+    //             if (item_props.video_height >= item_props.video_width && config.get('resolution_append_vertical')) {
+    //                 outstr += ' (Vertical)';
+    //             }
+    //             scriptColData.columns(key).group = 'Resolution: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             _resolution = outstr; // buffer for 'Clean Name'
+    //             break;
+
+    //         case 'MExt_VFrameRate':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             // Variant 1: default to MediaInfo value
+    //             outstr = (item_props.video_framerate ? item_props.video_framerate + ' fps': selected_item.metadata.video.framerate) || '' ;
+    //             // Variant 2: default to DOpus value - not tested
+    //             // outstr = selected_item.metadata.video.framerate || (item_props.video_framerate ? item_props.video_framerate + ' fps' : '');
+    //             scriptColData.columns(key).group = 'Frame Rate: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VFrameCount':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.video_framecount ? item_props.video_framecount : '' ;
+    //             scriptColData.columns(key).group = 'Frame Count: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_AudioBitrateMode':
+    //             outstr = item_props.audio_bitrate_mode || '';
+    //             scriptColData.columns(key).group = 'Audio Bitrate Mode: ' + (outstr || 'Unknown/Not Reported');
+    //             scriptColData.columns(key).sort = outstr || 0;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_AudioCompressionMode':
+    //             outstr = item_props.audio_compression_mode || '';
+    //             scriptColData.columns(key).group = 'Audio Compression Mode: ' + (outstr || 'Unknown');
+    //             scriptColData.columns(key).sort  = outstr || 0;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_HasReplayGain':
+    //             outstr = item_props.has_replay_gain ? 'Yes' : '';
+    //             scriptColData.columns(key).group = 'Has ReplayGain: ' + (outstr || 'No');
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_SubtitleLang':
+    //             if (!item_props.text_count) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.text_language ? item_props.text_language.toUpperCase() : '';
+    //             scriptColData.columns(key).group = 'Subtitle Language: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_GrossByterate':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             // this column shows the gross byterate (not bitrate) of the file, i.e. filesize/duration in KB
+    //             // see next column below
+    //             if (item_props.duration) {
+    //                 outstr = Math.round( Math.round( selected_item.size / item_props.duration ) / 1024 );
+    //             }
+    //             scriptColData.columns(key).group = 'Gross Byterate: ' + outstr + ' kBps';
+    //             scriptColData.columns(key).sort  = outstr || 0;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VBitratePerPixel':
+    //             if (!item_props.video_count) { scriptColData.columns(key).sort = 0; break; }
+    //             // this column shows the gross bits per pixel per second, i.e. video_size*8/(duration*width*height)
+    //             // it is a very rough metric to show how 'efficient' the video compression of a file is
+    //             // to me it does not make sense for audio files, because most users are well familiar with audio bitrates, often simply 2.0 44.1/48 kHz files
+    //             //
+    //             // this value does not need to be very high with higher res videos or very low with low res videos
+    //             // ideally the higher the resolution, the higher bitrate should be
+    //             // but if you use a lossless video codec or very high bitrate e.g. 3000 kbps for a tiny 320x240 video,
+    //             // then this value will be accordingly very high
+    //             // and similarly if you use e.g. a mere 3000 kbps for a 4K video, this value will be lower than it should;
+    //             // typical bitrate/pixel: 1.5 to 7 for 4K movies in my samples, e.g. 10000 to 50000 kps
+    //             // values like > 30 should be encountered only for lossless codecs like HuffYUV, not lossy codecs
+    //             // personally I find a value above ~10-15 for this column is too high (possible reason: old/inefficient codec or bitrate wasted)
+    //             // and a value below 1 is too low (possible reason: too heavily compressed, for streaming-only, blocking effects)
+    //             // but some files with large static areas can be compressed very well and
+    //             // newer codecs like HEVC/X265 are great at very low bitrates
+    //             //
+    //             // so there's no universal formula
+    //             // just experiment and see or use this as a template for your own formula
+    //             if (item_props.video_bitrate && item_props.video_width && item_props.video_height) {
+    //             // round to 3 decimal digits
+    //                 outstr = Math.round( 1000 * ( item_props.video_bitrate / ( item_props.video_width * item_props.video_height ) ) ) / 1000;
+    //             }
+    //             scriptColData.columns(key).group = 'Bitrate/Pixel: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VEncLibName':
+    //             if (!item_props.video_enc_libname) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.video_enc_libname || '';
+    //             scriptColData.columns(key).group = 'Encoded Library Name: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_VEncLib':
+    //             if (!item_props.video_enc_lib) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.video_enc_lib || '';
+    //             scriptColData.columns(key).group = 'Encoded Library: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+
+    //         case 'MExt_VCodecID':
+    //             if (!item_props.video_codec) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.video_codec || '';
+    //             scriptColData.columns(key).group = 'Video Codec ID: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_ACodecID':
+    //             if (!item_props.audio_codec) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.audio_codec || '';
+    //             scriptColData.columns(key).group = 'Audio Codec ID: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_AFormatVersion':
+    //             if (!item_props.audio_format_version) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.audio_format_version || '';
+    //             scriptColData.columns(key).group = 'Audio Format Version: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_AProfile':
+    //             if (!item_props.audio_format_profile) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.audio_format_profile || '';
+    //             scriptColData.columns(key).group = 'Audio Format Profile: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_EncoderApp':
+    //             if (!item_props.container_enc_app) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.container_enc_app || '';
+    //             scriptColData.columns(key).group = 'Encoder App: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_DateEncoded':
+    //             if (!item_props.container_date_encoded) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.container_date_encoded || '';
+    //             scriptColData.columns(key).group = 'Date Encoded: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         case 'MExt_DateTagged':
+    //             if (!item_props.container_date_tagged) { scriptColData.columns(key).sort = 0; break; }
+    //             outstr = item_props.container_date_tagged || '';
+    //             scriptColData.columns(key).group = 'Date Tagged: ' + outstr;
+    //             scriptColData.columns(key).value = outstr;
+    //             break;
+
+    //         default:
+    //             // check if there are any user-defined fields
+    //             if(colExtraMap.exists(key)){
+    //                 if (!item_props.extra[key]) { scriptColData.columns(key).sort = 0; break; }
+    //                 outstr = item_props.extra[key] || '';
+    //                 scriptColData.columns(key).group = colExtraMap.get(key) + ': ' + outstr;
+    //                 scriptColData.columns(key).value = outstr;
+    //             } else {
+    //                 // nothing, default to empty string
+    //                 outstr = '';
+    //             }
+    //     } // switch
+
+    // } // for enum
+
+    // // // DOpus.output('name_cleanup: ' + JSON.stringify(config.get('name_cleanup'), null, 4));
+    // // if (config.get('name_cleanup')) {
+    // // 	key = 'MExt_CleanedUpName';
+    // // 	outstr = getCleanName(selected_item, _vcodec, _acodec, _resolution);
+    // // 	scriptColData.columns(key).group = 'Clean Name: ' + outstr;
+    // // 	scriptColData.columns(key).value = outstr;
+    // // }
+
+
+    // var ts2 = new Date().getTime();
+    // logger.verbose('OnMExt_MultiColRead() -- Elapsed: ' + (ts2 - ts1) + ', current: ' + ts2);
+}
+
+function getCleanName(oItem: DOpusItem, sVCodec: string, sACodec: string, sResolution: string) {
+    const fname = getCleanName.fname = 'getCleanName';
+    // // DOpus.output('oItem.name_stem: ' + oItem.name_stem + ' - ' + sVCodec  + ' ' + sACodec + ' ' + sResolution);
+
+    // var reDateMatcher = new RegExp(/^(.+?)\s*(\d{4})/);
+
+    // var oldNameStem, oldExt, newNameStem, newExt;
+    // // If we're renaming a file then remove the extension from the end and save it for later.
+    // if (oItem.is_dir || oItem.is_junction || oItem.is_reparse || oItem.is_symlink) {
+    //     return oItem.name;
+    // } else {
+    //     oldNameStem = oItem.name_stem;
+    //     oldExt      = oItem.ext;
+    // }
+
+    // var nameCleanupRegexes = config.get('name_cleanup'),
+    //     arrNameOnly        = nameCleanupRegexes.nameOnly,
+    //     arrExtOnly         = nameCleanupRegexes.extOnly;
+
+    // function massREReplace(str, arrRegexps) {
+    //     var out = str;
+    //     for (var i = 0; i < arrRegexps.length; i++) {
+    //         var r = arrRegexps[i];
+    //         out = out.replace(new RegExp(r[0], r[1]), r[2]);
+    //     }
+    //     return out;
+    // }
+
+    // newNameStem = massREReplace(oldNameStem, arrNameOnly);
+    // newExt      = massREReplace(oldExt,      arrExtOnly);
+
+    // // now that we have the names, find the year
+    // var year = newNameStem.match(reDateMatcher);
+    // if (year) {
+    //     newNameStem = year[1] + ' - ' + year[2] + ' - ' + sVCodec + ' ' + sACodec + ' ' + sResolution;
+    //     // get rid of extra dash's if the file was already renamed
+    //     newNameStem = newNameStem.replace(/-\s*-/g, '-');
+    // }
+
+    // return newNameStem + newExt;
+
+}
+
+
+
+// UPDATE METADATA
+function OnME_Update(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_Update.fname = 'OnME_Update';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+
+    // scriptCmdData.func.command.SetModifier("noprogress");
+
+    // var progress_bar = scriptCmdData.func.command.Progress;
+    // // progress_bar.skip  = true; // does not make sense, individual files are processed very fast already
+    // progress_bar.pause = true;
+    // progress_bar.abort = true;
+    // progress_bar.Init(scriptCmdData.func.sourcetab, 'Please wait'); 			// window title
+    // progress_bar.SetStatus('Updating metadata info in ADS via MediaInfo CLI'); 	// header
+    // progress_bar.Show();
+    // progress_bar.SetFiles(scriptCmdData.func.sourcetab.selected_files.count);
+    // progress_bar.Restart();
+
+    // if (config.get('force_refresh_after_update')) { var orig_selected_items = scriptCmdData.func.sourcetab.selected; }
+
+    // var selected_files_cnt = scriptCmdData.func.sourcetab.selstats.selfiles;
+    // logger.verbose("Selected files count: " + selected_files_cnt);
+
+    // fileloop: for (var e = new Enumerator(scriptCmdData.func.sourcetab.selected), cnt = 0; !e.atEnd(); e.moveNext(), cnt++) {
+    //     var selected_item = e.item();
+    //     if (selected_item.is_dir || selected_item.is_reparse || selected_item.is_junction || selected_item.is_symlink ) {
+    //         logger.verbose('skipping ' + selected_item.name);
+    //         continue;
+    //     }
+    //     logger.normal('Name: ' + selected_item.name);
+
+    //     progress_bar.StepFiles(1);
+    //     progress_bar.SetTitle(Global.SCRIPT_PREFIX + ' Update: ' + cnt + '/' + selected_files_cnt);
+    //     progress_bar.SetName(selected_item.name);
+    //     progress_bar.SetType('file');
+    //     // progress_bar.EnableSkip(true, false);
+    //     switch (progress_bar.GetAbortState()) {
+    //     // case 's': progress_bar.ClearAbortState(); continue;
+    //         case 'a': break fileloop;
+    //         case 'p':
+    //             while (progress_bar.GetAbortState() !== '') {
+    //                 DOpus.Delay(200);
+    //                 if (progress_bar.GetAbortState() === 'a') {
+    //                     break fileloop;
+    //                 }
+    //             }
+    //             break;
+    //     }
+
+    //     var json_contents = GetMediaInfoFor(selected_item);
+    //     if (!json_contents) {
+    //         logger.error('...no valid info received from MediaInfo');
+    //         continue;
+    //     }
+
+    //     var mediainfo = JSON.parse(json_contents)['media'];
+    //     logger.verbose('1st line: ' + mediainfo['@ref']);
+
+    //     var out_obj = {
+    //         'last_modify'	: new Date(selected_item.modify).valueOf(),
+    //         'added_to_cache': 0 // this timestamp will be used to limit the number of items in cache
+    //     };
+
+    //     for (var i = 0; i < mediainfo['track'].length; i++) {
+    //         var track = mediainfo['track'][i];
+    //         logger.verbose('Track #' + i + ': ' + track['@type'] + ', ' + track['Format']);
+    //         switch (track['@type']) {
+    //             case 'General':
+    //                 if (out_obj.container_format) break;	// read only 1st one
+    //                 out_obj.container_format		= track['Format']							|| '';
+    //                 out_obj.container_codec 		= track['CodecID']							|| '';
+    //                 out_obj.container_enc_app		= track['Encoded_Application']				|| '';	// video does not have app, only container
+    //                 out_obj.container_enc_lib		= track['Encoded_Library']					|| '';
+    //                 out_obj.container_date_encoded	= track['Encoded_Date']				    	|| '';
+    //                 out_obj.container_date_tagged	= track['Tagged_Date']				    	|| '';
+    //                 out_obj.file_size 				= parseInt(track['FileSize'])				|| 0;
+    //                 out_obj.duration				= parseFloat(track['Duration'])				|| 0;
+    //                 out_obj.overall_bitrate			= parseInt(track['OverallBitRate'])			|| 0;
+    //                 out_obj.overall_bitrate_mode	= track['OverallBitRate_Mode']				|| '';
+    //                 out_obj.video_count 			= parseInt(track['VideoCount'])				|| 0;
+    //                 out_obj.audio_count 			= parseInt(track['AudioCount'])				|| 0;
+    //                 out_obj.text_count 				= parseInt(track['TextCount'])				|| 0;
+    //                 out_obj.others_count 			= parseInt(track['MenuCount'])				|| 0;
+    //                 out_obj.has_replay_gain			= (track['extra'] && (track['extra']['REPLAYGAIN_GAIN'] || track['extra']['replaygain_track_gain'] || track['extra']['replaygain_album_gain'] || track['extra']['R128_TRACK_GAIN'] || track['extra']['R128_ALBUM_GAIN'] )) ? 1 : 0;
+    //                 out_obj.format_additional 		= track['Format_AdditionalFeatures']		|| '';
+    //                 out_obj.extra					= track['extra'] 							|| '';
+
+    //                 // if (track['extra']) {
+    //                 // 	if (track['extra']['ENCODER_OPTIONS']) {
+    //                 // 		// currently only for Opus files
+    //                 // 		out_obj.audio_bitrate_mode 		= track['extra']['ENCODER_OPTIONS'].indexOf('--cvbr') >= 0 ? 'VBR' : out_obj.audio_bitrate_mode;
+    //                 // 		out_obj.audio_bitrate_mode 		= track['extra']['ENCODER_OPTIONS'].indexOf('--cabr') >= 0 ? 'ABR' : out_obj.audio_bitrate_mode;
+    //                 // 		out_obj.audio_bitrate_mode 		= track['extra']['ENCODER_OPTIONS'].indexOf('--ccbr') >= 0 ? 'CBR' : out_obj.audio_bitrate_mode;
+    //                 // 		out_obj.audio_compression_mode 	= track['extra']['ENCODER_OPTIONS'].indexOf('--music') >= 0 ? 'Music' : out_obj.audio_compression_mode;
+    //                 // 		out_obj.audio_compression_mode 	= track['extra']['ENCODER_OPTIONS'].indexOf('--speech') >= 0 ? 'Speech' : out_obj.audio_compression_mode;
+    //                 // 	}
+    //                 // 	// currently only for TS files - does not seem to be necessary and it's a very bad solution
+    //                 // 	// if (out_obj.container_format === 'MPEG-TS' && track['extra']['OverallBitRate_Precision_Min'] && track['extra']['OverallBitRate_Precision_Max']) {
+    //                 // 	// 	out_obj.audio_bitrate = Math.round( (track['extra']['OverallBitRate_Precision_Min'] + track['extra']['OverallBitRate_Precision_Max']) / 2*1000);
+    //                 // 	// }
+    //                 // 	// log.error("Min: " + track['extra']['OverallBitRate_Precision_Min'] + "\nMax: " + track['extra']['OverallBitRate_Precision_Max']);
+    //                 // }
+    //                 break;
+    //             case 'Video':
+    //                 if (out_obj.video_format) break;		// read only 1st video track
+    //                 out_obj.video_format			= track['Format'] 							|| '';
+    //                 out_obj.video_codec 			= track['CodecID']							|| '';
+    //                 out_obj.video_duration			= parseFloat(track['Duration'])				|| out_obj.duration || 0;
+    //                 out_obj.video_bitrate 			= parseInt(track['BitRate'])				|| parseInt(track['BitRate_Nominal']) || (track['extra'] && track['extra']['FromStats_BitRate']) || 0;
+    //                 out_obj.video_width				= parseInt(track['Width'])					|| 0;
+    //                 out_obj.video_height			= parseInt(track['Height'])					|| 0;
+    //                 out_obj.video_framerate			= parseFloat(track['FrameRate'])			|| 0;
+    //                 out_obj.video_framecount		= parseFloat(track['FrameCount'])			|| 0;
+    //                 out_obj.video_display_AR		= parseFloat(track['DisplayAspectRatio'])	|| 0;
+    //                 out_obj.video_compression_mode	= track['Compression_Mode']					|| '';
+    //                 out_obj.video_format_additional = track['Format_AdditionalFeatures']		|| '';
+    //                 out_obj.video_enc_lib			= track['Encoded_Library']					|| '';
+    //                 out_obj.video_enc_libname		= track['Encoded_Library_Name']				|| '';
+    //                 out_obj.video_stream_size		= parseInt(track['StreamSize'])				|| 0;
+    //                 out_obj.video_extra				= track['extra'] 							|| '';
+    //                 break;
+    //             case 'Audio':
+    //                 if (out_obj.audio_format) break;		// read only 1st audio track
+    //                 out_obj.audio_format			= track['Format'] 							|| '';
+    //                 out_obj.audio_codec 			= track['CodecID'] 							|| '';
+    //                 out_obj.audio_language 			= track['Language'] 						|| 'und';
+    //                 out_obj.audio_duration			= parseFloat(track['Duration'])				|| 0;
+    //                 // out_obj.audio_bitrate 			= parseInt(track['BitRate'])				|| parseInt(track['extra'] && track['extra']['FromStats_BitRate']) || (out_obj.video_count === 0 ? out_obj.overall_bitrate : 0) || out_obj.audio_bitrate || 0;
+    //                 out_obj.audio_bitrate 			= parseInt(track['BitRate'])				|| parseInt(track['extra'] && track['extra']['FromStats_BitRate']) || out_obj.audio_bitrate || 0;
+    //                 out_obj.audio_format_version	= track['Format_Version'] 					|| '';
+    //                 out_obj.audio_format_profile	= track['Format_Profile'] 					|| '';
+    //                 out_obj.audio_format_set_mode	= track['Format_Settings_Mode'] 			|| '';
+    //                 out_obj.audio_format_additional = track['Format_AdditionalFeatures']		|| '';
+    //                 // out_obj.audio_bitrate_mode		= track['BitRate_Mode'] 					|| out_obj.audio_bitrate_mode || ( out_obj.audio_format === "Monkey's Audio" ? 'VBR' : '') || '';
+    //                 out_obj.audio_bitrate_mode		= track['BitRate_Mode'] 					|| out_obj.audio_bitrate_mode || (config.get('formats_regex_vbr').test(out_obj.audio_format) && 'VBR') || '';
+    //                 out_obj.audio_channels			= parseInt(track['Channels'])				|| 0;
+    //                 out_obj.audio_bit_depth			= parseInt(track['BitDepth'])				|| 0;
+    //                 out_obj.audio_sampling_rate		= parseInt(track['SamplingRate'])			|| 0;
+    //                 // out_obj.audio_compression_mode  = track['Compression_Mode'] 				|| (config.get('formats_regex_lossless').test(out_obj.audio_format) && 'Lossless') || (config.get('formats_regex_lossy').test(out_obj.audio_format) && 'Lossy') || '';
+    //                 // logger.error(out_obj.audio_format);
+    //                 // logger.error(config.get('formats_regex_lossless'));
+    //                 // logger.error(config.get('formats_regex_lossless').test(out_obj.audio_format));
+    //                 out_obj.audio_compression_mode  = (config.get('formats_regex_lossless').test(out_obj.audio_format) && 'Lossless') || (config.get('formats_regex_lossy').test(out_obj.audio_format) && 'Lossy') || track['Compression_Mode']	|| '';
+    //                 out_obj.audio_stream_size		= parseInt(track['StreamSize'])				|| 0;
+    //                 out_obj.audio_extra				= track['extra'] 							|| '';
+
+    //                 if (out_obj.audio_format === 'WMA' && track['Format_Profile'] === 'Lossless'){
+    //                     out_obj.audio_compression_mode = 'Lossless';
+    //                 }
+
+    //                 out_obj.has_replay_gain 		= (out_obj.has_replay_gain || track['ReplayGain_Gain']) ? 1 : 0;	// RG can be stored on container level e.g. in M4A, MKA, or audio level, e.g. in MP3
+    //                 break;
+    //             case 'Text':
+    //                 if (out_obj.text_codec) break;			// read only 1st subtitle track
+    //                 out_obj.text_codec				= track['CodecID']  						|| '',
+    //                 out_obj.text_title				= track['Title']	 						|| '';
+    //                 out_obj.text_language			= track['Language'] 						|| '';
+    //                 break;
+    //             default:
+    //             // add anything else than menus to the 'others'
+    //             // optionally use track['extra'].length for a chapters count (may not be accurate, see MediaInfo dump first)
+    //                 if (track['@type'] !== 'Menu') out_obj.others_count++;
+    //         }
+    //     }
+
+    //     if (out_obj.audio_format === 'Opus') {
+    //         // for Opus files
+    //         if (out_obj.extra && out_obj.extra.ENCODER_OPTIONS) {
+    //             logger.normal("Opus -- Encoder Options: " + out_obj.extra.ENCODER_OPTIONS);
+    //             if (out_obj.extra.ENCODER_OPTIONS.indexOf('--cvbr') >= 0) {
+    //                 out_obj.audio_bitrate_mode = 'VBR';
+    //             } else if (out_obj.extra.ENCODER_OPTIONS.indexOf('--vbr') >= 0) {
+    //                 out_obj.audio_bitrate_mode = 'VBR';
+    //             } else if (out_obj.extra.ENCODER_OPTIONS.indexOf('--cabr') >= 0) {
+    //                 out_obj.audio_bitrate_mode = 'VBR';
+    //             } else if (out_obj.extra.ENCODER_OPTIONS.indexOf('--ccbr') >= 0) {
+    //                 out_obj.audio_bitrate_mode = 'CBR';
+    //             } else if (out_obj.extra.ENCODER_OPTIONS.indexOf('--hard-cbr') >= 0) {
+    //                 out_obj.audio_bitrate_mode = 'CBR';
+    //             }
+    //             if (out_obj.extra.ENCODER_OPTIONS.indexOf('--music') >= 0) {
+    //                 out_obj.audio_format_additional += 'Music';
+    //             } else if (out_obj.extra.ENCODER_OPTIONS.indexOf('--speech') >= 0) {
+    //                 out_obj.audio_format_additional += 'Speech';
+    //             }
+    //             logger.normal('Opus -- Determined BR mode: ' + out_obj.audio_bitrate_mode + "\nFormat Additional: " + out_obj.audio_format_additional);
+    //         }
+
+    //     }
+
+    //     logger.verbose(JSON.stringify(out_obj));
+    //     if (out_obj.video_count || out_obj.audio_count) {
+    //         SaveMetadataADS(selected_item, out_obj);
+    //     } else {
+    //         logger.error(selected_item.name + ', skipping file - no video or audio stream found');
+    //         continue fileloop;
+    //     }
+    // }
+
+    // progress_bar.ClearAbortState();
+    // progress_bar.Hide();
+
+    // if (config.get('force_refresh_after_update')) {
+    //     // refresh and re-select previously selected files
+    //     // this seems to work for most of the time, but sometimes misses (?) few files if flat-folder view is used
+    //     // not sure if it really misses files though
+    //     util.cmdGlobal.RunCommand('Go Refresh');
+    //     util.cmdGlobal.ClearFiles();
+    //     for (var e = new Enumerator(orig_selected_items); !e.atEnd(); e.moveNext()) {
+    //         util.cmdGlobal.AddFile(e.item());
+    //     }
+    //     util.cmdGlobal.RunCommand('Select FROMSCRIPT');
+    // }
+}
+
+
+// DELETE METADATA
+function OnME_Delete(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_Delete.fname = 'OnME_Delete';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+
+    // scriptCmdData.func.command.SetModifier("noprogress");
+
+    // if (config.get('force_refresh_after_update')) { var orig_selected_items = scriptCmdData.func.sourcetab.selected; }
+
+    // var progress_bar = scriptCmdData.func.command.Progress;
+    // // progress_bar.skip  = true; // does not make sense, individual files are processed very fast already
+    // progress_bar.pause = true;
+    // progress_bar.abort = true;
+    // progress_bar.Init(scriptCmdData.func.sourcetab, 'Please wait'); // window title
+    // progress_bar.SetStatus('Deleting metadata ADS'); 				// header
+    // progress_bar.Show();
+    // progress_bar.SetFiles(scriptCmdData.func.sourcetab.selected.count);
+    // progress_bar.Restart();
+
+    // var selected_files_cnt = scriptCmdData.func.sourcetab.selstats.selfiles;
+    // logger.verbose("Selected files count: " + selected_files_cnt);
+
+    // fileloop: for (var e = new Enumerator(scriptCmdData.func.sourcetab.selected), cnt = 0; !e.atEnd(); e.moveNext(), cnt++) {
+    //     var selected_item = e.item();
+    //     if (selected_item.is_dir || selected_item.is_reparse || selected_item.is_junction || selected_item.is_symlink ) {
+    //         logger.verbose('skipping ' + selected_item.name);
+    //         continue;
+    //     }
+    //     logger.normal('Name: ' + selected_item.name);
+
+    //     progress_bar.StepFiles(1);
+    //     progress_bar.SetTitle(Global.SCRIPT_PREFIX + ' Delete: ' + cnt + '/' + selected_files_cnt);
+    //     progress_bar.SetName(selected_item.name);
+    //     progress_bar.SetType('file');
+    //     // progress_bar.EnableSkip(true, false);
+    //     switch (progress_bar.GetAbortState()) {
+    //     // case 's': progress_bar.ClearAbortState(); continue;
+    //         case 'a': break fileloop;
+    //         case 'p':
+    //             while (progress_bar.GetAbortState() !== '') {
+    //                 DOpus.Delay(200);
+    //                 if (progress_bar.GetAbortState() === 'a') {
+    //                     break fileloop;
+    //                 }
+    //             }
+    //             break;
+    //     }
+
+    //     DeleteMetadataADS(selected_item);
+    // }
+    // if (config.get('force_refresh_after_update')) {
+    //     // refresh and re-select previously selected files
+    //     // this seems to work for most of the time, but sometimes misses (?) few files if flat-folder view is used
+    //     // not sure if it really misses files though
+    //     util.cmdGlobal.RunCommand('Go Refresh');
+    //     util.cmdGlobal.ClearFiles();
+    //     for (var e = new Enumerator(orig_selected_items); !e.atEnd(); e.moveNext()) {
+    //         util.cmdGlobal.AddFile(e.item());
+    //     }
+    //     util.cmdGlobal.RunCommand('Select FROMSCRIPT');
+    // }
+    // progress_bar.ClearAbortState();
+    // progress_bar.Hide();
+    // DumpCache('OnME_Delete', 2);
+}
+
+
+// CLEAR CACHE
+function OnME_ClearCache() {
+    const fname = OnME_ClearCache.fname = 'OnME_ClearCache';
+    // util.sv.set('cache', DOpus.Create.Map());
+    // logger.force('Cache cleared');
+}
+
+
+// DUMP ADS METADATA
+function OnME_ADSDump(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_ADSDump.fname = 'OnME_ADSDump';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+    // DOpus.Output("\n\n\n\n\n");
+    // logger.force(GetMetadataForAllSelectedFiles(scriptCmdData));
+    // DOpus.Output("\n\n\n\n\n");
+}
+
+
+// COPY ADS METADATA
+function OnME_ADSCopy(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_ADSCopy.fname = 'OnME_ADSCopy';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+    // util.cmdGlobal.RunCommand('Clipboard SET ' + GetMetadataForAllSelectedFiles(scriptCmdData));
+    // logger.force('Copied ADS metadata for selected files to clipboard');
+}
+
+
+// DUMP MEDIAINFO OUTPUT
+function OnME_MediaInfoDump(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_MediaInfoDump.fname = 'OnME_MediaInfoDump';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+    // DOpus.Output("\n\n\n\n\n");
+    // logger.force(GetMediaInfoForAllSelectedFiles(scriptCmdData));
+    // DOpus.Output("\n\n\n\n\n");
+}
+
+
+// COPY MEDIAINFO OUTPUT
+function OnME_MediaInfoCopy(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_MediaInfoCopy.fname = 'OnME_MediaInfoCopy';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+    // util.cmdGlobal.RunCommand('Clipboard SET ' + GetMediaInfoForAllSelectedFiles(scriptCmdData));
+    // logger.force('Copied MediaInfo output for selected files to clipboard');
+}
+
+
+
+// ESTIMATE BITRATES
+function OnME_EstimateBitrates(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_EstimateBitrates.fname = 'OnME_EstimateBitrates';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+
+    // var target_bitsperpixel_values = [
+    //     0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, 50
+    // ];
+    // var out_obj = {};
+    // for (var e = new Enumerator(scriptCmdData.func.sourcetab.selected); !e.atEnd(); e.moveNext()) {
+    //     var selected_item = e.item();
+    //     if (selected_item.is_dir || selected_item.is_reparse || selected_item.is_junction || selected_item.is_symlink ) {
+    //         logger.verbose('skipping ' + selected_item.name);
+    //         continue;
+    //     }
+    //     var item_props = ReadMetadataADS(selected_item);
+    //     out_obj[selected_item.realpath] = [];
+    //     for (var i = 0; i < target_bitsperpixel_values.length; i++) {
+    //         var current_target_value = target_bitsperpixel_values[i];
+    //         var estimated_target_bitrate = Math.round(current_target_value * item_props.video_width * item_props.video_height / (1024)) + ' kbps';
+    //         out_obj[selected_item.realpath].push( { 'target_bitsperpixel': current_target_value, 'estimated kbps': estimated_target_bitrate } );
+    //     }
+    // }
+    // DOpus.Output(JSON.stringify(out_obj, null, 4));
+}
+
+// TOGGLE ESSENTIAL COLUMNS
+function OnME_ToggleEssentialColumns(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_ToggleEssentialColumns.fname = 'OnME_ToggleEssentialColumns';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+    // _toggleColumnGroup('essential', config.get('fields_essential'), config.get('fields_essential_after'));
+}
+// TOGGLE OPTIONAL COLUMNS
+function OnME_ToggleOptionalColumns(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_ToggleOptionalColumns.fname = 'OnME_ToggleOptionalColumns';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+    // _toggleColumnGroup('optional', config.get('fields_optional'), config.get('fields_optional_after'));
+}
+// TOGGLE OTHER COLUMNS
+function OnME_ToggleOtherColumns(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_ToggleOtherColumns.fname = 'OnME_ToggleOtherColumns';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+    // _toggleColumnGroup('other', config.get('fields_other'), config.get('fields_other_after'));
+}
+// TOGGLE VERBOSE COLUMNS
+function OnME_ToggleVerboseColumns(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_ToggleVerboseColumns.fname = 'OnME_ToggleVerboseColumns';
+    // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
+    _toggleColumnGroup('verbose', config.get('fields_verbose'), config.get('fields_verbose_after'));
+}
+// internal method called by OnME_ToggleXXXColumns
+function _toggleColumnGroup(groupName: string, columnsArray: string[], columnAfter: string) {
+    const fname = _toggleColumnGroup.fname = '_toggleColumnGroup';
+    // var col_after = columnAfter.indexOf('MExt_') === 0 ? 'scp:' + Global.SCRIPT_NAME + '/' + columnAfter : columnAfter;
+    // var refresh;
+    // util.cmdGlobal.clearFiles();
+    // for (var i = 0; i < columnsArray.length; i++) {
+    //     var item = columnsArray[i];
+    //     refresh = false;
+    //     if (item.indexOf('MExt_') >= 0) {
+    //         item = 'scp:' + Global.SCRIPT_NAME + '/' + item;
+    //         refresh = true;
+    //     }
+    //     logger.info('Toggling col: ' + item);
+    //     cmd = 'Set COLUMNSTOGGLE=' + item + '(!' + (i+1) + '+' +  col_after + ',*)'; // * is for auto-size
+    //     logger.verbose('_toggleColumnGroup -- (' + groupName + '):   ' + cmd);
+    //     util.cmdGlobal.addLine(cmd);
+    // }
+    // util.cmdGlobal.run();
+    // util.cmdGlobal.clear();
+    // if (refresh) {
+    //     // TODO - recheck if this is necessary
+    //     // Script.RefreshColumn(columnsArray[i]);
+    // }
+}
+
+
+// VALIDATE CONFIG
+function OnME_ConfigValidate(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_ConfigValidate.fname = 'OnME_ConfigValidate';
+    var debug = scriptCmdData.func.args.got_arg.DEBUG;
+    var showValues = scriptCmdData.func.args.got_arg.SHOWVALUES;
+    validateConfigAndShowResult(debug, showValues, scriptCmdData.func.dlg(), false);
+}
+
+// internal wrapper method called by most methods
+// optionally shows a user dialog if configuration is invalid
+function validateConfigAndShowResult(debug: boolean, showValues: boolean, dialog: DOpusDialog, skipIfValid: boolean, validateDefaultValues = true): boolean {
+    const fname = validateConfigAndShowResult.fname = 'validateConfigAndShowResult';
+    var isValid = validateConfig(debug, showValues, validateDefaultValues);
+    if (!skipIfValid) {
+        var dlgConfirm		= dialog;
+        dlgConfirm.message  = scriptMeta.NAME + ' configuration is ' + (isValid ? 'valid' : 'invalid');
+        dlgConfirm.title	= scriptMeta.NAME + ' - Configuration Validation' ;
+        dlgConfirm.buttons	= 'OK';
+        // var ret =
+        dlgConfirm.show();
+    }
+    return isValid;
+}
+
+// internal method to validate the config - optionally validates script default values as well
+function validateConfig(debug: boolean, showValues: boolean, validateDefaultValues = true) {
+    const fname = validateConfig.fname = 'validateConfig';
+    if (debug) {
+        logger.force('validateConfig started - debug: ' + debug + ', showValues: ' + showValues);
+    } else {
+        logger.normal('validateConfig started - debug: ' + debug + ', showValues: ' + showValues);
+    }
+
+    // config.setErrorMode(config.modes.DIALOG); // TODO
+
+    var configIsValid = true;
+    var alternativeValue = 'value not shown for brevity';
+
+    var cfgkeys = config.user.getKeys();
+
+    if(validateDefaultValues) {
+        if(debug) {
+            logger.force('Number of items: ' + config.user.getCount() + ', matches actual keys count: ' + (config.user.getCount() == cfgkeys.length));
+            logger.force('');
+            logger.force('Dumping current config as string');
+        }
+        for (var i = 0; i < cfgkeys.length; i++) {
+            var k = cfgkeys[i],
+                t = config.user.getType(k),
+                // b = config.user.getBinding(k), // TODO
+                v = config.user.getValue(k, false),
+                iv= config.user.isValid(v, t);
+            configIsValid = configIsValid && iv;
+            if (debug) {
+                logger.force(
+                    g.sprintf(
+                        '#%02d key: %-30s type: %-15s bindTo: %-40s valid: %s  --  value: %s\n',
+                        i+1,
+                        k,
+                        t,
+                        // b,
+                        (iv ? iv : iv + ', expected: ' + t + ', found: ' + typeof v),
+                        (!!showValues ? v : alternativeValue)
+                    )
+                );
+            }
+        }
+    }
+
+
+    if (debug) {
+        logger.force('');
+        logger.force('');
+        logger.force('');
+        logger.force('Checking bound values');
+    }
+    for (var i = 0; i < cfgkeys.length; i++) {
+        var k = cfgkeys[i],
+            t = config.user.getType(k),
+            // b = config.user.getBinding(k),
+            v = config.user.getValue(k, true),
+            iv= config.user.isValid(v, t);
+        configIsValid = configIsValid && iv;
+        if (debug) {
+            logger.force(
+                g.sprintf(
+                    '#%02d key: %-30s type: %-15s boundTo: %-40s valid: %s  --  bound value: %s\n',
+                    i+1,
+                    k,
+                    t,
+                    // b,
+                    (iv ? iv : iv + ', expected: ' + t + ', found: ' + typeof v + ' (boolean false is standard for invalid values)'),
+                    (showValues ? v : alternativeValue)
+                )
+            );
+        }
+    }
+    if (debug) {
+        logger.force('');
+        logger.force('');
+        logger.force('');
+        logger.force('validateConfig finished - config valid: ' + configIsValid);
+    } else {
+        logger.normal('validateConfig finished - config valid: ' + configIsValid);
+    }
+
+    return configIsValid;
+}
+
+
+// DEVELOPER HELPER METHOD
+function OnME_TestMethod1(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_TestMethod1.fname = 'OnME_TestMethod1';
+    // // unit tests for the poor
+    // var oldErrorMode = config.getErrorMode();
+
+    // DOpus.Output('OnME_TestMethod1 -- Adding valid values - started');
+    // config.setErrorMode(config.modes.ERROR);
+    // config.addBoolean('a', false);										DOpus.Output('\ttype: ' + config.getType('a'));
+    // config.addString('b', "hello world");								DOpus.Output('\ttype: ' + config.getType('b'));
+    // config.addNumber('c', 1);											DOpus.Output('\ttype: ' + config.getType('c'));
+    // config.addPath('d', '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe');	DOpus.Output('\ttype: ' + config.getType('d'));
+    // config.addArray('e', [ 'a', 1 ]);									DOpus.Output('\ttype: ' + config.getType('e'));
+    // config.addPOJO('f', { 'a': 1 });									DOpus.Output('\ttype: ' + config.getType('f'));
+    // config.addObject('g', { 'a': 1, fn: function(){} });				DOpus.Output('\ttype: ' + config.getType('g'));
+    // config.addRegexp('h', new RegExp(/foo.+bar/));						DOpus.Output('\ttype: ' + config.getType('h'));
+    // config.addJSON('i', '{ "a": 1 }');									DOpus.Output('\ttype: ' + config.getType('i'));
+    // config.addFunction('j', function(){});								DOpus.Output('\ttype: ' + config.getType('j'));
+    // config.setErrorMode(oldErrorMode);
+    // DOpus.Output('OnME_TestMethod1 -- Adding valid values - finished');
+
+    // DOpus.Output('');
+    // DOpus.Output('');
+    // DOpus.Output('');
+    // DOpus.Output('');
+
+    // DOpus.Output('OnME_TestMethod1 -- Adding invalid values - started');
+    // config.setErrorMode(config.modes.NONE);
+    // var res;
+    // res = config.addJSON('a', "{ 'a': 1 }");							DOpus.Output('\tresult: ' + res); // causes an error, JSON may not use single quotes
+    // res = config.addNumber('b', false);									DOpus.Output('\tresult: ' + res); // value not matching given type
+    // res = config.addNumber('c', "hello world");							DOpus.Output('\tresult: ' + res); // value not matching given type
+    // res = config.addString('d', 1);										DOpus.Output('\tresult: ' + res); // value not matching given type
+    // res = config.addPath('e', 'MediaInfo.exe');							DOpus.Output('\tresult: ' + res); // value not matching given type
+    // res = config.addJSON('f', [ 'a', 1 ]);								DOpus.Output('\tresult: ' + res); // value not matching given type
+    // res = config.addArray('g', { 'a': 1 });								DOpus.Output('\tresult: ' + res); // value not matching given type
+    // res = config.addPOJO('h', {"a":1,fn:function(){}});					DOpus.Output('\tresult: ' + res); // value not matching given type
+    // res = config.addObject('i', '{ "a": 1');							DOpus.Output('\tresult: ' + res); // value not matching given type
+    // res = config.addString('j', function(){var x= 1});					DOpus.Output('\tresult: ' + res); // value not matching given type
+    // config.setErrorMode(oldErrorMode);
+    // DOpus.Output('OnME_TestMethod1 -- Adding invalid values - finished');
+
+    // DOpus.Output('');
+    // DOpus.Output('');
+    // DOpus.Output('');
+    // DOpus.Output('');
+
+
+
+    // DOpus.Output('OnME_TestMethod1 -- Testing error modes - started');
+    // var oldLoggerLevel = logger.getLevel();
+
+    // logger.force("Current error level: " + logger.getLevel());
+    // logger.error("This is a sample message in level: "   + "ERROR");
+    // logger.warn("This is a sample message in level: "    + "WARN");
+    // logger.normal("This is a sample message in level: "  + "NORMAL");
+    // logger.info("This is a sample message in level: "    + "INFO");
+    // logger.verbose("This is a sample message in level: " + "VERBOSE");
+
+    // DOpus.Output('');
+
+    // logger.setLevel(logger.levels.NONE);
+    // logger.force("Current error level: " + logger.getLevel());
+    // logger.error("This is a sample message in level: "   + "ERROR");
+    // logger.warn("This is a sample message in level: "    + "WARN");
+    // logger.normal("This is a sample message in level: "  + "NORMAL");
+    // logger.info("This is a sample message in level: "    + "INFO");
+    // logger.verbose("This is a sample message in level: " + "VERBOSE");
+
+    // DOpus.Output('');
+
+    // logger.setLevel(logger.levels.ERROR);
+    // logger.force("Current error level: " + logger.getLevel());
+    // logger.error("This is a sample message in level: "   + "ERROR");
+    // logger.warn("This is a sample message in level: "    + "WARN");
+    // logger.normal("This is a sample message in level: "  + "NORMAL");
+    // logger.info("This is a sample message in level: "    + "INFO");
+    // logger.verbose("This is a sample message in level: " + "VERBOSE");
+
+    // DOpus.Output('');
+
+    // logger.setLevel(logger.levels.WARN);
+    // logger.force("Current error level: " + logger.getLevel());
+    // logger.error("This is a sample message in level: "   + "ERROR");
+    // logger.warn("This is a sample message in level: "    + "WARN");
+    // logger.normal("This is a sample message in level: "  + "NORMAL");
+    // logger.info("This is a sample message in level: "    + "INFO");
+    // logger.verbose("This is a sample message in level: " + "VERBOSE");
+
+    // DOpus.Output('');
+
+    // logger.setLevel(logger.levels.NORMAL);
+    // logger.force("Current error level: " + logger.getLevel());
+    // logger.error("This is a sample message in level: "   + "ERROR");
+    // logger.warn("This is a sample message in level: "    + "WARN");
+    // logger.normal("This is a sample message in level: "  + "NORMAL");
+    // logger.info("This is a sample message in level: "    + "INFO");
+    // logger.verbose("This is a sample message in level: " + "VERBOSE");
+
+    // DOpus.Output('');
+
+    // logger.setLevel(logger.levels.INFO);
+    // logger.force("Current error level: " + logger.getLevel());
+    // logger.error("This is a sample message in level: "   + "ERROR");
+    // logger.warn("This is a sample message in level: "    + "WARN");
+    // logger.normal("This is a sample message in level: "  + "NORMAL");
+    // logger.info("This is a sample message in level: "    + "INFO");
+    // logger.verbose("This is a sample message in level: " + "VERBOSE");
+
+    // DOpus.Output('');
+
+    // logger.setLevel(logger.levels.VERBOSE);
+    // logger.force("Current error level: " + logger.getLevel());
+    // logger.error("This is a sample message in level: "   + "ERROR");
+    // logger.warn("This is a sample message in level: "    + "WARN");
+    // logger.normal("This is a sample message in level: "  + "NORMAL");
+    // logger.info("This is a sample message in level: "    + "INFO");
+    // logger.verbose("This is a sample message in level: " + "VERBOSE");
+
+    // logger.setLevel(oldLoggerLevel);
+    // DOpus.Output('OnME_TestMethod1 -- Testing error modes - finished');
+}
+
+
+// DEVELOPER HELPER METHOD
+function OnME_TestMethod2(scriptCmdData: DOpusScriptCommandData) {
+    const fname = OnME_TestMethod2.fname = 'OnME_TestMethod2';
+    // DOpus.ClearOutput();
+    // // validateConfigAndShowResult(true, scriptCmdData.func.Dlg, false, true);
 }
