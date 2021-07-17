@@ -195,7 +195,7 @@ namespace ads {
     //     g.abortWith(new exc.DeveloperStupidityException(sprintf('Cannot continue without a stream name: ' + hashStreamName), myName));
     // }
 
-    export class Stream implements IADS, ILibrary {
+    export class Stream implements IADS, ILibrary<Stream> {
 
         private streamName: string;
         private cache: cache.IMemCache;
@@ -210,11 +210,9 @@ namespace ads {
         }
 
         // interface implementation
-        setLogger(newLogger?: ILogger): IResult<true, any> {
-            const fname = this.setLogger.fname = myName + '.setLogger';
-
+        setLogger(newLogger?: ILogger): this {
             this.logger = newLogger || this.logger;
-            return g.ResultOk(true);
+            return this;
         }
 
         getFileAttributes(oItem: DOpusItem): IADSFileAttr {

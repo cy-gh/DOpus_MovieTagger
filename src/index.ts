@@ -20,7 +20,6 @@
 
 
 
-
 interface ScriptMeta extends g.ScriptMetaKnown {
     NAME_SHORT?             : string,
     DATE?                   : string,
@@ -55,7 +54,7 @@ var cfg = config.user;
 var ext = config.ext;
 scriptMeta.NAME = 'cuMovieTagger';
 scriptMeta.NAME = 'DOpus_MovieTagger';
-
+scriptMeta.NAME_SHORT = 'DMT';
 
 
 enum CfgV {
@@ -216,9 +215,9 @@ const AllCommands: { [key: string]: CommandTemplate } = {
     */
     'CustomCommand': {
         func: CustomCommand,
-        tmpl: '',
-        icon: '',
-        label: '',
+        tmpl: 'FILE/S',
+        icon: '8ball',
+        label: 'Custom Command',
         desc: ''
     },
 
@@ -345,6 +344,8 @@ const AllCommands: { [key: string]: CommandTemplate } = {
     },
 
 }
+
+
 
 enum ColumnJustify {
     Left  = 'left',
@@ -739,8 +740,8 @@ const AllColumns: { [key: string]: ColumnTemplate } = {
 function _initConfigDefaults(initData: DOpusScriptInitData) {
     _initConfigDefaults.fname = 'setupConfigVars';
 
-    cfg.setInitData(scriptMeta.NAME, initData);
-    ext.setInitData(scriptMeta.NAME, initData);
+    cfg.setInitData(initData).setLogger(logger);
+    ext.setInitData(initData).setLogger(logger);
 
     /**
      * Name of the ADS stream, can be also used via "dir /:" or "type file:stream_name" commands
@@ -1503,23 +1504,39 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
     cfg.finalize();
     ext.finalize();
 
+    // DOpus.output('keys: ' + JSON.stringify(cfg.getKeys(), null, 4));
+    // let x = new Array([1, 2, 3]);
+    // DOpus.output('x: ' + Object.prototype.toString.call(x));
+    // DOpus.output('x: ' + Object.prototype.toString.call(new RegExp(/.+/g)));
+
+
 }
+
 
 
 // internal method called by OnInit()
 function _initCommands(initData: DOpusScriptInitData) {
     const fname = _initCommands.fname = '_initCommands';
 
+    function _getIcon(iconName: string) {
+        var oPath = g.getItem(initData.file);
+        var isOSP = oPath.ext === 'osp';
+        logger.normal('Requested icon: ' + iconName + ', is OSP: ' + isOSP + '  --  ' + initData.file);
+        return isOSP
+            ? '#MExt:' + iconName
+            : oPath.path + "\\icons\\MExt\\MExt_32_" + iconName + ".png";
+    }
+
     logger.snormal('%s -- started', fname);
     for (const commandName in AllCommands) {
         if (Object.prototype.hasOwnProperty.call(AllCommands, commandName)) {
             const commandParams = AllCommands[commandName];
-            logger.snormal('%s -- adding command: %s', fname, commandName);
+            logger.snormal('%s -- adding command: %s, name: %s, function: %s', fname, commandName, (scriptMeta.NAME_SHORT ||'') + commandName, g.funcNameExtractor(commandParams.func));
             var cmd         = initData.addCommand();
-            cmd.name        = (scriptMeta.NAME_SHORT ||'') + name;
-            cmd.method      = commandParams.func.fname;
+            cmd.name        = (scriptMeta.NAME_SHORT ||'') + commandName;
+            cmd.method      = g.funcNameExtractor(commandParams.func);
             cmd.template    = commandParams.tmpl || '';
-            // cmd.icon		= icon && _getIcon(icon) || '';
+            cmd.icon		= commandParams.icon && _getIcon(commandParams.icon) || '';
             cmd.label		= commandParams.label || '';
             cmd.desc        = commandParams.desc || commandParams.label;
             cmd.hide        = typeof commandParams.hide !== 'undefined' && commandParams.hide || false;
@@ -1658,8 +1675,8 @@ function CustomCommand() {
     // logger.force('cfg items: ' + cfg.getValue(CfgV.FORMATS_REGEX_VBR));
     logger.force('cfg items: ' + cfg.getValue(CfgV.META_STREAM_NAME));
 
-    DOpus.output('function in map - typeof: ' + typeof Script.vars.get('foo'));
-    DOpus.output('function in map: ' + Script.vars.get('foo'));
+    // DOpus.output('function in map - typeof: ' + typeof Script.vars.get('foo'));
+    // DOpus.output('function in map: ' + Script.vars.get('foo'));
     // DOpus.output('function in map: ' + g.funcNameExtractor.fname);
     // DOpus.output('extracted name: ' + g.funcNameExtractor('CustomCommand'));
     DOpus.output('extracted name: ' + g.funcNameExtractor(CustomCommand));
@@ -2763,7 +2780,7 @@ function OnME_ToggleOtherColumns(scriptCmdData: DOpusScriptCommandData) {
 function OnME_ToggleVerboseColumns(scriptCmdData: DOpusScriptCommandData) {
     const fname = OnME_ToggleVerboseColumns.fname = 'OnME_ToggleVerboseColumns';
     // if (!validateConfigAndShowResult(false, scriptCmdData.func.Dlg, true)) return;
-    _toggleColumnGroup('verbose', config.get('fields_verbose'), config.get('fields_verbose_after'));
+    // _toggleColumnGroup('verbose', config.get('fields_verbose'), config.get('fields_verbose_after'));
 }
 // internal method called by OnME_ToggleXXXColumns
 function _toggleColumnGroup(groupName: string, columnsArray: string[], columnAfter: string) {

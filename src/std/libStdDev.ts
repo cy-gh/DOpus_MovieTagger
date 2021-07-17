@@ -58,6 +58,17 @@
 interface Function {
     fname: string;
 }
+/**
+ * Note `fname` cannot be used before the `var` declaration
+ * @example
+ * var myFunc = fnBuilder('myFunc', function() {
+ *   DOpus.output('This is the method: ' + myFunc.fname);
+ * });
+ */
+function fnBuilder(name: string, func: Function) {
+    func.fname = name;
+    return func;
+}
 
 /** Showable errors, mainly for Results and Exceptions */
 interface IShowableError<T> {
@@ -211,12 +222,13 @@ interface ILogger extends IShowableError<string> {
 }
 
 /** All library classes MUST implement this interface! */
-interface ILibrary {
+interface ILibrary<T> {
     /**
      * Injects a custom logger, instead of the default one.
      * @param newLogger new logger to override the default
+     * @returns {T} this, for method chaining
      */
-    setLogger(newLogger: ILogger): IResult<boolean, boolean>;
+    setLogger(newLogger: ILogger): T;
 }
 
 
@@ -559,7 +571,15 @@ if (!Array.prototype.map) {
     };
 }
 
-
+// interface Array<T> {
+//     isArray(arg?: any): boolean;
+// }
+// // from https://github.com/behnammodi/polyfill/blob/master/array.polyfill.js#L189
+// if (!Array.prototype.isArray) {
+//     Array.prototype.isArray = function (arg?: any) {
+//         return Object.prototype.toString.call(arg) === '[object Array]';
+//     };
+// }
 
 
 /*
@@ -644,7 +664,6 @@ namespace g {
     export enum VAR_NAMES {
         SCRIPT_UNIQUE_ID    = 'SCRIPT_UNIQUE_ID',
         SCRIPT_FILE_PATH    = 'SCRIPT_FILE_PATH',
-        SCRIPT_CONFIG_DUMP  = 'SCRIPT_CONFIG_DUMP',
         SCRIPT_FNAME_CACHE  = 'SCRIPT_FNAME_CACHE',
     }
 
@@ -791,7 +810,17 @@ namespace g {
             initData.early_dblclk   = scriptMeta.EARLY_DBLCLK   || false;
         }
     }
+
+    export function isInitializing(): boolean {
+        // during initialization (via OnInit() in main script)
+        // Script.vars is not available (initData.vars is though)
+        return !Script || !Script.vars;
+    }
+
     export function getScriptPathVars(): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {
+        if (isInitializing()) {
+            return Exc(ex.Uninitialized, 'g.getScriptPathVars', 'This method cannot be called during OnInit()').show();
+        }
         if (!Script.vars.exists(VAR_NAMES.SCRIPT_FILE_PATH)) {
             return Exc(ex.Uninitialized, 'g.getScriptPathVars', 'InitData has not been set yet, call g.init(scriptInitData) in your OnInit() first').show();
         }
@@ -803,6 +832,9 @@ namespace g {
         });
     }
     export function getScriptUniqueID(): IResult<string, IException<ex>> {
+        if (isInitializing()) {
+            return Exc(ex.Uninitialized, 'g.getScriptPathVars', 'This method cannot be called during OnInit()').show();
+        }
         if (!Script.vars.exists(VAR_NAMES.SCRIPT_UNIQUE_ID)) {
             return Exc(ex.Uninitialized, 'g.getScriptPathVars', 'InitData has not been set yet, call g.init(scriptInitData) in your OnInit() first').show();
         }
@@ -875,7 +907,7 @@ namespace g {
         if (typeof fnFunc !== 'function') {
             abortWith(Exc(ex.DeveloperStupidity, fname,  'Given parameter is not a function\n' + dumpObject(fnFunc)).err);
         }
-        if (typeof fnFunc.fname === 'undefined' && suppressWarning !== true) {
+        if (!isInitializing() && typeof fnFunc.fname === 'undefined' && suppressWarning !== true) {
             Exc(ex.NotImplementedYet, 'funcNameExtractor', 'given method has not set the property \'fname\' yet, found: ' + fnFunc.fname + ',source:\n' + fnFunc.toString().slice(0,200) + '...').show();
         }
         if (fnFunc.fname) {
