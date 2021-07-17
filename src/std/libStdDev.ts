@@ -3,6 +3,7 @@
 ///<reference path='./_DOpusDefinitions.d.ts' />
 ///<reference path='./libSprintf.js' />
 
+DOpus.clearOutput();
 
 /**
  * # What is this file?
@@ -198,6 +199,23 @@ interface IResultMatcher {
     /** function to execute if result is error */
     err: Function
 }
+
+interface IOption<S> extends IShowableError<IOption<S>> {
+    some: S;
+    none: boolean;
+}
+/** constructor */
+declare var IOption: {
+    new (value: any): IOption<typeof value>;
+}
+/** Helper structure for Option */
+interface IOptionMatcher {
+    /** function to execute if some exists */
+    some: Function,
+    /** function to execute if none exists */
+    none: Function
+}
+
 
 /** Standard logger interface, implemented in libLogger.ts. */
 interface ILogger extends IShowableError<string> {
@@ -725,12 +743,12 @@ namespace g {
         }
         // note this one does not allow any falsy value for OK at all
         // isOk()     { return !!this.ok; }
-        isOk()     { return typeof this.ok !== 'undefined'; }
+        isOk()      { return typeof this.ok !== 'undefined'; }
         // note this one allows falsy values - '', 0, {}, []... - for OK - USE SPARINGLY
         // isValid()  { return !this.err; }
         // isErr()    { return !!this.err; }
-        isErr()    { return typeof this.err !== 'undefined'; }
-        toString() { return JSON.stringify(this, null, 4); }
+        isErr()     { return typeof this.err !== 'undefined'; }
+        toString()  { return JSON.stringify(this, null, 4); }
         toExString() {
             return (this.err as unknown as UserException).toString();
         }
@@ -755,6 +773,32 @@ namespace g {
             g.showMessageDialog(null, err);
             return this;
         }
+    }
+
+    export class Option<S> implements IOption<S> {
+        some: S;
+        none: boolean;
+        constructor(oSomeValue: S) {
+            this.some = oSomeValue;
+            this.none = typeof oSomeValue === 'undefined';
+        }
+        isSome()    { return typeof this.some !== 'undefined' }
+        isNone()    { return this.none }
+        toString()  { return JSON.stringify(this, null, 4) }
+        show(): IOption<S> {
+            if (!this.isNone()) {
+                return this;
+            }
+            if (ERROR_MODE !== ERROR_MODES.ALL_RESULTS) {
+                logger.error(this.toString());
+                return this;
+            }
+            const msg = this.toString();
+            logger.error(msg);
+            g.showMessageDialog(null, msg);
+            return this;
+        }
+
     }
 
     export class UserException implements IException<ex>, IShowableError<UserException> {
