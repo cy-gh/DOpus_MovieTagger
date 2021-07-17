@@ -1551,11 +1551,14 @@ function _initColumns(initData: DOpusScriptInitData) {
 
     const colPrefix = scriptMeta.CUSTCOL_LABEL_PREFIX;
 
-    let extConfig: ExtConfigType;
-    let extConfigRes = config.ScriptExt.getInstance(initData).getPOJOFromFile(CfgE.EXT_CONFIG_POJO, g.SCRIPTSDIR + scriptMeta.NAME + '.json');
+    var extConfig: ExtConfigType;
+    const expectedJSONPath = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
+    let extConfigRes = config.ScriptExt.getInstance(initData).getPOJOFromFile<ExtConfigType>(CfgE.EXT_CONFIG_POJO, expectedJSONPath);
     if (extConfigRes.isErr()) {
+        logger.swarn('%s -- ignoring invalid external JSON: %s', fname, expectedJSONPath);
         extConfig = {};
     } else {
+        logger.snormal('%s -- using external JSON: %s', fname, expectedJSONPath);
         extConfig = extConfigRes.ok;
     }
 
@@ -1587,7 +1590,7 @@ function _initColumns(initData: DOpusScriptInitData) {
             colExt.method      = OnMExt_MultiColRead.fname;
             colExt.name        = scriptMeta.CUSTCOL_NAME_PREFIX + ecitem;
             // @ts-ignore
-            colExt.label       = (extConfig.colPrefix || colPrefix) // are you kidding me TypeScript?!
+            colExt.label       = (extConfig.colPrefix || colPrefix) // are you kidding me TypeScript?! it's exactly the same as above!
                                 + (typeof extConfig.colRepl === 'object' && extConfig.colRepl[ecitem]);
             colExt.justify     = ColumnJustify.Left;
             colExt.autoGroup   = true;
@@ -1693,8 +1696,14 @@ function CustomCommand() {
 
     DOpus.clearOutput();
     // DOpus.output('whole config: ' + config.User.getInstance().toString());
-    const isConfigValid = config.User.getInstance().isUserConfigValid();
-    DOpus.output('isUserConfigValid: ' + isConfigValid);
+    const isUserConfigValid = config.User.getInstance().isUserConfigValid();
+    DOpus.output('isUserConfigValid: ' + isUserConfigValid);
+    const isExtConfigValid = config.ScriptExt.getInstance().isUserConfigValid();
+    DOpus.output('isExtConfigValid: ' + isExtConfigValid);
+
+    // logger.sforce('%s -- ext pojo: %s', fname, config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO));
+    // logger.sforce('%s -- ext pojo2: %s', fname, JSON.stringify(config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO), null, 4));
+
 
     logger.sforce('%s -- finished', fname);
 }

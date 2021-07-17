@@ -347,7 +347,7 @@ namespace config {
                 const key: string = e.item();
                 const keyMeta = this.getConfigKeyMeta(key);
 
-                this.logger.sforce(
+                this.logger.snormal(
                     'FINALIZE -- key: %s, type: %s, default: %s, group: %s, desc: %s',
                     key,
                     keyMeta.get(MetaField.TYPE),
@@ -357,10 +357,9 @@ namespace config {
                 );
                 // do not add hidden fields to UI
                 if (keyMeta.get(MetaField.HIDE)) {
-                    this.logger.sforce('Skipping hidden field: ' + key);
+                    this.logger.swarn('Skipping hidden field: ' + key);
                     continue;
                 }
-
                 this.initData.config[key] = keyMeta.get(MetaField.DEFAULT); // set the default value shown in UI
                 config_groups.set(key, keyMeta.get(MetaField.GROUP)||'');
                 config_desc.set(key, keyMeta.get(MetaField.DESC)||'');
@@ -447,6 +446,8 @@ namespace config {
 
         /** checks all current values, returns true if all are valid, and list of invalid keys if not  */
         isUserConfigValid(): IResult<true, string[]> {
+            const fname = this.isUserConfigValid.fname = nsName + '.isUserConfigValid';
+
             let invalidKeys: string[] = [];
             for (let e = new Enumerator(this.getConfigKeysMetaMap()); !e.atEnd(); e.moveNext()) {
                 const key = e.item();
@@ -454,9 +455,15 @@ namespace config {
                 if (keyMeta.get(MetaField.TYPE) === TYPE.DROPDOWN) {
                     continue; // dropdowns are always valid, because they cannot be freely-changed
                 }
-                const currentValue = this.deserialize( this.getConfig()[key], keyMeta.get(MetaField.TYPE));
+                // hidden values cannot be accessed via this.getConfig()[key]
+                let currentValue;
+                if (keyMeta.get(MetaField.HIDE)) {
+                    currentValue = this.getValue(key, keyMeta.get(MetaField.TYPE)).ok;
+                } else {
+                    currentValue = this.deserialize( this.getConfig()[key], keyMeta.get(MetaField.TYPE));
+                }
                 if ( !this.isValid( currentValue, keyMeta.get(MetaField.TYPE) ) ) {
-                    DOpus.output('key: ' + key + ', raw val: ' + this.getConfig()[key] + ', typeof deserialize currentValue: ' + typeof currentValue + ', expected: ' + keyMeta.get(MetaField.TYPE));
+                    logger.swarn('%s -- ', fname, ('key: ' + key + ', raw val: ' + this.getConfig()[key] + ', typeof deserialize currentValue: ' + typeof currentValue + ', expected: ' + keyMeta.get(MetaField.TYPE)));
                     invalidKeys.push(key);
                 }
             }
@@ -562,15 +569,10 @@ namespace config {
             g.abortWith(Exc(ex.DeveloperStupidity, fname, 'You cannot call this method without initData during OnInit()').err);
         }
 
-        getPOJOFromFile(key: string, filepath: string): IResult<object, IException<ex>> {
+        getPOJOFromFile<T>(key: string, filepath: string): IResult<T, IException<ex>> {
             const fname = this.getPOJOFromFile.fname = this.myName + '.getPOJOFromFile';
             // the messages in this method are crucial for script initialization
             // therefore they ignore the logger level by using 'force' methods
-
-            // return g.ResultErr(Exc(ex.Uninitialized, fname, 'Value of ' + key + ' is not set yet')).show();
-
-            var msg: string,
-                parsed: string;
             if (!DOpus.fsUtil().exists(filepath)) {
                 this.logger.force('Skipping external config, not found: ' + filepath);
                 return g.ResultOk({});
@@ -584,12 +586,12 @@ namespace config {
             this.logger.verbose('external config contents:\n' + resReadFile.ok);
 
             // test parseability
+            let parsed: T;
             try {
                 parsed = JSON.parse(resReadFile.ok);
                 this.logger.normal('...external config is valid JSON');
             } catch(e) {
-                msg = 'External config exists but is not valid JSON, ignoring\n\nerror: ' + e.toString() + '\nfile: ' + filepath;
-                return g.ResultErr(Exc(ex.FileRead, fname, msg)).show();
+                return g.ResultErr(Exc(ex.FileRead, fname, 'External config exists but is invalid JSON, ignoring file\n\nerror: ' + e.toString() + '\nfile: ' + filepath)).show();
             }
             var addRes = super.addValue(key, config.TYPE.POJO, parsed, '', '', true, false);
             if (addRes.isErr()) {
