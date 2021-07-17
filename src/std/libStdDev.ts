@@ -3,7 +3,6 @@
 ///<reference path='./_DOpusDefinitions.d.ts' />
 ///<reference path='./libSprintf.js' />
 
-DOpus.clearOutput();
 
 /**
  * # What is this file?

@@ -3,7 +3,6 @@
 /* eslint-disable no-inner-declarations */
 /* global ActiveXObject Enumerator DOpus Script */
 /* eslint indent: [2, 4, {"SwitchCase": 1}] */
-
 ///<reference path='./std/libStdDev.ts' />
 ///<reference path='./libs/formatters.ts' />
 ///<reference path='./libs/libCache.ts' />
@@ -16,6 +15,7 @@
 
 // use CTRL-SHIFT-B to build - you must have npx.cmd in your path
 
+// DOpus.output('<b>Script parsing started</b>');
 
 
 
@@ -47,17 +47,14 @@ const scriptMeta: ScriptMeta = {
 }
 
 
-// TODO - REMOVE
-// temporary vars
+// TODO - REMOVE - temporary vars
 var logger = libLogger.current;
-var cfg = config.user;
-var ext = config.ext;
 scriptMeta.NAME = 'cuMovieTagger';
 scriptMeta.NAME = 'DOpus_MovieTagger';
 scriptMeta.NAME_SHORT = 'DMT';
 
 
-enum CfgV {
+enum CfgU {
     DEBUG_LEVEL                         = 'DEBUG_LEVEL',
     FORCE_REFRESH_AFTER_UPDATE          = 'FORCE_REFRESH_AFTER_UPDATE',
     MEDIAINFO_PATH                      = 'MEDIAINFO_PATH',
@@ -99,11 +96,12 @@ enum CfgV {
 
     META_STREAM_NAME                    = 'META_STREAM_NAME',
     NAME_CLEANUP                        = 'NAME_CLEANUP',
-
+}
+enum CfgE {
     EXT_CONFIG_POJO                     = 'EXT_CONFIG_POJO',
 }
 
-const CfgVGroups: { [key in CfgV]: string } = {
+const CfgVGroups: { [key in CfgU]: string } = {
     DEBUG_LEVEL                         : 'Listers',
     FORCE_REFRESH_AFTER_UPDATE          : 'Listers',
     MEDIAINFO_PATH                      : 'Paths',
@@ -134,19 +132,19 @@ const CfgVGroups: { [key in CfgV]: string } = {
     FORMATS_REGEX_LOSSLESS              : 'Formatting / ADS Update Necessary',
     FORMATS_REGEX_LOSSY                 : 'Formatting / ADS Update Necessary',
 
-    REF_ALL_AVAILABLE_FIELDS            : 'Reference Only - Changes ignored',
-    REF_LOOKUP_RESOLUTIONS              : 'Reference Only - Changes ignored',
-    REF_LOOKUP_DURATION_GROUPS          : 'Reference Only - Changes ignored',
-    REF_LOOKUP_CODECS                   : 'Reference Only - Changes ignored',
-    REF_LOOKUP_CHANNELS                 : 'Reference Only - Changes ignored',
-    REF_CONFIG_FILE                     : 'Reference Only - Changes ignored',
-    REF_NAME_CLEANUP                    : 'Reference Only - Changes ignored',
+    REF_ALL_AVAILABLE_FIELDS            : 'zReference Only - Changes ignored',
+    REF_LOOKUP_RESOLUTIONS              : 'zReference Only - Changes ignored',
+    REF_LOOKUP_DURATION_GROUPS          : 'zReference Only - Changes ignored',
+    REF_LOOKUP_CODECS                   : 'zReference Only - Changes ignored',
+    REF_LOOKUP_CHANNELS                 : 'zReference Only - Changes ignored',
+    REF_CONFIG_FILE                     : 'zReference Only - Changes ignored',
+    REF_NAME_CLEANUP                    : 'zReference Only - Changes ignored',
 
     META_STREAM_NAME                    : 'zzDO NOT CHANGE UNLESS NECESSARY',
-    NAME_CLEANUP                        : 'zzInternal Use',
+    NAME_CLEANUP                        : 'zReserved',
 }
 
-const CfgVDescs: { [key in CfgV]: string } = {
+const CfgVDescs: { [key in CfgU]: string } = {
     DEBUG_LEVEL                         : 'Level of output messages in the Script Log (aka Output Log) shown by the script.\nLevels INFO & VERBOSE might slow down/freeze your DOpus',
     FORCE_REFRESH_AFTER_UPDATE          : 'Force refresh lister after updating metadata (retains current selection)',
     MEDIAINFO_PATH                      : 'Path to MediaInfo.exe; folder aliases and %envvar% are auto-resolved\nportable/CLI version can be downloaded from https://mediaarea.net/en/MediaInfo/Download/Windows',
@@ -198,7 +196,6 @@ type CommandTemplate = {
     desc  : string,
     hide? : boolean
 }
-
 const AllCommands: { [key: string]: CommandTemplate } = {
     /*
         Available icon names, used by GetIcon()
@@ -344,8 +341,6 @@ const AllCommands: { [key: string]: CommandTemplate } = {
     },
 
 }
-
-
 
 enum ColumnJustify {
     Left  = 'left',
@@ -737,11 +732,12 @@ const AllColumns: { [key: string]: ColumnTemplate } = {
 
 
 // CONFIG - DEFAULT VALUES
-function _initConfigDefaults(initData: DOpusScriptInitData) {
+// function _initConfigDefaults(initData: DOpusScriptInitData) {
+function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
     _initConfigDefaults.fname = 'setupConfigVars';
 
-    cfg.setInitData(initData).setLogger(logger);
-    ext.setInitData(initData).setLogger(logger);
+    // cfg.setInitData(initData).setLogger(logger);
+    // ext.setInitData(initData).setLogger(logger);
 
     /**
      * Name of the ADS stream, can be also used via "dir /:" or "type file:stream_name" commands
@@ -754,21 +750,22 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
      * and an army of thousands ghosts will haunt you for the rest of your life, you wouldn't like that mess
      *
      */
-    cfg.addValue(
-        CfgV.META_STREAM_NAME,
+    usr.addValue(
+        CfgU.META_STREAM_NAME,
         config.TYPE.STRING,
         'MExt_MediaInfo',
-        CfgVGroups[CfgV.META_STREAM_NAME],
-        CfgVDescs[CfgV.META_STREAM_NAME]
+        CfgVGroups[CfgU.META_STREAM_NAME],
+        CfgVDescs[CfgU.META_STREAM_NAME]
     ).show();
 
 
-    cfg.addValue(
-        CfgV.MEDIAINFO_PATH,
+    usr.addValue(
+        CfgU.MEDIAINFO_PATH,
         config.TYPE.PATH,
-        '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe',
-        CfgVGroups[CfgV.MEDIAINFO_PATH],
-        CfgVDescs[CfgV.MEDIAINFO_PATH],
+        // '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe',
+        '/programfiles/MediaInfo/MediaInfo2.exe',
+        CfgVGroups[CfgU.MEDIAINFO_PATH],
+        CfgVDescs[CfgU.MEDIAINFO_PATH],
         true // bypass=true - otherwise people will get an error on initial installation
     );
 
@@ -776,12 +773,12 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
     var _vDebugLevels = DOpus.create().vector();
     _vDebugLevels.push_back(logger.getLevelIndex().show().ok); // try to ignore Error in this case, we know logger is safe
     _vDebugLevels.append(logger.getLevels());
-    cfg.addValue(
-        CfgV.DEBUG_LEVEL,
+    usr.addValue(
+        CfgU.DEBUG_LEVEL,
         config.TYPE.DROPDOWN,
         _vDebugLevels,
-        CfgVGroups[CfgV.DEBUG_LEVEL],
-        CfgVDescs[CfgV.DEBUG_LEVEL]
+        CfgVGroups[CfgU.DEBUG_LEVEL],
+        CfgVDescs[CfgU.DEBUG_LEVEL]
     );
 
 
@@ -796,23 +793,23 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
      * however, also keep in mind the read time per size DOES NOT DEPEND ON THE FILE SIZE
      * the refresh time is relational to the NUMBER OF FILES and speed of your hdd/sdd/nvme/ramdisk/potato
      */
-     cfg.addValue(
-        CfgV.FORCE_REFRESH_AFTER_UPDATE,
+     usr.addValue(
+        CfgU.FORCE_REFRESH_AFTER_UPDATE,
         config.TYPE.BOOLEAN,
         true,
-        CfgVGroups[CfgV.FORCE_REFRESH_AFTER_UPDATE],
-        CfgVDescs[CfgV.FORCE_REFRESH_AFTER_UPDATE]
+        CfgVGroups[CfgU.FORCE_REFRESH_AFTER_UPDATE],
+        CfgVDescs[CfgU.FORCE_REFRESH_AFTER_UPDATE]
     );
 
 
 
     /** keep the original "last modified timestamp" after updating/deleting ADS; TRUE highly recommended */
-    cfg.addValue(
-        CfgV.KEEP_ORIG_MODTS,
+    usr.addValue(
+        CfgU.KEEP_ORIG_MODTS,
         config.TYPE.BOOLEAN,
         true,
-        CfgVGroups[CfgV.KEEP_ORIG_MODTS],
-        CfgVDescs[CfgV.KEEP_ORIG_MODTS]
+        CfgVGroups[CfgU.KEEP_ORIG_MODTS],
+        CfgVDescs[CfgU.KEEP_ORIG_MODTS]
     );
 
     /**
@@ -839,12 +836,12 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
      *
      * to avoid high mem usage you can manually call the CLEARCACHE command via button, menu...
      */
-    cfg.addValue(
-        CfgV.CACHE_ENABLED,
+    usr.addValue(
+        CfgU.CACHE_ENABLED,
         config.TYPE.BOOLEAN,
         true,
-        CfgVGroups[CfgV.CACHE_ENABLED],
-        CfgVDescs[CfgV.CACHE_ENABLED]
+        CfgVGroups[CfgU.CACHE_ENABLED],
+        CfgVDescs[CfgU.CACHE_ENABLED]
     );
 
 
@@ -910,11 +907,11 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
         "MExt_ADSDataFormatted"           : "verbose",
         "MExt_ADSDataRaw"                 : "verbose"
     }`;
-    cfg.addValue(
-        CfgV.REF_ALL_AVAILABLE_FIELDS,
+    usr.addValue(
+        CfgU.REF_ALL_AVAILABLE_FIELDS,
         config.TYPE.STRING,
         fields_base_reference.normalizeLeadingWhiteSpace(),
-        CfgVGroups[CfgV.REF_ALL_AVAILABLE_FIELDS]
+        CfgVGroups[CfgU.REF_ALL_AVAILABLE_FIELDS]
     );
 
     fields_base_reference = JSON.parse(fields_base_reference);
@@ -927,61 +924,61 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
         }
     };
 
-    cfg.addValue(
-        CfgV.TOGGLEABLE_FIELDS_ESSENTIAL,
+    usr.addValue(
+        CfgU.TOGGLEABLE_FIELDS_ESSENTIAL,
         config.TYPE.ARRAY,
         fields_essential,
-        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL],
-        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL]
+        CfgVGroups[CfgU.TOGGLEABLE_FIELDS_ESSENTIAL],
+        CfgVDescs[CfgU.TOGGLEABLE_FIELDS_ESSENTIAL]
     );
-    cfg.addValue(
-        CfgV.TOGGLEABLE_FIELDS_OPTIONAL,
+    usr.addValue(
+        CfgU.TOGGLEABLE_FIELDS_OPTIONAL,
         config.TYPE.ARRAY,
         fields_optional,
-        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OPTIONAL],
-        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_OPTIONAL]
+        CfgVGroups[CfgU.TOGGLEABLE_FIELDS_OPTIONAL],
+        CfgVDescs[CfgU.TOGGLEABLE_FIELDS_OPTIONAL]
     );
-    cfg.addValue(
-        CfgV.TOGGLEABLE_FIELDS_OTHER,
+    usr.addValue(
+        CfgU.TOGGLEABLE_FIELDS_OTHER,
         config.TYPE.ARRAY,
         fields_other,
-        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OTHER],
-        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_OTHER]
+        CfgVGroups[CfgU.TOGGLEABLE_FIELDS_OTHER],
+        CfgVDescs[CfgU.TOGGLEABLE_FIELDS_OTHER]
     );
-    cfg.addValue(
-        CfgV.TOGGLEABLE_FIELDS_VERBOSE,
+    usr.addValue(
+        CfgU.TOGGLEABLE_FIELDS_VERBOSE,
         config.TYPE.ARRAY,
         fields_verbose,
-        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_VERBOSE],
-        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_VERBOSE]
+        CfgVGroups[CfgU.TOGGLEABLE_FIELDS_VERBOSE],
+        CfgVDescs[CfgU.TOGGLEABLE_FIELDS_VERBOSE]
     );
-    cfg.addValue(
-        CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER,
+    usr.addValue(
+        CfgU.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER,
         config.TYPE.STRING,
         'Comments',
-        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER],
-        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER]
+        CfgVGroups[CfgU.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER],
+        CfgVDescs[CfgU.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER]
     );
-    cfg.addValue(
-        CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER,
+    usr.addValue(
+        CfgU.TOGGLEABLE_FIELDS_OPTIONAL_AFTER,
         config.TYPE.STRING,
         'MExt_SubtitleLang',
-        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER],
-        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_OPTIONAL_AFTER]
+        CfgVGroups[CfgU.TOGGLEABLE_FIELDS_OPTIONAL_AFTER],
+        CfgVDescs[CfgU.TOGGLEABLE_FIELDS_OPTIONAL_AFTER]
     );
-    cfg.addValue(
-        CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER,
+    usr.addValue(
+        CfgU.TOGGLEABLE_FIELDS_OTHER_AFTER,
         config.TYPE.STRING,
         '',
-        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER],
-        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_OTHER_AFTER]
+        CfgVGroups[CfgU.TOGGLEABLE_FIELDS_OTHER_AFTER],
+        CfgVDescs[CfgU.TOGGLEABLE_FIELDS_OTHER_AFTER]
     );
-    cfg.addValue(
-        CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER,
+    usr.addValue(
+        CfgU.TOGGLEABLE_FIELDS_VERBOSE_AFTER,
         config.TYPE.STRING,
         '',
-        CfgVGroups[CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER],
-        CfgVDescs[CfgV.TOGGLEABLE_FIELDS_VERBOSE_AFTER]
+        CfgVGroups[CfgU.TOGGLEABLE_FIELDS_VERBOSE_AFTER],
+        CfgVDescs[CfgU.TOGGLEABLE_FIELDS_VERBOSE_AFTER]
     );
 
 
@@ -1013,12 +1010,12 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
     //     lookup_resolutions.normalizeLeadingWhiteSpace(),
     //     CfgVGroups[CfgV.REF_LOOKUP_RESOLUTIONS]
     // );
-    cfg.addValue(
-        CfgV.LOOKUP_RESOLUTIONS,
+    usr.addValue(
+        CfgU.LOOKUP_RESOLUTIONS,
         config.TYPE.POJO,
         JSON.parse(lookup_resolutions),
-        CfgVGroups[CfgV.LOOKUP_RESOLUTIONS],
-        CfgVDescs[CfgV.LOOKUP_RESOLUTIONS]
+        CfgVGroups[CfgU.LOOKUP_RESOLUTIONS],
+        CfgVDescs[CfgU.LOOKUP_RESOLUTIONS]
     );
 
 
@@ -1058,12 +1055,12 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
     //     lookup_duration_groups.normalizeLeadingWhiteSpace(),
     //     CfgVGroups[CfgV.REF_LOOKUP_DURATION_GROUPS]
     // );
-    cfg.addValue(
-        CfgV.LOOKUP_DURATION_GROUPS,
+    usr.addValue(
+        CfgU.LOOKUP_DURATION_GROUPS,
         config.TYPE.POJO,
         JSON.parse(lookup_duration_groups),
-        CfgVGroups[CfgV.LOOKUP_DURATION_GROUPS],
-        CfgVDescs[CfgV.LOOKUP_DURATION_GROUPS]
+        CfgVGroups[CfgU.LOOKUP_DURATION_GROUPS],
+        CfgVDescs[CfgU.LOOKUP_DURATION_GROUPS]
     );
 
     /**
@@ -1286,74 +1283,74 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
 
         // do not put , in the last line
     }`;
-    cfg.addValue(
-        CfgV.REF_LOOKUP_CODECS,
+    usr.addValue(
+        CfgU.REF_LOOKUP_CODECS,
         config.TYPE.STRING,
         lookup_codecs.normalizeLeadingWhiteSpace(),
-        CfgVGroups[CfgV.REF_LOOKUP_CODECS],
-        CfgVDescs[CfgV.REF_LOOKUP_CODECS]
+        CfgVGroups[CfgU.REF_LOOKUP_CODECS],
+        CfgVDescs[CfgU.REF_LOOKUP_CODECS]
     );
-    cfg.addValue(
-        CfgV.LOOKUP_CODECS,
+    usr.addValue(
+        CfgU.LOOKUP_CODECS,
         config.TYPE.POJO,
         JSON.parse(lookup_codecs),
-        CfgVGroups[CfgV.LOOKUP_CODECS],
-        CfgVDescs[CfgV.LOOKUP_CODECS]
+        CfgVGroups[CfgU.LOOKUP_CODECS],
+        CfgVDescs[CfgU.LOOKUP_CODECS]
     );
 
     /** use short variants of codecs, found via LOOKUP_CODECS */
-    cfg.addValue(
-        CfgV.CODEC_USE_SHORT_VARIANT,
+    usr.addValue(
+        CfgU.CODEC_USE_SHORT_VARIANT,
         config.TYPE.BOOLEAN,
         false,
-        CfgVGroups[CfgV.CODEC_USE_SHORT_VARIANT],
-        CfgVDescs[CfgV.CODEC_USE_SHORT_VARIANT]
+        CfgVGroups[CfgU.CODEC_USE_SHORT_VARIANT],
+        CfgVDescs[CfgU.CODEC_USE_SHORT_VARIANT]
     );
 
     /**
      * add container or codec-specific information to the container/video/audio codec fields automatically
      * e.g. if an AAC file is encoded with 'LC SBR' it is shown as 'AAC (LC SPR)'
      */
-    cfg.addValue(
-        CfgV.CODEC_APPEND_ADDINFO,
+    usr.addValue(
+        CfgU.CODEC_APPEND_ADDINFO,
         config.TYPE.BOOLEAN,
         true,
-        CfgVGroups[CfgV.CODEC_APPEND_ADDINFO],
-        CfgVDescs[CfgV.CODEC_APPEND_ADDINFO]
+        CfgVGroups[CfgU.CODEC_APPEND_ADDINFO],
+        CfgVDescs[CfgU.CODEC_APPEND_ADDINFO]
     );
 
     /** append '(Vertical)' to vertical  video resolutions */
-    cfg.addValue(
-        CfgV.RESOLUTION_APPEND_VERTICAL,
+    usr.addValue(
+        CfgU.RESOLUTION_APPEND_VERTICAL,
         config.TYPE.BOOLEAN,
         true,
-        CfgVGroups[CfgV.RESOLUTION_APPEND_VERTICAL],
-        CfgVDescs[CfgV.RESOLUTION_APPEND_VERTICAL]
+        CfgVGroups[CfgU.RESOLUTION_APPEND_VERTICAL],
+        CfgVDescs[CfgU.RESOLUTION_APPEND_VERTICAL]
     );
 
     /** Audio formats which do not store a VBR/CBR/ABR information separately but are VBR by definition */
-    cfg.addValue(
-        CfgV.FORMATS_REGEX_VBR,
+    usr.addValue(
+        CfgU.FORMATS_REGEX_VBR,
         config.TYPE.REGEXP,
         '/ALAC|Monkey\'s Audio|TAK|DSD/',
-        CfgVGroups[CfgV.FORMATS_REGEX_VBR],
-        CfgVDescs[CfgV.FORMATS_REGEX_VBR]
+        CfgVGroups[CfgU.FORMATS_REGEX_VBR],
+        CfgVDescs[CfgU.FORMATS_REGEX_VBR]
     );
 
     /** Audio formats which do not store a lossy/lossless information separately but are lossless by definition */
-    cfg.addValue(
-        CfgV.FORMATS_REGEX_LOSSLESS,
+    usr.addValue(
+        CfgU.FORMATS_REGEX_LOSSLESS,
         config.TYPE.REGEXP,
         '/ALAC|PCM|TTA|DSD/',
-        CfgVGroups[CfgV.FORMATS_REGEX_LOSSLESS],
-        CfgVDescs[CfgV.FORMATS_REGEX_LOSSLESS]
+        CfgVGroups[CfgU.FORMATS_REGEX_LOSSLESS],
+        CfgVDescs[CfgU.FORMATS_REGEX_LOSSLESS]
     );
-    cfg.addValue(
-        CfgV.FORMATS_REGEX_LOSSY,
+    usr.addValue(
+        CfgU.FORMATS_REGEX_LOSSY,
         config.TYPE.REGEXP,
         '/AMR/',
-        CfgVGroups[CfgV.FORMATS_REGEX_LOSSY],
-        CfgVDescs[CfgV.FORMATS_REGEX_LOSSY]
+        CfgVGroups[CfgU.FORMATS_REGEX_LOSSY],
+        CfgVDescs[CfgU.FORMATS_REGEX_LOSSY]
     );
 
     /** audio channels translation hash */
@@ -1387,29 +1384,29 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
 
         // do not put , in the last line
     }`;
-    cfg.addValue(
-        CfgV.REF_LOOKUP_CHANNELS,
+    usr.addValue(
+        CfgU.REF_LOOKUP_CHANNELS,
         config.TYPE.STRING,
         lookup_channels.normalizeLeadingWhiteSpace(),
-        CfgVGroups[CfgV.REF_LOOKUP_CHANNELS],
-        CfgVDescs[CfgV.REF_LOOKUP_CHANNELS]
+        CfgVGroups[CfgU.REF_LOOKUP_CHANNELS],
+        CfgVDescs[CfgU.REF_LOOKUP_CHANNELS]
     );
-    cfg.addValue(
-        CfgV.LOOKUP_CHANNELS,
+    usr.addValue(
+        CfgU.LOOKUP_CHANNELS,
         config.TYPE.POJO,
         JSON.parse(lookup_channels),
-        CfgVGroups[CfgV.LOOKUP_CHANNELS],
-        CfgVDescs[CfgV.LOOKUP_CHANNELS]
+        CfgVGroups[CfgU.LOOKUP_CHANNELS],
+        CfgVDescs[CfgU.LOOKUP_CHANNELS]
     );
 
 
     /** directory in which temporary files (selected_files_name.JSON) are created */
-    cfg.addValue(
-        CfgV.TEMP_FILES_DIR,
+    usr.addValue(
+        CfgU.TEMP_FILES_DIR,
         config.TYPE.PATH,
         '%TEMP%',
-        CfgVGroups[CfgV.TEMP_FILES_DIR],
-        CfgVDescs[CfgV.TEMP_FILES_DIR]
+        CfgVGroups[CfgU.TEMP_FILES_DIR],
+        CfgVDescs[CfgU.TEMP_FILES_DIR]
     );
 
 
@@ -1450,12 +1447,12 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
         }
         // do not put , in the last line
     }`.substituteVars();
-    cfg.addValue(
-        CfgV.REF_CONFIG_FILE,
+    usr.addValue(
+        CfgU.REF_CONFIG_FILE,
         config.TYPE.STRING,
         config_file_contents.normalizeLeadingWhiteSpace(),
-        CfgVGroups[CfgV.REF_CONFIG_FILE],
-        CfgVDescs[CfgV.REF_CONFIG_FILE]
+        CfgVGroups[CfgU.REF_CONFIG_FILE],
+        CfgVDescs[CfgU.REF_CONFIG_FILE]
     );
 
 
@@ -1487,28 +1484,22 @@ function _initConfigDefaults(initData: DOpusScriptInitData) {
         // do not put , in the last line
     }`;
     // cfg.addValue(CfgV.REF_NAME_CLEANUP, config.TYPE.STRING, name_cleanup.normalizeLeadingWhiteSpace(), CfgVGroups[CfgV.REF_NAME_CLEANUP]);
-    cfg.addValue(
-        CfgV.NAME_CLEANUP,
+    usr.addValue(
+        CfgU.NAME_CLEANUP,
         config.TYPE.POJO,
         JSON.parse(name_cleanup),
-        CfgVGroups[CfgV.NAME_CLEANUP],
-        CfgVDescs[CfgV.NAME_CLEANUP]
+        CfgVGroups[CfgU.NAME_CLEANUP],
+        CfgVDescs[CfgU.NAME_CLEANUP]
     );
 
 
 
     var ext_config_file = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
-    var res = ext.addPOJOFromFile(CfgV.EXT_CONFIG_POJO, ext_config_file).show();
+    var res = ext.addPOJOFromFile(CfgE.EXT_CONFIG_POJO, ext_config_file).show();
 
 
-    cfg.finalize();
+    usr.finalize();
     ext.finalize();
-
-    // DOpus.output('keys: ' + JSON.stringify(cfg.getKeys(), null, 4));
-    // let x = new Array([1, 2, 3]);
-    // DOpus.output('x: ' + Object.prototype.toString.call(x));
-    // DOpus.output('x: ' + Object.prototype.toString.call(new RegExp(/.+/g)));
-
 
 }
 
@@ -1549,13 +1540,14 @@ function _initCommands(initData: DOpusScriptInitData) {
 // internal method called by OnInit()
 function _initColumns(initData: DOpusScriptInitData) {
     const fname = _initColumns.fname = '_initColumns';
+    // return;
 
     logger.snormal('%s -- started', fname);
 
     var col,
         msg,
         colPrefix = scriptMeta.CUSTCOL_LABEL_PREFIX,
-        extConfigRes = ext.getValue(CfgV.EXT_CONFIG_POJO),
+        extConfigRes = config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO),
         extConfig;
 
     if (extConfigRes.isErr()) {
@@ -1616,11 +1608,17 @@ function _initColumns(initData: DOpusScriptInitData) {
 // eslint-disable-next-line no-unused-vars
 function OnInit(initData: DOpusScriptInitData) {
     DOpus.clearOutput();
+
     DOpus.output('<b>Script initialization started</b>');
 
+    // required to set up script meta data for UI and misc script variables, such as script name, isOSP...
     g.init(initData, scriptMeta);
 
-    _initConfigDefaults(initData);
+    var usr = config.User.getInstance(initData).setLogger(logger);
+    var ext = config.ScriptExt.getInstance(initData).setLogger(logger);
+
+    // _initConfigDefaults(initData);
+    _initConfigDefaults(usr, ext);
     _initCommands(initData);
     _initColumns(initData);
 
@@ -1673,7 +1671,7 @@ function CustomCommand() {
     logger.force('');
 
     // logger.force('cfg items: ' + cfg.getValue(CfgV.FORMATS_REGEX_VBR));
-    logger.force('cfg items: ' + cfg.getValue(CfgV.META_STREAM_NAME));
+    logger.force('cfg items: ' + config.User.getInstance().getValue(CfgU.META_STREAM_NAME));
 
     // DOpus.output('function in map - typeof: ' + typeof Script.vars.get('foo'));
     // DOpus.output('function in map: ' + Script.vars.get('foo'));
@@ -2820,102 +2818,103 @@ function OnME_ConfigValidate(scriptCmdData: DOpusScriptCommandData) {
 // internal wrapper method called by most methods
 // optionally shows a user dialog if configuration is invalid
 function validateConfigAndShowResult(debug: boolean, showValues: boolean, dialog: DOpusDialog, skipIfValid: boolean, validateDefaultValues = true): boolean {
-    const fname = validateConfigAndShowResult.fname = 'validateConfigAndShowResult';
-    var isValid = validateConfig(debug, showValues, validateDefaultValues);
-    if (!skipIfValid) {
-        var dlgConfirm		= dialog;
-        dlgConfirm.message  = scriptMeta.NAME + ' configuration is ' + (isValid ? 'valid' : 'invalid');
-        dlgConfirm.title	= scriptMeta.NAME + ' - Configuration Validation' ;
-        dlgConfirm.buttons	= 'OK';
-        // var ret =
-        dlgConfirm.show();
-    }
-    return isValid;
+    // const fname = validateConfigAndShowResult.fname = 'validateConfigAndShowResult';
+    // var isValid = validateConfig(debug, showValues, validateDefaultValues);
+    // if (!skipIfValid) {
+    //     var dlgConfirm		= dialog;
+    //     dlgConfirm.message  = scriptMeta.NAME + ' configuration is ' + (isValid ? 'valid' : 'invalid');
+    //     dlgConfirm.title	= scriptMeta.NAME + ' - Configuration Validation' ;
+    //     dlgConfirm.buttons	= 'OK';
+    //     // var ret =
+    //     dlgConfirm.show();
+    // }
+    // return isValid;
+    return true;
 }
 
 // internal method to validate the config - optionally validates script default values as well
 function validateConfig(debug: boolean, showValues: boolean, validateDefaultValues = true) {
-    const fname = validateConfig.fname = 'validateConfig';
-    if (debug) {
-        logger.force('validateConfig started - debug: ' + debug + ', showValues: ' + showValues);
-    } else {
-        logger.normal('validateConfig started - debug: ' + debug + ', showValues: ' + showValues);
-    }
+    // const fname = validateConfig.fname = 'validateConfig';
+    // if (debug) {
+    //     logger.force('validateConfig started - debug: ' + debug + ', showValues: ' + showValues);
+    // } else {
+    //     logger.normal('validateConfig started - debug: ' + debug + ', showValues: ' + showValues);
+    // }
 
-    // config.setErrorMode(config.modes.DIALOG); // TODO
+    // // config.setErrorMode(config.modes.DIALOG); // TODO
 
-    var configIsValid = true;
-    var alternativeValue = 'value not shown for brevity';
+    // var configIsValid = true;
+    // var alternativeValue = 'value not shown for brevity';
 
-    var cfgkeys = config.user.getKeys();
+    // var cfgkeys = config.user.getKeys();
 
-    if(validateDefaultValues) {
-        if(debug) {
-            logger.force('Number of items: ' + config.user.getCount() + ', matches actual keys count: ' + (config.user.getCount() == cfgkeys.length));
-            logger.force('');
-            logger.force('Dumping current config as string');
-        }
-        for (var i = 0; i < cfgkeys.length; i++) {
-            var k = cfgkeys[i],
-                t = config.user.getType(k),
-                // b = config.user.getBinding(k), // TODO
-                v = config.user.getValue(k, false),
-                iv= config.user.isValid(v, t);
-            configIsValid = configIsValid && iv;
-            if (debug) {
-                logger.force(
-                    g.sprintf(
-                        '#%02d key: %-30s type: %-15s bindTo: %-40s valid: %s  --  value: %s\n',
-                        i+1,
-                        k,
-                        t,
-                        // b,
-                        (iv ? iv : iv + ', expected: ' + t + ', found: ' + typeof v),
-                        (!!showValues ? v : alternativeValue)
-                    )
-                );
-            }
-        }
-    }
+    // if(validateDefaultValues) {
+    //     if(debug) {
+    //         logger.force('Number of items: ' + config.user.getCount() + ', matches actual keys count: ' + (config.user.getCount() == cfgkeys.length));
+    //         logger.force('');
+    //         logger.force('Dumping current config as string');
+    //     }
+    //     for (var i = 0; i < cfgkeys.length; i++) {
+    //         var k = cfgkeys[i],
+    //             t = config.user.getType(k),
+    //             // b = config.user.getBinding(k), // TODO
+    //             v = config.user.getValue(k, false),
+    //             iv= config.user.isValid(v, t);
+    //         configIsValid = configIsValid && iv;
+    //         if (debug) {
+    //             logger.force(
+    //                 g.sprintf(
+    //                     '#%02d key: %-30s type: %-15s bindTo: %-40s valid: %s  --  value: %s\n',
+    //                     i+1,
+    //                     k,
+    //                     t,
+    //                     // b,
+    //                     (iv ? iv : iv + ', expected: ' + t + ', found: ' + typeof v),
+    //                     (!!showValues ? v : alternativeValue)
+    //                 )
+    //             );
+    //         }
+    //     }
+    // }
 
 
-    if (debug) {
-        logger.force('');
-        logger.force('');
-        logger.force('');
-        logger.force('Checking bound values');
-    }
-    for (var i = 0; i < cfgkeys.length; i++) {
-        var k = cfgkeys[i],
-            t = config.user.getType(k),
-            // b = config.user.getBinding(k),
-            v = config.user.getValue(k, true),
-            iv= config.user.isValid(v, t);
-        configIsValid = configIsValid && iv;
-        if (debug) {
-            logger.force(
-                g.sprintf(
-                    '#%02d key: %-30s type: %-15s boundTo: %-40s valid: %s  --  bound value: %s\n',
-                    i+1,
-                    k,
-                    t,
-                    // b,
-                    (iv ? iv : iv + ', expected: ' + t + ', found: ' + typeof v + ' (boolean false is standard for invalid values)'),
-                    (showValues ? v : alternativeValue)
-                )
-            );
-        }
-    }
-    if (debug) {
-        logger.force('');
-        logger.force('');
-        logger.force('');
-        logger.force('validateConfig finished - config valid: ' + configIsValid);
-    } else {
-        logger.normal('validateConfig finished - config valid: ' + configIsValid);
-    }
+    // if (debug) {
+    //     logger.force('');
+    //     logger.force('');
+    //     logger.force('');
+    //     logger.force('Checking bound values');
+    // }
+    // for (var i = 0; i < cfgkeys.length; i++) {
+    //     var k = cfgkeys[i],
+    //         t = config.user.getType(k),
+    //         // b = config.user.getBinding(k),
+    //         v = config.user.getValue(k, true),
+    //         iv= config.user.isValid(v, t);
+    //     configIsValid = configIsValid && iv;
+    //     if (debug) {
+    //         logger.force(
+    //             g.sprintf(
+    //                 '#%02d key: %-30s type: %-15s boundTo: %-40s valid: %s  --  bound value: %s\n',
+    //                 i+1,
+    //                 k,
+    //                 t,
+    //                 // b,
+    //                 (iv ? iv : iv + ', expected: ' + t + ', found: ' + typeof v + ' (boolean false is standard for invalid values)'),
+    //                 (showValues ? v : alternativeValue)
+    //             )
+    //         );
+    //     }
+    // }
+    // if (debug) {
+    //     logger.force('');
+    //     logger.force('');
+    //     logger.force('');
+    //     logger.force('validateConfig finished - config valid: ' + configIsValid);
+    // } else {
+    //     logger.normal('validateConfig finished - config valid: ' + configIsValid);
+    // }
 
-    return configIsValid;
+    // return configIsValid;
 }
 
 
@@ -3049,3 +3048,7 @@ function OnME_TestMethod2(scriptCmdData: DOpusScriptCommandData) {
     // DOpus.ClearOutput();
     // // validateConfigAndShowResult(true, scriptCmdData.func.Dlg, false, true);
 }
+
+
+
+// DOpus.output('<b>Script parsing finished</b>');
