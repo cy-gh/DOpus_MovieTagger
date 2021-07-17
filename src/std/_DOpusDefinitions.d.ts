@@ -2694,15 +2694,15 @@ interface DOpusFavorites extends DOpusFavorite {
      *
      * * To add a separator, the parameters should be the type string sep, optionally followed by the insertion position (see below).
      *
-     * For example, `Favorites.Add("sep");`
+     * 	For example, `Favorites.Add("sep");`
      *
      * * To add a folder, the first parameter should be the string folder: followed by the name of the folder (as a single parameter), optionally followed by the insertion position.
      *
-     * For example, `Favorites.Add("folder:Picture Locations");`
+     * 	For example, `Favorites.Add("folder:Picture Locations");`
      *
      * * To add a new favorite, the first parameter can optionally be the name of the favorite, and the second parameter can be the path of the folder to add, or the name can be omitted and only the path can be provided. In either case you can optionally include the insertion position as the last parameter.
      *
-     * For example, `Favorites.Add("myfave", "c:\folder\path");or Favorites.Add("c:\folder\path");`
+     * 	For example, `Favorites.Add("myfave", "c:\folder\path");or Favorites.Add("c:\folder\path");`
      *
      * In all three cases the new item is added to the end by default, but you can optionally specify a position to insert the item somewhere else. E.g. specifying 0 for the insertion position would add it at the top of the list. You can provide either a number or another Favorite object.
      *
@@ -5291,14 +5291,14 @@ interface DOpusPath extends String {
     /**
      * Returns the drive number the path refers to (1=A, 2=B, etc.) or 0 if the path does not specify a drive. You can also change the drive letter of the path (while leaving the following path components alone) by modifying this value.
      */
-    readonly drive: number;
+    drive: number;
 
     /**
      * Returns the filename extension of the path (the sub-string extending from the last . in the final component to the end of the string). This method does not check if the path actually refers to a file.
      *
      * You can also change a path's file extension by setting this property (and strip the extension altogether by setting it to an empty string).
      */
-    readonly ext: string;
+    ext: string;
 
     /**
      * Returns the filename extension of the path, taking multi-part extensions into account. For example, ext might return ".rar" whereas ext_m would return ".part1.rar".
@@ -6190,9 +6190,6 @@ interface DOpusScriptCommandData {
  * @see {DOpusOnInit}
  */
 interface DOpusScriptConfig {
-
-    [key: string]: any;
-
     /**
      * The properties of the ScriptConfig object are entirely determined by the script itself.
      *
@@ -6207,7 +6204,7 @@ interface DOpusScriptConfig {
      * * **Multiple string options** - the variable type must be a Vector of strings
      * * **Drop-down list** - the variable type must be a Vector with an int as the first element (to specify the default selection), and strings for the remaining elements.
      */
-    readonly any: any;
+    [key: string]: any;
 
 }
 
@@ -7039,12 +7036,12 @@ interface DOpusTabGroups {
      * var tabGroups = DOpus.TabGroups;
      * var group = tabGroups.AddChildGroup("New Tab Group");
      * if (!group)
-     *   DOpus.Output("Group already exists");
+     * 	 DOpus.Output("Group already exists");
      * else {
-     *   group.desc = "Example description";
-     *   var tabs = group.tabs;
-     *   tabs.AddTab("C:\\");
-     *   tabGroups.Save();
+     * 	 group.desc = "Example description";
+     * 	 var tabs = group.tabs;
+     * 	 tabs.AddTab("C:\\");
+     * 	 tabGroups.Save();
      * }
      * ```
      *
@@ -7053,11 +7050,11 @@ interface DOpusTabGroups {
      * // This will not work correctly.
      * var group = DOpus.TabGroups.AddChildGroup("New Tab Group");
      * if (!group)
-     *   DOpus.Output("Group already exists");
+     * 	 DOpus.Output("Group already exists");
      * else {
-     *   group.desc = "Example description";
-     *   group.tabs.AddTab("C:\\");
-     *   DOpus.TabGroups.Save();
+     * 	 group.desc = "Example description";
+     * 	 group.tabs.AddTab("C:\\");
+     * 	 DOpus.TabGroups.Save();
      * }
      * ```
      * The second example will not work because the last line creates a second, unrelated snapshot of the current state, which is unaffected by the unsaved changes to the first snapshot, and then saves the second snapshot without making any changes to it.
@@ -7447,7 +7444,7 @@ interface DOpusUnorderedSet {
  * So for instance,
  * ```vbscript
  * For Each Var in DOpus.Vars
- *   DOpus.Output("Variable name = " & Var)
+ * 	DOpus.Output("Variable name = " & Var)
  * Next
  * ```
  *
