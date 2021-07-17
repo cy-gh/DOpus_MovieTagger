@@ -133,17 +133,6 @@
  * DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
  * DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
  * ```
- *
- * # Important
- *
- * Do not try to display any dialog during DOpus startup and until OnInit() finishes,
- * in case your initialization routine causes an error, your script might fail to initialize,
- * i.e. no such shenanigans:
- *
- * ```typescript
- * config.setErrorMode(config.error.DIALOG);
- * config.addSimple('i', false, config.type.NUMBER, false);
- * ```
  */
 namespace config {
     const nsName = 'config';
@@ -183,28 +172,14 @@ namespace config {
         JSON     = 'JSON',
     }
 
-    type ConfigItem = {
-        // /** this is the JS variable and UI name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
-        // key: string;
-        /** one of the supported types */
-        type: config.TYPE,
-        /** current internal (JS/TS) value of the config variable */
-        val: any,
-        /** default internal (JS/TS) value of the config variable */
-        default: any,
-        /** the group in the script config screen */
-        group?: string,
-        /** this is the description shown in the script config screen */
-        desc?: string
-    }
-
-    enum ConfigItemFields {
+    /** helps to formalize the access to DOpusMap fields via known fields */
+    enum MetaField {
         /** this is the JS variable and UI name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
         KEY     = 'KEY',
         /** one of the supported types */
         TYPE    = 'TYPE',
-        /** current internal (JS/TS) value of the config variable */
-        VAL     = 'VAL',
+        // /** current internal (JS/TS) value of the config variable */
+        // VAL     = 'VAL',
         /** default internal (JS/TS) value of the config variable */
         DEFAULT = 'DEFAULT',
         /** the group in the script config screen */
@@ -215,39 +190,7 @@ namespace config {
         HIDE    = 'HIDE',
     }
 
-    // interface DOpusMapExt extends DOpusMap {
-    //     map: DOpusMap;
-    // }
-    // class ConfigItemNew implements DOpusMapExt {
-    //     count: number;
-    //     empty: boolean;
-    //     length: number;
-    //     size: number;
-    //     map: DOpusMap;
-    //     constructor (key: string, type: config.TYPE, val?: any, def?: any, group = '', desc = '') {
-    //         var map = DOpus.create().map();
-    //         map.set(ConfigItemFields.KEY,       key);
-    //         map.set(ConfigItemFields.TYPE,      type);
-    //         map.set(ConfigItemFields.VAL,       val);
-    //         map.set(ConfigItemFields.DEFAULT,   def);
-    //         map.set(ConfigItemFields.GROUP,     group);
-    //         map.set(ConfigItemFields.DESC,      desc);
-    //         this.count  = map.count;
-    //         this.empty  = map.empty;
-    //         this.length = map.length;
-    //         this.size   = map.size;
-    //         this.map    = map;
-    //     }
-    //     assign(from?: DOpusMap)                 { throw new Error("Method not implemented."); }
-    //     clear()                                 { throw new Error("Method not implemented."); }
-    //     erase(key?: any)                        { throw new Error("Method not implemented."); }
-    //     merge(from?: DOpusMap)                  { throw new Error("Method not implemented."); }
-    //     exists(key?: any): boolean              { return this.map.exists(key); }
-    //     get(key: any)                           { return this.map.get(key); }
-    //     set(key: ConfigItemFields, val: any)    { this.map.set(key, val); }
-    // }
-
-    const MEMORY_MAP_NAME: string = 'SCRIPT_CONFIG_DUMP';
+    const CONFIG_KEYS_META_MAP_NAME: string = 'CONFIG_KEYS_META';
 
     class Base implements ILibrary<Base> {
         myName: string = 'Base';
@@ -259,25 +202,20 @@ namespace config {
             DOpus.output('Base Constructor called');
             if (initData) {
                 this.initData = initData;
-                this.initData.vars.set(MEMORY_MAP_NAME, DOpus.create().map()); // initialize memory map
+                this.initData.vars.set(CONFIG_KEYS_META_MAP_NAME, DOpus.create().map()); // initialize memory map
             }
         }
 
-        createConfigItem(key: string, type: config.TYPE, val?: any, def?: any, group = '', desc = '', hide = false):DOpusMap {
+        /** helps to formalize the access to DOpusMap fields via known fields */
+        createItemMeta(key: string, type: config.TYPE, def?: any, group = '', desc = '', hide = false):DOpusMap {
             var map = DOpus.create().map();
-            map.set(ConfigItemFields.KEY,       key);
-            map.set(ConfigItemFields.TYPE,      type);
-            map.set(ConfigItemFields.VAL,       val);
-            map.set(ConfigItemFields.DEFAULT,   def);
-            map.set(ConfigItemFields.GROUP,     group);
-            map.set(ConfigItemFields.DESC,      desc);
-            map.set(ConfigItemFields.HIDE,      hide);
+            map.set(MetaField.KEY,       key);
+            map.set(MetaField.TYPE,      type);
+            map.set(MetaField.DEFAULT,   def);
+            map.set(MetaField.GROUP,     group);
+            map.set(MetaField.DESC,      desc);
+            map.set(MetaField.HIDE,      hide);
             return map;
-        }
-
-
-        printMemMapSize() {
-            // DOpus.output('Mem map length: ' + (<DOpusMap>this.initData.vars.get(MEMORY_MAP_NAME)).length);
         }
 
         // interface implementation
@@ -286,11 +224,26 @@ namespace config {
             return this;
         }
 
-        private getCache(): DOpusVars {
-            return g.isInitializing() && this.initData && this.initData.vars
-                ? this.initData.vars.get(MEMORY_MAP_NAME)
-                : Script.vars.get(MEMORY_MAP_NAME);
+        /** gives access to actual configuration values */
+        private getConfig(): DOpusScriptConfig {
+            return g.isInitializing() && this.initData && this.initData.config
+                ? this.initData.config
+                : Script.config
         }
+
+        /** gives access to key meta information for all known keys */
+        private getConfigKeysMetaMap(): DOpusVars {
+            return g.isInitializing() && this.initData && this.initData.vars
+                ? this.initData.vars.get(CONFIG_KEYS_META_MAP_NAME)
+                : Script.vars.get(CONFIG_KEYS_META_MAP_NAME);
+        }
+
+        /** returns the meta information for a single key */
+        private getConfigKeyMeta(key: string): DOpusMap {
+            return this.getConfigKeysMetaMap().get(key);
+        }
+
+        /** serializes given value to string, so that it can be stored in memory */
         private serialize(val: any, type: config.TYPE): string {
             function regexpToJSON(regexp: RegExp): string {
                 // return '/' + regexp.source + '/' + regexp.flags; // does not work with JScript
@@ -303,10 +256,12 @@ namespace config {
                 case TYPE.ARRAY:
                 case TYPE.POJO: return pojoToJSON(val);
                 case TYPE.REGEXP: return regexpToJSON(val);
-                case TYPE.PATH: return '' + DOpus.fsUtil().resolve(val);
+                // do not show resolved values in UI // case TYPE.PATH: return '' + DOpus.fsUtil().resolve(val);
                 default: return val;
             }
         }
+
+        /** deserializes string to its proper type */
         private deserialize(val: string, type: config.TYPE): any {
             function safeConvertToRegexp(testString: string): RegExp | undefined {
                 try { return eval('new RegExp(' + testString + ');') } catch (e) { }
@@ -322,15 +277,6 @@ namespace config {
             }
         }
 
-
-        // private dumpMemoryCache() {
-        //     const cache = this.getCache();
-        //     for (var e = new Enumerator(cache); !e.atEnd(); e.moveNext()) {
-        //         var k = e.item();
-        //         DOpus.output(k + ': --' + JSON.stringify(cache.get(k), null, 4).slice(0,50) + '--');
-        //     }
-        // }
-
         /**
          * @param {string} key config key
          * @param {config.TYPE} type value type
@@ -340,52 +286,46 @@ namespace config {
          * @param {boolean=false} bypassValidation bypass validation
          * @param {boolean=true} bindToUI if the value should be bound to UI
          */
-        addValue(key: string, type: config.TYPE, val: any, group = '', desc = '', bypassValidation = false) : IResult<true, IException<ex>> {
+        addValue(key: string, type: config.TYPE, val: any, group = '', desc = '', hide = false, bypassValidation = false) : IResult<true, IException<ex>> {
             const fname = this.addValue.fname = nsName + '.addValue';
 
-            const cache = this.getCache();
+            const keysMetaMap = this.getConfigKeysMetaMap();
             if (!g.isInitializing()) {
                 return Exc(ex.DeveloperStupidity, fname, 'This method cannot be called outside OnInit() - key: ' + key).show();
             }
-            if (cache.exists(key)) {
+            if (keysMetaMap.exists(key)) {
                 return Exc(ex.KeyAlreadyExists, fname, key+' already exists').show();
             }
             if (!bypassValidation && !this.isValid(val, type)) {
                 return Exc(ex.InvalidParameterValue, fname, 'key: ' + key + ', type: ' + type + ' does not accept given value: ' + val).show();
             }
-            DOpus.output('Mem map length: ' + (<DOpusMap>this.initData.vars.get(MEMORY_MAP_NAME)).length);
-            this.getCache().set(key, JSON.stringify(<ConfigItem>{ type: type, val: this.serialize(val, type), default: this.serialize(val, type), group: group, desc: desc }));
+            keysMetaMap.set(key, this.createItemMeta(key, type, this.serialize(val, type), group, desc, hide));
             return g.ResultOk(true);
         }
 
+
         /**
          * auto-checks the current Script.config value this key is bound to
-         * and returns the current value if valid and default value if invalid
+         * and returns the current value if valid, and default value if invalid
          * @param {string} key config key
          * @param {boolean=true} autoGetDOpusValue get the Script.config value automatically, use false to get default value
          * @returns {any} config value
          */
         getValue(key: string, autoGetDOpusValue = true): IResult<any, IException<ex>> {
             const fname = this.getValue.fname = this.myName + '.getValue';
-
-            DOpus.output('isInitializing: ' + g.isInitializing());
-
-            if (!this.getCache().exists(key)) {
+            if (!this.getConfigKeysMetaMap().exists(key)) {
                 return g.ResultErr(Exc(ex.Uninitialized, fname, 'Value of ' + key + ' is not set yet')).show();
             }
-
-
-            let cfgItem: ConfigItem = JSON.parse(this.getCache().get(key));
+            let currentUserValue = this.getConfig()[key];
+            let keyMeta = this.getConfigKeyMeta(key);
             let retVal;
-            if (this.isValid(cfgItem.val, cfgItem.type)) {
-                retVal = this.deserialize(cfgItem.val, cfgItem.type);
+            if (this.isValid(currentUserValue, keyMeta.get(MetaField.TYPE))) {
+                retVal = this.deserialize(currentUserValue, keyMeta.get(MetaField.TYPE));
             } else if (autoGetDOpusValue) {
-                retVal = this.deserialize(cfgItem.default, cfgItem.type);
+                retVal = this.deserialize(keyMeta.get(MetaField.DEFAULT), keyMeta.get(MetaField.TYPE));
             }
-
             return g.ResultOk(retVal);
         }
-
 
         /**
          * Assigns the variables to their respective groups and assigns the descriptions to them.
@@ -402,91 +342,57 @@ namespace config {
             var config_groups = this.initData.config_groups || DOpus.create().map();
             var config_desc   = this.initData.config_desc   || DOpus.create().map();
 
-            // for (const key in this.items) {
-            //     const val:ConfigItem = this.items[key];
-            const cache = this.getCache();
-            for (var e = new Enumerator(cache); !e.atEnd(); e.moveNext()) {
-                const key:string = e.item();
-                const val:ConfigItem = JSON.parse(cache.get(key));
+            const keysMetaMap = this.getConfigKeysMetaMap();
+            for (var e = new Enumerator(keysMetaMap); !e.atEnd(); e.moveNext()) {
+                const key: string = e.item();
+                const keyMeta = this.getConfigKeyMeta(key);
 
                 this.logger.sforce(
-                    'FINALIZE -- key: %s, type: %s, val: %s, default: %s, group: %s, desc: %s',
+                    'FINALIZE -- key: %s, type: %s, default: %s, group: %s, desc: %s',
                     key,
-                    val.type,
-                    val.type !== TYPE.DROPDOWN ? val.val.toString().slice(0, 20) + '...' : 'Vector',
-                    ''|| (val.type !== TYPE.DROPDOWN ? val.default.toString().slice(0, 20) + '...' : 'Vector Default'),
-                    val.group,
-                    val.desc
+                    keyMeta.get(MetaField.TYPE),
+                    (keyMeta.get(MetaField.TYPE) !== TYPE.DROPDOWN ? (''+this.serialize(keyMeta.get(MetaField.DEFAULT), keyMeta.get(MetaField.TYPE))).slice(0, 20) : 'Vector Default'),
+                    keyMeta.get(MetaField.GROUP),
+                    keyMeta.get(MetaField.DESC).replace(/\r|\n/g, ' ')
                 );
+                // do not add hidden fields to UI
+                if (keyMeta.get(MetaField.HIDE)) {
+                    this.logger.sforce('Skipping hidden field: ' + key);
+                    continue;
+                }
 
-                this.initData.config[key] = val.val;
-                // this.initData.config[key] = val.type === TYPE.JSON ? JSON.stringify(val.val, null, 4).replace(/\n/mg, "\r\n") : val.val;
-                config_groups.set(key, val.group||'');
-                config_desc.set(key, val.desc||'');
+                this.initData.config[key] = keyMeta.get(MetaField.DEFAULT); // set the default value shown in UI
+                config_groups.set(key, keyMeta.get(MetaField.GROUP)||'');
+                config_desc.set(key, keyMeta.get(MetaField.DESC)||'');
             }
-            // this.initData.vars.set(MEMORY_VAR_NAME, JSON.stringify(this.items, null, 4));
             this.initData.config_groups = config_groups;
             this.initData.config_desc   = config_desc;
             return g.ResultOk(true);
         }
 
 
-        isUserConfigValid(): IResult<true, string[]> {
-            for(const key in this.getKeys()) {
-            }
-            return g.ResultOk(true);
-        }
-
-
-
-        convert(val: any, type: config.TYPE) {
-            function safeConvertToRegexp(testString: string): RegExp | undefined {
-                var res;
-                if (typeof testString === 'string') {
-                    try { res = eval('new RegExp(' + testString + ');') } catch (e) { }
-                }
-                return res;
-            }
-            function safeConvertToJSON(testString: string): Object | undefined {
-                var res;
-                if (typeof testString === 'string') {
-                    try { res = JSON.parse(testString); } catch (e) { }
-                }
-                return res;
-            }
-            switch (type) {
-                case TYPE.ARRAY:
-                case TYPE.POJO: return safeConvertToJSON(val);
-                case TYPE.REGEXP: return safeConvertToRegexp(val);
-                case TYPE.PATH: return '' + DOpus.fsUtil().resolve(val);
-                default: return val;
-            }
-        }
-
         /**
          * @param {string} key config key
          * @param {any} val config value
+         * @deprecated
          */
-        setValue(key: string, val: any): IResult<any, IException<ex>> {
-            const cache = this.getCache();
-
-            // if (!this.items.hasOwnProperty(key)) {
-            if (!cache.exists(key)) {
-                return Exc(ex.InvalidKey, this.setValue, key + ' does not exist').show();
+         setValue(key: string, val: any): IResult<any, IException<ex>> {
+            const fname = this.setValue.fname = nsName + '.setValue';
+            const keysMetaMap = this.getConfigKeysMetaMap();
+            if (!keysMetaMap.exists(key)) {
+                return Exc(ex.InvalidKey, fname, key + ' does not exist').show();
             }
-            var configItem: ConfigItem = JSON.parse(cache.get(key));
-            if (!this.isValid(val, configItem.type)) {
-                return Exc(ex.InvalidParameterType, this.setValue, key + ' must have type ' + configItem.type + ', given: ' + typeof val).show();
+            let keyMeta = this.getConfigKeyMeta(key);
+            if (!this.isValid(val, keyMeta.get(MetaField.TYPE))) {
+                return Exc(ex.InvalidParameterType, fname, key + ' must have type ' + keyMeta.get(MetaField.TYPE) + ', given: ' + typeof val).show();
             }
-            // this.items[key].val = val;
-            configItem.val = val;
-            cache.set(key, JSON.stringify(configItem));
+            this.getConfig()[key] = val; // set user config value
             return g.ResultOk();
         }
 
 
         /**
-         * @param {any} val config value - uses the type set by addXXX-methods
+         * @param {any} val value
          * @param {config.TYPE} type - use config.types
          * @returns {boolean} true if value conforms to given type
          */
@@ -522,7 +428,9 @@ namespace config {
                         return false;
                         }
                 case TYPE.REGEXP:
-                    if (typeof val !== 'string') {
+                    if (typeof val === 'object' && Object.prototype.toString.call(val) === '[object RegExp]') {
+                        return true;
+                    } else if (typeof val !== 'string') {
                         return false;
                     }
                     try { eval('new RegExp(' + val + ');'); return true; } catch (e) { return false }
@@ -537,44 +445,65 @@ namespace config {
             }
         }
 
+        /** checks all current values, returns true if all are valid, and list of invalid keys if not  */
+        isUserConfigValid(): IResult<true, string[]> {
+            let invalidKeys: string[] = [];
+            for (let e = new Enumerator(this.getConfigKeysMetaMap()); !e.atEnd(); e.moveNext()) {
+                const key = e.item();
+                const keyMeta = this.getConfigKeyMeta(key);
+                if (keyMeta.get(MetaField.TYPE) === TYPE.DROPDOWN) {
+                    continue; // dropdowns are always valid, because they cannot be freely-changed
+                }
+                const currentValue = this.deserialize( this.getConfig()[key], keyMeta.get(MetaField.TYPE));
+                if ( !this.isValid( currentValue, keyMeta.get(MetaField.TYPE) ) ) {
+                    DOpus.output('key: ' + key + ', raw val: ' + this.getConfig()[key] + ', typeof deserialize currentValue: ' + typeof currentValue + ', expected: ' + keyMeta.get(MetaField.TYPE));
+                    invalidKeys.push(key);
+                }
+            }
+            if (invalidKeys.length) {
+                return g.ResultErr(invalidKeys);
+            } else {
+                return g.ResultOk(true);
+            }
+        }
+
         /** @returns {string} stringified config */
         toString(): string {
-            var vals: { [k: string]: any } = {};
-            var cache = this.getCache();
-            for (var e = new Enumerator(cache); !e.atEnd(); e.moveNext()) {
-                var k = e.item();
-                vals[k] = JSON.parse(cache.get(k));
+            let vals: { [k: string]: any } = {};
+            for (let e = new Enumerator(this.getConfigKeysMetaMap()); !e.atEnd(); e.moveNext()) {
+                const key = e.item();
+                const keyMeta = this.getConfigKeyMeta(key);
+                // get the current value, and deserialize it using its type
+                vals[key] = this.deserialize(this.getConfig()[key], keyMeta.get(MetaField.TYPE));
             }
+            // and now serialize it as a whole -- not the most elegant solution, but eh..
             return JSON.stringify(vals, null, 4);
-            // var vals: { [k: string]: any } = {};
-            // for (var k in this.items) vals[k] = this.items[k].val;
-            // return JSON.stringify(vals, null, 4);
         }
 
         /** @returns {string[]} keys in the config */
         getKeys(): string[] {
-            var keys: string[] = [];
-            var cache = this.getCache();
-            for (var e = new Enumerator(cache); !e.atEnd(); e.moveNext()) {
-                var k = e.item();
-                keys.push(k);
+            let keys: string[] = [];
+            for (let e = new Enumerator(this.getConfigKeysMetaMap()); !e.atEnd(); e.moveNext()) {
+                keys.push(e.item());
             }
             return keys;
-            // return Object.keys(this.items);
         }
-
-        // /**
-        //  * @param {string} key config key
-        //  * @returns {IResult<config.TYPE, IException<ex>>} type of value
-        //  */
-        //  getType(key: string): IResult<config.TYPE, IException<ex>> {
-        //     if (!this.items[key]) {
-        //         return Exc(ex.InvalidKey, this.getType, key + ' does not exist').show();
-        //     }
-        //     return g.ResultOk(this.items[key].type);
-        // }
-
     }
+
+    /**
+     *
+     *
+     *
+     *
+     *
+     * ************************************************************************************************************************
+     *
+     *
+     *
+     *
+     *
+     *
+     */
 
 
     // not public, access via singleton below
@@ -587,16 +516,31 @@ namespace config {
         }
         // @ts-ignore
         static getInstance(initData?: DOpusScriptInitData): User {
+            const fname = User.getInstance.fname = nsName + '.User.getInstance';
             if (User.instance) {
                 return User.instance;
-            // } else if (initData) {
             } else {
+            // } else if (initData) {
                 return new User(initData);
             }
-            g.abortWith(Exc(ex.DeveloperStupidity, 'User.getInstance', 'You cannot call this method without initData during OnInit()').err);
+            g.abortWith(Exc(ex.DeveloperStupidity, fname, 'You cannot call this method without initData during OnInit()').err);
         }
     }
 
+    /**
+     *
+     *
+     *
+     *
+     *
+     * ************************************************************************************************************************
+     *
+     *
+     *
+     *
+     *
+     *
+     */
 
     // not public, access via singleton below
     export class ScriptExt extends Base {
@@ -608,32 +552,34 @@ namespace config {
         }
         // @ts-ignore
         static getInstance(initData?: DOpusScriptInitData): ScriptExt {
-            // return ScriptExt.instance || new ScriptExt(initData);
+            const fname = ScriptExt.getInstance.fname = nsName + '.ScriptExt.getInstance';
             if (ScriptExt.instance) {
                 return ScriptExt.instance;
-            // } else if (initData) {
             } else {
+            // } else if (initData) {
                 return new ScriptExt(initData);
             }
-            g.abortWith(Exc(ex.DeveloperStupidity, 'ScriptExt.getInstance', 'You cannot call this method without initData during OnInit()').err);
+            g.abortWith(Exc(ex.DeveloperStupidity, fname, 'You cannot call this method without initData during OnInit()').err);
         }
 
-        addPOJOFromFile(key: string, filepath: string) {
+        getPOJOFromFile(key: string, filepath: string): IResult<object, IException<ex>> {
+            const fname = this.getPOJOFromFile.fname = this.myName + '.getPOJOFromFile';
             // the messages in this method are crucial for script initialization
             // therefore they ignore the logger level by using 'force' methods
+
+            // return g.ResultErr(Exc(ex.Uninitialized, fname, 'Value of ' + key + ' is not set yet')).show();
+
             var msg: string,
                 parsed: string;
             if (!DOpus.fsUtil().exists(filepath)) {
-                msg = 'Skipping external config, not found: ' + filepath;
-                // super.showError(msg);
-                return g.ResultErr(msg).show();
+                this.logger.force('Skipping external config, not found: ' + filepath);
+                return g.ResultOk({});
             }
             this.logger.force('Using external config: ' + filepath);
 
             var resReadFile = fs.readFile(filepath);
             if (resReadFile.isErr()) {
-                // super.showError(resReadFile.err);
-                return g.ResultErr(resReadFile).show();
+                return g.ResultErr(Exc(ex.FileRead, fname, resReadFile.err)).show();
             }
             this.logger.verbose('external config contents:\n' + resReadFile.ok);
 
@@ -643,29 +589,15 @@ namespace config {
                 this.logger.normal('...external config is valid JSON');
             } catch(e) {
                 msg = 'External config exists but is not valid JSON, ignoring\n\nerror: ' + e.toString() + '\nfile: ' + filepath;
-                // super.showError(msg);
-                return g.ResultErr(msg).show();
+                return g.ResultErr(Exc(ex.FileRead, fname, msg)).show();
             }
-            return super.addValue(key, config.TYPE.POJO, parsed);
-        }
-        finalize(): IResult<true, IException<ex>> {
-            return Exc(ex.Uninitialized, 'Base.addValue', 'InitData has not been set yet, call setInitData() in your OnInit() first');
+            var addRes = super.addValue(key, config.TYPE.POJO, parsed, '', '', true, false);
+            if (addRes.isErr()) {
+                return g.ResultErr(addRes.err).show();
+            }
+            return g.ResultOk(parsed);
         }
 
     }
-
-
-    // export function getInstance(type: User|ScriptExt) {
-    //     if (type === User) {
-    //         return User.get
-    //     }
-    // }
-
-
-    // /** Singleton access to user configurable parameters i.e. via DOpus settings screen. */
-    // export const user = new User();
-
-    /** Singleton access to external configuration, i.e. JSON-based config files accessible during script initialization. */
-    // export const ext = new ScriptExt();
 
 }

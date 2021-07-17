@@ -857,7 +857,7 @@ namespace g {
     export function isInitializing(): boolean {
         // during initialization (via OnInit() in main script)
         // Script.vars is not available (initData.vars is though)
-        return !Script || !Script.vars;
+        return typeof Script.vars === 'undefined';
     }
 
     export function getScriptPathVars(): IResult<{ fullpath: string; path: string; isOSP: boolean; }, IException<ex>> {

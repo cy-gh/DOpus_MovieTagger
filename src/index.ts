@@ -730,6 +730,11 @@ const AllColumns: { [key: string]: ColumnTemplate } = {
 
 }
 
+type ExtConfigType = {
+    colPrefix?: string,
+    colRepl?  : { [key: string]: string },
+    colExtra? : { [key: string]: string }
+}
 
 // CONFIG - DEFAULT VALUES
 // function _initConfigDefaults(initData: DOpusScriptInitData) {
@@ -763,9 +768,10 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
         CfgU.MEDIAINFO_PATH,
         config.TYPE.PATH,
         // '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe',
-        '/programfiles/MediaInfo/MediaInfo2.exe',
+        '/programfiles/MediaInfo/MediaInfo.exe',
         CfgVGroups[CfgU.MEDIAINFO_PATH],
         CfgVDescs[CfgU.MEDIAINFO_PATH],
+        false, // hide=false
         true // bypass=true - otherwise people will get an error on initial installation
     );
 
@@ -1494,12 +1500,12 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
 
 
 
-    var ext_config_file = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
-    var res = ext.addPOJOFromFile(CfgE.EXT_CONFIG_POJO, ext_config_file).show();
-
+    // ext.addValue(CfgE.EXT_CONFIG_POJO, config.TYPE.POJO, {}, '', '', true, false);
+    // var ext_config_file = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
+    // var res = ext.addPOJOFromFile(CfgE.EXT_CONFIG_POJO, ext_config_file);
 
     usr.finalize();
-    ext.finalize();
+    // ext.finalize();
 
 }
 
@@ -1540,19 +1546,15 @@ function _initCommands(initData: DOpusScriptInitData) {
 // internal method called by OnInit()
 function _initColumns(initData: DOpusScriptInitData) {
     const fname = _initColumns.fname = '_initColumns';
-    // return;
 
     logger.snormal('%s -- started', fname);
 
-    var col,
-        msg,
-        colPrefix = scriptMeta.CUSTCOL_LABEL_PREFIX,
-        extConfigRes = config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO),
-        extConfig;
+    const colPrefix = scriptMeta.CUSTCOL_LABEL_PREFIX;
 
+    let extConfig: ExtConfigType;
+    let extConfigRes = config.ScriptExt.getInstance(initData).getPOJOFromFile(CfgE.EXT_CONFIG_POJO, g.SCRIPTSDIR + scriptMeta.NAME + '.json');
     if (extConfigRes.isErr()) {
-        msg = g.sprintf('%s -- External config file does not exist or is invalid JSON', fname);
-        g.abortWith(Exc(ex.InvalidJSON, fname, msg).err);
+        extConfig = {};
     } else {
         extConfig = extConfigRes.ok;
     }
@@ -1561,15 +1563,15 @@ function _initColumns(initData: DOpusScriptInitData) {
         if (Object.prototype.hasOwnProperty.call(AllColumns, columnName)) {
             const columnParams = AllColumns[columnName];
             logger.snormal('%s -- adding column: %s', fname, columnName);
-            col             = initData.addColumn();
-            col.method      = columnParams.func.fname;
-            col.name        = columnName;
-            col.label       = (extConfig && extConfig.colPrefix || colPrefix)
-                            + (extConfig && typeof extConfig.colRepl === 'object' && extConfig.colRepl[columnName] || columnParams.label);
-            col.justify     = columnParams.justify;
-            col.autoGroup   = columnParams.autoGroup;
-            col.autoRefresh = columnParams.autoRefresh;
-            col.multiCol    = columnParams.multiCol;
+            var colScript         = initData.addColumn();
+            colScript.method      = columnParams.func.fname;
+            colScript.name        = columnName;
+            colScript.label       = (extConfig.colPrefix || colPrefix)
+                                    + (typeof extConfig.colRepl === 'object' && extConfig.colRepl[columnName] || columnParams.label);
+            colScript.justify     = columnParams.justify;
+            colScript.autoGroup   = columnParams.autoGroup;
+            colScript.autoRefresh = columnParams.autoRefresh;
+            colScript.multiCol    = columnParams.multiCol;
         }
     }
 
@@ -1577,21 +1579,20 @@ function _initColumns(initData: DOpusScriptInitData) {
     // "colExtra": {
     //   "com_apple_quicktime_model": "Camera Make"
     // }
-    // var extConfig = config.get(CfgV.EXT_CONFIG_POJO);
-    if (typeof extConfig !== 'undefined' && typeof extConfig.colExtra === 'object') {
-        /** @type {DOpusMap} */
-        var colExtraMap = DOpus.create().map();
+    if (typeof extConfig.colExtra !== 'undefined') {
+        var colExtraMap: DOpusMap = DOpus.create().map();
         for(var ecitem in extConfig.colExtra) {
             logger.snormal('%s -- adding custom column with key: %s', fname, ecitem);
-            col             = initData.addColumn();
-            col.method      = OnMExt_MultiColRead.fname;
-            col.name        = scriptMeta.CUSTCOL_NAME_PREFIX + ecitem;
-            col.label       = (extConfig && extConfig.colPrefix || colPrefix)
-                            + (extConfig && typeof extConfig.colRepl === 'object' && extConfig.colRepl[ecitem]);
-            col.justify     = ColumnJustify.Left;
-            col.autoGroup   = true;
-            col.autoRefresh = true;
-            col.multiCol    = true;
+            var colExt         = initData.addColumn();
+            colExt.method      = OnMExt_MultiColRead.fname;
+            colExt.name        = scriptMeta.CUSTCOL_NAME_PREFIX + ecitem;
+            // @ts-ignore
+            colExt.label       = (extConfig.colPrefix || colPrefix) // are you kidding me TypeScript?!
+                                + (typeof extConfig.colRepl === 'object' && extConfig.colRepl[ecitem]);
+            colExt.justify     = ColumnJustify.Left;
+            colExt.autoGroup   = true;
+            colExt.autoRefresh = true;
+            colExt.multiCol    = true;
             // add to custom column lookup cache, so that we don't have to go through this again
             colExtraMap.set(ecitem, extConfig.colExtra[ecitem]);
         }
@@ -1689,6 +1690,11 @@ function CustomCommand() {
     var stream = new ads.Stream('dummy');
     stream.setLogger(logger);
 
+
+    DOpus.clearOutput();
+    // DOpus.output('whole config: ' + config.User.getInstance().toString());
+    const isConfigValid = config.User.getInstance().isUserConfigValid();
+    DOpus.output('isUserConfigValid: ' + isConfigValid);
 
     logger.sforce('%s -- finished', fname);
 }
