@@ -176,7 +176,7 @@ namespace config {
     enum MetaField {
         /** this is the JS variable and UI name shown in the script config screen, e.g. FORCE_REFRESH_AFTER_UPDATE */
         KEY     = 'KEY',
-        /** one of the supported types */
+        /** one of the supported types, should be one of `config.TYPE` */
         TYPE    = 'TYPE',
         // /** current internal (JS/TS) value of the config variable */
         // VAL     = 'VAL',
@@ -262,7 +262,7 @@ namespace config {
         }
 
         /** deserializes string to its proper type */
-        private deserialize(val: string, type: config.TYPE): any {
+        private deserialize(val: any, type: config.TYPE): any {
             function safeConvertToRegexp(testString: string): RegExp | undefined {
                 try { return eval('new RegExp(' + testString + ');') } catch (e) { }
             }
@@ -271,9 +271,10 @@ namespace config {
             }
             switch (type) {
                 case TYPE.ARRAY:
-                case TYPE.POJO: return safeConvertToObject(val);
-                case TYPE.REGEXP: return safeConvertToRegexp(val);
-                default: return val;
+                case TYPE.POJO:     return safeConvertToObject(val);
+                case TYPE.REGEXP:   return safeConvertToRegexp(val);
+                case TYPE.DROPDOWN: return typeof val === 'number' ? val : (val as unknown as DOpusVector<string>)[0]; // only required for default value
+                default:            return val;
             }
         }
 
@@ -299,6 +300,11 @@ namespace config {
             if (!bypassValidation && !this.isValid(val, type)) {
                 return Exc(ex.InvalidParameterValue, fname, 'key: ' + key + ', type: ' + type + ' does not accept given value: ' + val).show();
             }
+            // // convert dropdown vector to a number, because the index will be always a number
+            // if (type === TYPE.DROPDOWN) {
+            //     val = (<DOpusVector<any>>val)[0];
+            //     type = TYPE.NUMBER;
+            // }
             keysMetaMap.set(key, this.createItemMeta(key, type, this.serialize(val, type), group, desc, hide));
             return g.ResultOk(true);
         }
@@ -319,10 +325,13 @@ namespace config {
             let currentUserValue = this.getConfig()[key];
             let keyMeta = this.getConfigKeyMeta(key);
             let retVal;
+
             if (this.isValid(currentUserValue, keyMeta.get(MetaField.TYPE))) {
                 retVal = this.deserialize(currentUserValue, keyMeta.get(MetaField.TYPE));
+                logger.sinfo('%s -- User value is valid, returning value: %s', fname, retVal);
             } else if (autoGetDOpusValue) {
                 retVal = this.deserialize(keyMeta.get(MetaField.DEFAULT), keyMeta.get(MetaField.TYPE));
+                logger.sinfo('%s -- User value is invalid, returning default: %s', fname, retVal);
             }
             return g.ResultOk(retVal);
         }
@@ -370,25 +379,6 @@ namespace config {
         }
 
 
-        /**
-         * @param {string} key config key
-         * @param {any} val config value
-         * @deprecated
-         */
-         setValue(key: string, val: any): IResult<any, IException<ex>> {
-            const fname = this.setValue.fname = nsName + '.setValue';
-            const keysMetaMap = this.getConfigKeysMetaMap();
-            if (!keysMetaMap.exists(key)) {
-                return Exc(ex.InvalidKey, fname, key + ' does not exist').show();
-            }
-            let keyMeta = this.getConfigKeyMeta(key);
-            if (!this.isValid(val, keyMeta.get(MetaField.TYPE))) {
-                return Exc(ex.InvalidParameterType, fname, key + ' must have type ' + keyMeta.get(MetaField.TYPE) + ', given: ' + typeof val).show();
-            }
-            this.getConfig()[key] = val; // set user config value
-            return g.ResultOk();
-        }
-
 
         /**
          * @param {any} val value
@@ -412,8 +402,11 @@ namespace config {
                     }
                     return true;
                 case TYPE.DROPDOWN:
-                    // must be DOpus Vector
-                    if (typeof val !== 'object') {
+                    if (typeof val === 'number') {
+                        // numbers (selected index) in dropdowns are always valid!
+                        return true;
+                    } else if (!g.isValidDOVector(val)) {
+                        // if not number then it must be DOpus Vector
                         return false;
                     }
                     try {
@@ -425,7 +418,7 @@ namespace config {
                         return typeof dv[0] === 'number' && typeof dv[1] === 'string';
                     } catch (e) {
                         return false;
-                        }
+                    }
                 case TYPE.REGEXP:
                     if (typeof val === 'object' && Object.prototype.toString.call(val) === '[object RegExp]') {
                         return true;
@@ -521,16 +514,14 @@ namespace config {
             this.myName = nsName + '.User';
             User.instance = this;
         }
-        // @ts-ignore
         static getInstance(initData?: DOpusScriptInitData): User {
             const fname = User.getInstance.fname = nsName + '.User.getInstance';
-            if (User.instance) {
-                return User.instance;
-            } else {
-            // } else if (initData) {
-                return new User(initData);
-            }
-            g.abortWith(Exc(ex.DeveloperStupidity, fname, 'You cannot call this method without initData during OnInit()').err);
+            logger.sinfo('%s -- Getting instance, singleton exists: %t', fname, User.instance ? true : false);
+            // the singleton can be accessed only during repeated runs of the script
+            // e.g. while accessing a folder when columns are requested for multiple files.
+            // but as soon as the script gets unloaded, the singleton will be garbage-collected,
+            // and a new instance will be created instead.
+            return User.instance || new User(initData);
         }
     }
 
@@ -557,16 +548,10 @@ namespace config {
             this.myName = nsName + '.ScriptExt';
             ScriptExt.instance = this;
         }
-        // @ts-ignore
         static getInstance(initData?: DOpusScriptInitData): ScriptExt {
             const fname = ScriptExt.getInstance.fname = nsName + '.ScriptExt.getInstance';
-            if (ScriptExt.instance) {
-                return ScriptExt.instance;
-            } else {
-            // } else if (initData) {
-                return new ScriptExt(initData);
-            }
-            g.abortWith(Exc(ex.DeveloperStupidity, fname, 'You cannot call this method without initData during OnInit()').err);
+            logger.sinfo('%s -- Getting instance, singleton exists: %b', fname, !!ScriptExt.instance);
+            return ScriptExt.instance || new ScriptExt(initData);
         }
 
         getPOJOFromFile<T>(key: string, filepath: string): IResult<T, IException<ex>> {

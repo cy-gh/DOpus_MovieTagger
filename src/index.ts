@@ -17,7 +17,24 @@
 
 // DOpus.output('<b>Script parsing started</b>');
 
+var logger: ILogger;
+var usr: config.User;
+var ext: config.ScriptExt;
 
+function _reinitGlobalVars(initData?: DOpusScriptInitData) {
+    logger  = logger || libLogger.current;
+    usr     = usr || config.User.getInstance(initData).setLogger(logger);
+    ext     = ext || config.ScriptExt.getInstance(initData).setLogger(logger);
+
+    // configuration must have been finalized before continuing
+    if (initData) return;
+
+    let dbgLevelRes = config.User.getInstance(initData).getValue(CfgU.DEBUG_LEVEL).show();
+    if (dbgLevelRes.isOk()) {
+        logger.force('Switching to debug level: ' + dbgLevelRes.ok);
+        logger.setLevel(dbgLevelRes.ok);
+    }
+} // _reinitGlobalVars
 
 
 interface ScriptMeta extends g.ScriptMetaKnown {
@@ -45,15 +62,12 @@ const scriptMeta: ScriptMeta = {
     CUSTCOL_NAME_PREFIX     : 'MExt_',
     CUSTCOL_LABEL_PREFIX    : 'ME ',
 }
-
-
 // TODO - REMOVE - temporary vars
-var logger = libLogger.current;
 scriptMeta.NAME = 'cuMovieTagger';
 scriptMeta.NAME = 'DOpus_MovieTagger';
 scriptMeta.NAME_SHORT = 'DMT';
 
-
+/** allowed keys in user configuration via UI */
 enum CfgU {
     DEBUG_LEVEL                         = 'DEBUG_LEVEL',
     FORCE_REFRESH_AFTER_UPDATE          = 'FORCE_REFRESH_AFTER_UPDATE',
@@ -97,11 +111,13 @@ enum CfgU {
     META_STREAM_NAME                    = 'META_STREAM_NAME',
     NAME_CLEANUP                        = 'NAME_CLEANUP',
 }
+/** allowed keys in external config */
 enum CfgE {
     EXT_CONFIG_POJO                     = 'EXT_CONFIG_POJO',
 }
 
-const CfgVGroups: { [key in CfgU]: string } = {
+
+const CfgVGroups: { [key in keyof typeof CfgU]: string } = {
     DEBUG_LEVEL                         : 'Listers',
     FORCE_REFRESH_AFTER_UPDATE          : 'Listers',
     MEDIAINFO_PATH                      : 'Paths',
@@ -144,7 +160,7 @@ const CfgVGroups: { [key in CfgU]: string } = {
     NAME_CLEANUP                        : 'zReserved',
 }
 
-const CfgVDescs: { [key in CfgU]: string } = {
+const CfgVDescs: { [key in keyof typeof CfgU]: string } = {
     DEBUG_LEVEL                         : 'Level of output messages in the Script Log (aka Output Log) shown by the script.\nLevels INFO & VERBOSE might slow down/freeze your DOpus',
     FORCE_REFRESH_AFTER_UPDATE          : 'Force refresh lister after updating metadata (retains current selection)',
     MEDIAINFO_PATH                      : 'Path to MediaInfo.exe; folder aliases and %envvar% are auto-resolved\nportable/CLI version can be downloaded from https://mediaarea.net/en/MediaInfo/Download/Windows',
@@ -187,6 +203,7 @@ const CfgVDescs: { [key in CfgU]: string } = {
     NAME_CLEANUP                        : 'Internal use only',
 }
 
+/** allowed fields in command definitions below */
 type CommandTemplate = {
     // name: string,
     func  : Function,
@@ -196,6 +213,7 @@ type CommandTemplate = {
     desc  : string,
     hide? : boolean
 }
+/** command definitions */
 const AllCommands: { [key: string]: CommandTemplate } = {
     /*
         Available icon names, used by GetIcon()
@@ -342,10 +360,12 @@ const AllCommands: { [key: string]: CommandTemplate } = {
 
 }
 
+/** allowed values for column justify */
 enum ColumnJustify {
     Left  = 'left',
     Right = 'right'
 }
+/** allowed fields in column definitions below */
 type ColumnTemplate = {
     // name: string,
     func       : Function,
@@ -355,7 +375,17 @@ type ColumnTemplate = {
     autoRefresh: boolean,
     multiCol   : boolean
 }
+/** column definitions */
 const AllColumns: { [key: string]: ColumnTemplate } = {
+    // 'DMT_HasMetadata': {
+    //     // func: OnMExt_HasMetadata,
+    //     func: CustomCommand,
+    //     label: 'Available',
+    //     justify: ColumnJustify.Right,
+    //     autoGroup: false,
+    //     autoRefresh: true,
+    //     multiCol: false
+    // },
     'MExt_HasMetadata': {
         func: OnMExt_HasMetadata,
         label: 'Available',
@@ -726,10 +756,9 @@ const AllColumns: { [key: string]: ColumnTemplate } = {
         autoRefresh: true,
         multiCol: true
     },
-
-
 }
 
+/** allowed fields user-customizable JSON file*/
 type ExtConfigType = {
     colPrefix?: string,
     colRepl?  : { [key: string]: string },
@@ -737,7 +766,6 @@ type ExtConfigType = {
 }
 
 // CONFIG - DEFAULT VALUES
-// function _initConfigDefaults(initData: DOpusScriptInitData) {
 function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
     _initConfigDefaults.fname = 'setupConfigVars';
 
@@ -1507,7 +1535,7 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
     usr.finalize();
     // ext.finalize();
 
-}
+} // _initConfigDefaults
 
 
 
@@ -1540,7 +1568,8 @@ function _initCommands(initData: DOpusScriptInitData) {
         }
     }
     logger.snormal('%s -- finished', fname);
-}
+} // _initCommands
+
 
 
 // internal method called by OnInit()
@@ -1565,9 +1594,9 @@ function _initColumns(initData: DOpusScriptInitData) {
     for (const columnName in AllColumns) {
         if (Object.prototype.hasOwnProperty.call(AllColumns, columnName)) {
             const columnParams = AllColumns[columnName];
-            logger.snormal('%s -- adding column: %s', fname, columnName);
+            logger.sinfo('%s -- adding script column: %s, extConfig.colPrefix: %s', fname, columnName, extConfig.colPrefix);
             var colScript         = initData.addColumn();
-            colScript.method      = columnParams.func.fname;
+            colScript.method      = g.funcNameExtractor(columnParams.func);
             colScript.name        = columnName;
             colScript.label       = (extConfig.colPrefix || colPrefix)
                                     + (typeof extConfig.colRepl === 'object' && extConfig.colRepl[columnName] || columnParams.label);
@@ -1583,15 +1612,14 @@ function _initColumns(initData: DOpusScriptInitData) {
     //   "com_apple_quicktime_model": "Camera Make"
     // }
     if (typeof extConfig.colExtra !== 'undefined') {
+        logger.sverbose('%s -- exconfig: %s', fname, JSON.stringify(extConfig, null, 4));
         var colExtraMap: DOpusMap = DOpus.create().map();
         for(var ecitem in extConfig.colExtra) {
-            logger.snormal('%s -- adding custom column with key: %s', fname, ecitem);
+            logger.sinfo('%s -- adding user column: %s, extConfig.colPrefix: %s', fname, ecitem, extConfig.colPrefix);
             var colExt         = initData.addColumn();
-            colExt.method      = OnMExt_MultiColRead.fname;
+            colExt.method      = g.funcNameExtractor(OnMExt_MultiColRead);
             colExt.name        = scriptMeta.CUSTCOL_NAME_PREFIX + ecitem;
-            // @ts-ignore
-            colExt.label       = (extConfig.colPrefix || colPrefix) // are you kidding me TypeScript?! it's exactly the same as above!
-                                + (typeof extConfig.colRepl === 'object' && extConfig.colRepl[ecitem]);
+            colExt.label       = (extConfig.colPrefix || colPrefix) + extConfig.colExtra[ecitem];
             colExt.justify     = ColumnJustify.Left;
             colExt.autoGroup   = true;
             colExt.autoRefresh = true;
@@ -1603,28 +1631,24 @@ function _initColumns(initData: DOpusScriptInitData) {
     }
 
     logger.snormal('%s -- finished', fname);
-}
+} // _initColumns
 
 
 
 
-/** called by DOpus @param {DOpusScriptInitData=} initData */
-// eslint-disable-next-line no-unused-vars
+
+
+
+
 function OnInit(initData: DOpusScriptInitData) {
     DOpus.clearOutput();
-
     DOpus.output('<b>Script initialization started</b>');
 
-    // required to set up script meta data for UI and misc script variables, such as script name, isOSP...
-    g.init(initData, scriptMeta);
-
-    var usr = config.User.getInstance(initData).setLogger(logger);
-    var ext = config.ScriptExt.getInstance(initData).setLogger(logger);
-
-    // _initConfigDefaults(initData);
-    _initConfigDefaults(usr, ext);
-    _initCommands(initData);
-    _initColumns(initData);
+    g.init(initData, scriptMeta);   // set up script meta data for UI and misc script variables, such as script name, isOSP...
+    _reinitGlobalVars(initData);    // (re)initialize logger, usr, ext
+    _initConfigDefaults(usr, ext);  // user-configurable parameters & defaults
+    _initCommands(initData);        // commands available to user
+    _initColumns(initData);         // columns available to user
 
     DOpus.output('<b>Script initialization finished</b>');
 }
@@ -1660,46 +1684,51 @@ function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
 
 
 
+DOpus.output('is this running every time the script is run?');
 
 function CustomCommand() {
     const fname = CustomCommand.fname = 'CustomCommand';
 
+    _reinitGlobalVars();
+
     logger.sforce('%s -- started', fname);
 
-    logger.force('uid: ' + g.getScriptUniqueID());
-    logger.force('pvars: ' + JSON.stringify(g.getScriptPathVars(), null, 4));
+    // logger.force('uid: ' + g.getScriptUniqueID());
+    // logger.force('pvars: ' + JSON.stringify(g.getScriptPathVars(), null, 4));
 
-    logger.force('');
-    logger.force('');
-    logger.force('');
-    logger.force('');
+    // logger.force('');
+    // logger.force('');
+    // logger.force('');
+    // logger.force('');
 
-    // logger.force('cfg items: ' + cfg.getValue(CfgV.FORMATS_REGEX_VBR));
-    logger.force('cfg items: ' + config.User.getInstance().getValue(CfgU.META_STREAM_NAME));
+    // // logger.force('cfg items: ' + cfg.getValue(CfgV.FORMATS_REGEX_VBR));
+    // logger.force('cfg items: ' + config.User.getInstance().getValue(CfgU.META_STREAM_NAME));
 
-    // DOpus.output('function in map - typeof: ' + typeof Script.vars.get('foo'));
-    // DOpus.output('function in map: ' + Script.vars.get('foo'));
-    // DOpus.output('function in map: ' + g.funcNameExtractor.fname);
-    // DOpus.output('extracted name: ' + g.funcNameExtractor('CustomCommand'));
-    DOpus.output('extracted name: ' + g.funcNameExtractor(CustomCommand));
+    // // DOpus.output('function in map - typeof: ' + typeof Script.vars.get('foo'));
+    // // DOpus.output('function in map: ' + Script.vars.get('foo'));
+    // // DOpus.output('function in map: ' + g.funcNameExtractor.fname);
+    // // DOpus.output('extracted name: ' + g.funcNameExtractor('CustomCommand'));
+    // DOpus.output('extracted name: ' + g.funcNameExtractor(CustomCommand));
 
-    var fr = fs.readFile('Y:\\foo.txt');
-    fr.match({
-        ok: () => { DOpus.output('result is ok: ' + fr.ok); },
-        err: () => { DOpus.output('result is err: ' + JSON.stringify(fr, null, 4)); }
-    });
+    // var fr = fs.readFile('Y:\\foo.txt');
+    // fr.match({
+    //     ok: () => { DOpus.output('result is ok: ' + fr.ok); },
+    //     err: () => { DOpus.output('result is err: ' + JSON.stringify(fr, null, 4)); }
+    // });
 
-    // var stream = ads.adsStreamCreator('dummy');
-    var stream = new ads.Stream('dummy');
-    stream.setLogger(logger);
+    // // var stream = ads.adsStreamCreator('dummy');
+    // var stream = new ads.Stream('dummy');
+    // stream.setLogger(logger);
 
 
-    DOpus.clearOutput();
-    // DOpus.output('whole config: ' + config.User.getInstance().toString());
-    const isUserConfigValid = config.User.getInstance().isUserConfigValid();
-    DOpus.output('isUserConfigValid: ' + isUserConfigValid);
-    const isExtConfigValid = config.ScriptExt.getInstance().isUserConfigValid();
-    DOpus.output('isExtConfigValid: ' + isExtConfigValid);
+    // // DOpus.clearOutput();
+    // // DOpus.output('whole config: ' + config.User.getInstance().toString());
+    // const isUserConfigValid = config.User.getInstance().isUserConfigValid();
+    // DOpus.output('isUserConfigValid: ' + isUserConfigValid);
+    // const isExtConfigValid = config.ScriptExt.getInstance().isUserConfigValid();
+    // DOpus.output('isExtConfigValid: ' + isExtConfigValid);
+
+    logger.sforce('%s -- debug level: %s', fname, config.User.getInstance().getValue(CfgU.DEBUG_LEVEL));
 
     // logger.sforce('%s -- ext pojo: %s', fname, config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO));
     // logger.sforce('%s -- ext pojo2: %s', fname, JSON.stringify(config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO), null, 4));
@@ -1720,6 +1749,8 @@ function CustomCommand() {
 // called by 'Has Metadata' column
 function OnMExt_HasMetadata(scriptColData: DOpusScriptColumnData) {
     const fname = OnMExt_HasMetadata.fname = 'OnMExt_HasMetadata';
+    logger.sforce('%s -- running', fname);
+
     // var selected_item = scriptColData.item;
     // if (selected_item.is_dir || selected_item.is_reparse || selected_item.is_junction || selected_item.is_symlink) {
     //     return;
