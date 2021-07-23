@@ -1689,7 +1689,7 @@ DOpus.output('is this running every time the script is run?');
 function CustomCommand() {
     const fname = CustomCommand.fname = 'CustomCommand';
 
-    _reinitGlobalVars();
+    // _reinitGlobalVars();
 
     logger.sforce('%s -- started', fname);
 
@@ -1733,6 +1733,12 @@ function CustomCommand() {
     // logger.sforce('%s -- ext pojo: %s', fname, config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO));
     // logger.sforce('%s -- ext pojo2: %s', fname, JSON.stringify(config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO), null, 4));
 
+    logger.sforce('This should be visible in none');
+    logger.serror('This should be visible in error');
+    logger.swarn('This should be visible in warn');
+    logger.snormal('This should be visible in normal');
+    logger.sinfo('This should be visible in info');
+    logger.sverbose('This should be visible in verbose');
 
     logger.sforce('%s -- finished', fname);
 }
@@ -3095,6 +3101,11 @@ function OnME_TestMethod2(scriptCmdData: DOpusScriptCommandData) {
     // // validateConfigAndShowResult(true, scriptCmdData.func.Dlg, false, true);
 }
 
+
+// auto-initalize global vars every time the script is run
+if (typeof Script !== 'undefined' && typeof Script.vars !== 'undefined') {
+    _reinitGlobalVars();
+}
 
 
 // DOpus.output('<b>Script parsing finished</b>');

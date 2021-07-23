@@ -16,15 +16,13 @@ namespace libLogger {
         getLevelIndex(): IResult<number, boolean>   { return g.findIndexOfValue(g.LOGLEVEL, this.level); }
         setLevel(level: g.LOGLEVEL)                 { this.level = level; }
         show(message?: any): typeof message         { DOpus.output(message); return message; }
-        force(message?: string): void               { this._baseout(g.LOGLEVEL.FORCE,     message); }
-        none(message?: string): void                { this._baseout(g.LOGLEVEL.NONE,      message); }
+        force(message?: string): void               { this._baseout(g.LOGLEVEL.NONE,      message); }
         error(message?: string): void               { this._baseout(g.LOGLEVEL.ERROR,     message, true); }
         warn(message?: string): void                { this._baseout(g.LOGLEVEL.WARN,      message); }
         normal(message?: string): void              { this._baseout(g.LOGLEVEL.NORMAL,    message); }
         info(message?: string): void                { this._baseout(g.LOGLEVEL.INFO,      message); }
         verbose(message?: string): void             { this._baseout(g.LOGLEVEL.VERBOSE,   message); }
-        sforce(...args: any): void                  { this._baseout(g.LOGLEVEL.FORCE,     g.sprintf.apply(g.sprintf, args)); }
-        snone(...args: any): void                   { this._baseout(g.LOGLEVEL.NONE,      g.sprintf.apply(g.sprintf, args)); }
+        sforce(...args: any): void                  { this._baseout(g.LOGLEVEL.NONE,      g.sprintf.apply(g.sprintf, args)); }
         serror(...args: any): void                  { this._baseout(g.LOGLEVEL.ERROR,     g.sprintf.apply(g.sprintf, args)); }
         swarn(...args: any): void                   { this._baseout(g.LOGLEVEL.WARN,      g.sprintf.apply(g.sprintf, args)); }
         snormal(...args: any): void                 { this._baseout(g.LOGLEVEL.NORMAL,    g.sprintf.apply(g.sprintf, args)); }
@@ -39,14 +37,12 @@ namespace libLogger {
         getLevelIndex(): IResult<number, boolean>   { return g.ResultOk(0); }
         show(message?: any): typeof message         { return message; }
         force(message?: string): void               { }
-        none(message?: string): void                { }
         error(message?: string): void               { }
         warn(message?: string): void                { }
         normal(message?: string): void              { }
         info(message?: string): void                { }
         verbose(message?: string): void             { }
         sforce(): void                              { }
-        snone(): void                               { }
         serror(): void                              { }
         swarn(): void                               { }
         snormal(): void                             { }

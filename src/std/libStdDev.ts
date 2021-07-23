@@ -223,14 +223,12 @@ interface ILogger extends IShowableError<string> {
     getLevels()                 : g.LOGLEVEL[];
     getLevelIndex()             : IResult<number, boolean>;
     force(message?: string)     : void;
-    none(message?: string)      : void;
     error(message?: string)     : void;
     warn(message?: string)      : void;
     normal(message?: string)    : void;
     info(message?: string)      : void;
     verbose(message?: string)   : void;
     sforce(...args: any)        : void;
-    snone(...args: any)         : void;
     serror(...args: any)        : void;
     swarn(...args: any)         : void;
     snormal(...args: any)       : void;
@@ -669,14 +667,15 @@ namespace g {
     export var ERROR_MODE:ERROR_MODES = ERROR_MODES.ONLY_EXCEPTIONS;
 
     export enum LOGLEVEL {
-        FORCE   = -1,
+        // FORCE   = 0,
         NONE    = 0,
         ERROR   = 1,
         WARN    = 2,
         NORMAL  = 3,
         INFO    = 4,
-        VERBOSE = 5
+        VERBOSE = 5,
     }
+
 
     export enum VAR_NAMES {
         SCRIPT_UNIQUE_ID    = 'SCRIPT_UNIQUE_ID',

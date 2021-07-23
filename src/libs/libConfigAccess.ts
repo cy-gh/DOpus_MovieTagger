@@ -199,7 +199,6 @@ namespace config {
         protected logger: ILogger = libLogger.current;
 
         constructor(initData?: DOpusScriptInitData) {
-            DOpus.output('Base Constructor called');
             if (initData) {
                 this.initData = initData;
                 this.initData.vars.set(CONFIG_KEYS_META_MAP_NAME, DOpus.create().map()); // initialize memory map
