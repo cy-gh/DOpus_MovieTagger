@@ -1,175 +1,185 @@
 ///<reference path='../std/libStdDev.ts' />
 
 namespace cache {
+
+    export enum TYPE {
+        MEMORY = 'MEMORY',
+        NULL   = 'NULL',
+    }
+
     /**
-     * Memory cache
-     * Primarily intended to be implemented via DOpus.Script.Vars
+     * Memory cache, primarily intended to be implemented via Script.Vars
+     * but can be also used during initialization.
      */
-    export interface IMemCache {
+    export interface IMemCache extends ILibrary<IMemCache> {
 
         readonly id: string;
 
-        /**
-         * Enables the cache
-         */
+        readonly type: cache.TYPE;
+
+        /** Enables the cache */
         enable(): void;
 
-        /**
-         * Disables the cache
-         */
+        /** Disables the cache */
         disable(): void;
 
-        /**
-         * Returns if cache is enabled
-         * @param {string?} id
-         * @returns {boolean} true if cache is enabled globally
-         */
-        isEnabled(id?: string): boolean;
+        /** Returns if cache is enabled */
+        isEnabled(): boolean;
 
-        /**
-         * Initializes cache if necessary and returns it
-         * @returns {Result.<DOpusMap, boolean>} cache object on success
-         * @private
-         */
-        getCache(id?: string): IResult<DOpusMap, boolean>;
+        /** Initializes cache if necessary and returns it */
+        get(): IOption<DOpusMap>;
 
-        /**
-         * Clears cache
-         * @param {string?} id
-         */
-        clearCache(id?: string): void;
+        /** Clears cache */
+        clear(): void;
 
-        /**
-         *
-         * @param {string?} id
-         * @returns {Result.<number, boolean>} number of items in the cache
-         */
-        getCacheCount(id?: string): IResult<number, boolean>;
+        /** Returns the number of items in the cache */
+        getCount(): IOption<number>;
 
-        /**
-         * @param {any} key
-         * @param {string?} id
-         * @returns {Result.<any, boolean>}
-         */
-        getCacheVar(k: any, id?: string): IResult<any, boolean>;
+        /** Gets the value for given key */
+        getVar(k: string|number): IOption<any>;
 
-        /**
-         * @param {any} key
-         * @param {any} val
-         * @param {string?} id
-         * @returns {Result.<any, boolean>}
-         */
-        setCacheVar(k: any, v: any, id?: string): IResult<any, boolean>;
+        /** Sets the value for given key, and returns the cache for method chaining */
+        setVar(k: string|number, v: any): IMemCache;
 
-        /**
-         * @param {any} key
-         * @param {string?} id
-         * @returns {Result.<any, boolean>}
-         */
-        delCacheVar(k: any, id?: string): IResult<any, boolean>;
+        /** Deletes given key, and returns deleted value if it existed before*/
+        delVar(k: string|number): IOption<any>;
 
     }
 
-    // https://stackoverflow.com/q/43578173
-    declare var IMemCache: {
-        /**
-         * @constructor
-         */
-        new(id: string): IMemCache;
-    }
 
 
     export class MemCache implements IMemCache {
-
-        public static DEFAULT_NAME = 'memory';
         public readonly id: string;
+        public readonly type = TYPE.MEMORY;
+        /** if cache needs to be used during OnInit() then we need this variable */
+        private initData: DOpusScriptInitData | undefined;
+        private logger: ILogger = libLogger.current;
         private enabled: boolean;
 
-        constructor(id:string = MemCache.DEFAULT_NAME, enabled:boolean = true) {
-            this.id      = id;
-            this.enabled = enabled;
+        private static DEFAULT_NAME = 'memory';
+        private static instances: { [_: string]: IMemCache } = {};
+
+        private constructor(initData?: DOpusScriptInitData, id?: string) {
+            this.id       = id || MemCache.DEFAULT_NAME;
+            this.enabled  = true;
+            this.initData = initData;
         }
 
-        enable() {
-            this.enabled = true;
+        static getInstance(initData?: DOpusScriptInitData, id: string = MemCache.DEFAULT_NAME): IMemCache {
+            MemCache.instances[id] = MemCache.instances[id] || new MemCache(initData, id);
+            return MemCache.instances[id];
         }
 
-        disable() {
-            this.enabled = false;
+        setLogger(newLogger?: ILogger) {
+            this.logger = newLogger || this.logger;
+            return this;
         }
 
-        isEnabled(id?: string): boolean {
-            return this.enabled;
+        enable()  { this.enabled = true; }
+        disable() { this.enabled = false; }
+        isEnabled(id?: string): boolean { return this.enabled; }
+
+        private getVarsVar() {
+            return g.isInitializing() && this.initData
+                ? this.initData.vars
+                : Script.vars
         }
 
-        getCache(id?: string): IResult<DOpusMap, boolean> {
+        get() {
             if (!this.isEnabled())
-                return g.ResultErr(false);
-            if (!Script.vars.exists(id||this.id))
-                this.clearCache();
-            return g.ResultOk(Script.vars.get(id||this.id));
+                return g.OptionNone();
+            if (!this.getVarsVar().exists(this.id))
+                this.clear();
+            return g.OptionSome(this.getVarsVar().get(this.id));
         }
 
-        clearCache(id?: string) {
+        clear() {
             if (this.isEnabled())
-                Script.vars.set(id||this.id, DOpus.create().map());
+                this.getVarsVar().set(this.id, DOpus.create().map());
         }
 
-        getCacheCount(id?: string) {
-            var resCache = this.getCache(id||this.id);
-            return resCache.isOk()
-                ? g.ResultOk((<DOpusMap>resCache.ok).count)
-                : g.ResultErr(true);
+        getCount() {
+            return this.get().match({
+                some: (some: DOpusMap) => some.count,
+                none: () => g.OptionNone()
+            });
         }
 
-        getCacheVar(k: any, id?: string) {
-            var resCache = this.getCache(id||this.id);
-            if (resCache.isErr()) {
-                return g.ResultErr(true);
+        getVar(k: any) {
+            var optCache = this.get();
+            if (optCache.isNone()) {
+                return g.OptionNone();
             } else {
-                return (<DOpusMap>resCache.ok).exists(k)
-                    ? g.ResultOk((<DOpusMap>resCache.ok).get(k))
-                    : g.ResultErr(true);
+                return optCache.some.exists(k)
+                    ? g.OptionSome(optCache.some.get(k))
+                    : g.OptionNone();
             }
         }
 
-        setCacheVar(k: any, v: any, id?: string) {
-            var resCache = this.getCache(id||this.id);
-            if (resCache.isErr()) {
-                return g.ResultErr(true);
-            } else {
-                (<DOpusMap>resCache.ok).set(k, v);
-                return g.ResultOk(true);
+        setVar(k: any, v: any) {
+            var resCache = this.get();
+            if (resCache.isSome()) {
+                resCache.some.set(k, v);
             }
+            return this;
         }
 
-        delCacheVar(k: any, id?: string) {
-            var resCache = this.getCache(id||this.id);
-            if (resCache.isErr()) {
-                return g.ResultErr(true);
+        delVar(k: any, id?: string) {
+            var optCache = this.get();
+            if (optCache.isNone()) {
+                return g.OptionNone();
             } else {
-                (<DOpusMap>resCache.ok).erase(k);
-                return g.ResultOk(true);
+                if (optCache.some.exists(k)) {
+                    const _tmp = optCache.some.get(k);
+                    optCache.some.erase(k);
+                    return g.OptionSome(_tmp);
+                } else {
+                    return g.OptionNone();
+                }
             }
         }
 
     }
 
-    class NullCache implements IMemCache {
-        public id: string;
-        constructor(id: string) { this.id = id };
-        enable(): void {}
-        disable(): void {}
-        isEnabled(id?: string): boolean { return false; }
-        getCache(id?: string): IResult<DOpusMap, boolean> { return g.ResultErr(true) }
-        clearCache(id?: string): void {}
-        getCacheCount(id?: string): IResult<number, boolean> {return g.ResultErr(true) }
-        getCacheVar(k: any, id?: string): IResult<any, boolean> { return g.ResultErr(true) }
-        setCacheVar(k: any, v: any, id?: string): IResult<any, boolean> { return g.ResultErr(true) }
-        delCacheVar(k: any, id?: string): IResult<any, boolean> { return g.ResultErr(true) }
+    export class NullCache implements IMemCache {
+        public readonly id: string;
+        public readonly type = TYPE.NULL;
+
+        private static DEFAULT_NAME = 'dummy';
+        private static instance: IMemCache;
+
+        private constructor() {
+            this.id = NullCache.DEFAULT_NAME;
+        }
+
+        static getInstance() {
+            NullCache.instance = NullCache.instance || new NullCache();
+            return NullCache.instance;
+        }
+
+        setLogger(newLogger: ILogger)   { return this }
+        enable()                        { }
+        disable()                       { }
+        isEnabled()                     { return false }
+        get()                           { return g.OptionNone() }
+        clear()                         { }
+        getCount()                      { return g.OptionNone() }
+        getVar()        { return g.OptionNone() }
+        setVar(k: string|number, v: any){ return this }
+        delVar(k: string|number)        { return g.OptionNone() }
 
     }
 
-    /* default cache, which does nothing */
-    export const nullCache = new NullCache('dummy');
+    /**
+     * ⚠
+     *
+     * Do not use the following, use getInstance() methods instead
+     * otherwise we cannot use cache during OnInit()
+     */
+    // /** standard cache */
+    // export const std = MemCache.getInstance();
+    // /* null cache - does nothing */
+    // export const nil = NullCache.getInstance();
+    // /** current cache, can be set externally, ALWAYS prefer this */
+    // export const current = std;
 }

@@ -204,7 +204,7 @@ namespace ads {
 
         constructor(streamName: string, cacheImpl?: cache.IMemCache) {
             this.streamName = streamName;
-            this.cache = cacheImpl || cache.nullCache;
+            this.cache = cacheImpl || cache.NullCache.getInstance();
             this.cmd = DOpus.create().command();
             this.logger = libLogger.current;
         }
@@ -240,13 +240,13 @@ namespace ads {
             const fname = this.read.fname = myName + '.read';
 
             var filePath = ''+oItem.realpath,
-                resCache = this.cache.getCacheVar(filePath),
+                resCache = this.cache.getVar(filePath),
                 resContents;
 
             // check if cache is enabled and item is in cache
-            if (resCache.isOk()) {
+            if (resCache.isSome()) {
                 this.logger.sverbose('%s found in cache', oItem.name);
-                resContents = resCache.ok;
+                resContents = resCache.some;
             } else {
                 // logger.sverbose('%s -- reading from disk: %s', fnName, oItem.name);
                 var resRead = fs.readFile(filePath + ':' + this.streamName); // always string or false ion error
@@ -257,7 +257,7 @@ namespace ads {
                     // as it silently ignores the call if cache is disabled,
                     // I only put it so that we can print the logger entry
                     this.logger.sverbose('%s -- adding missing %s to cache', fname, oItem.name);
-                    this.cache.setCacheVar(filePath, resContents);
+                    this.cache.setVar(filePath, resContents);
                 }
             }
             // convert to custom object
@@ -304,7 +304,7 @@ namespace ads {
                 this.cmd.addLine('SetAttr FILE="' + filePath + '" MODIFIED "' + origModDate + '" ATTR ' + oFileAttrib.setAttr + ' CLEARATTR ' + oFileAttrib.clearAttr);
 
                 // use the original path without \\?\
-                this.cache.setCacheVar(''+oItem.realpath, JSON.stringify(oCachedItem));
+                this.cache.setVar(''+oItem.realpath, JSON.stringify(oCachedItem));
 
                 totalBytesWritten += <number>resSaveFile.ok; // casting is ok, we check isErr() above
             }
@@ -338,7 +338,7 @@ namespace ads {
                 var oFileAttrib = this.getFileAttributes(oItem);
 
                 // use the original path without \\?\
-                this.cache.delCacheVar(filePath);
+                this.cache.delVar(filePath);
 
                 if (filePath.length > 240 ) {
                     filePath   = '\\\\?\\' + filePath;
