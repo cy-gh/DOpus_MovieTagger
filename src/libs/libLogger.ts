@@ -16,25 +16,25 @@ namespace libLogger {
         getLevelIndex(): IResult<number, boolean>   { return g.findIndexOfValue(g.LOGLEVEL, this.level); }
         setLevel(level: g.LOGLEVEL)                 { this.level = level; }
         show(message?: any): typeof message         { DOpus.output(message); return message; }
-        force(message?: string): void               { this._baseout(g.LOGLEVEL.NONE,      message); }
+        force(message?: string): void               { this._baseout(g.LOGLEVEL.NONE,      '<b>'+message+'</b>'); }
         error(message?: string): void               { this._baseout(g.LOGLEVEL.ERROR,     message, true); }
-        warn(message?: string): void                { this._baseout(g.LOGLEVEL.WARN,      message); }
+        warn(message?: string): void                { this._baseout(g.LOGLEVEL.WARN,      '<i>'+message+'</i>'); }
         normal(message?: string): void              { this._baseout(g.LOGLEVEL.NORMAL,    message); }
         info(message?: string): void                { this._baseout(g.LOGLEVEL.INFO,      message); }
         verbose(message?: string): void             { this._baseout(g.LOGLEVEL.VERBOSE,   message); }
-        sforce(...args: any): void                  { this._baseout(g.LOGLEVEL.NONE,      g.sprintf.apply(g.sprintf, args)); }
-        serror(...args: any): void                  { this._baseout(g.LOGLEVEL.ERROR,     g.sprintf.apply(g.sprintf, args)); }
-        swarn(...args: any): void                   { this._baseout(g.LOGLEVEL.WARN,      g.sprintf.apply(g.sprintf, args)); }
+        sforce(...args: any): void                  { this._baseout(g.LOGLEVEL.NONE,      '<b>' + g.sprintf.apply(g.sprintf, args) + '</b>'); }
+        serror(...args: any): void                  { this._baseout(g.LOGLEVEL.ERROR,     g.sprintf.apply(g.sprintf, args), true); }
+        swarn(...args: any): void                   { this._baseout(g.LOGLEVEL.WARN,      '<i>' + g.sprintf.apply(g.sprintf, args) + '</i>'); }
         snormal(...args: any): void                 { this._baseout(g.LOGLEVEL.NORMAL,    g.sprintf.apply(g.sprintf, args)); }
         sinfo(...args: any): void                   { this._baseout(g.LOGLEVEL.INFO,      g.sprintf.apply(g.sprintf, args)); }
         sverbose(...args: any): void                { this._baseout(g.LOGLEVEL.VERBOSE,   g.sprintf.apply(g.sprintf, args)); }
     }
 
     class NullLogger implements ILogger {
+        getLevels(): g.LOGLEVEL[]                   { return g.splitEnum(g.LOGLEVEL).keys as unknown as g.LOGLEVEL[]; }
         getLevel(): g.LOGLEVEL                      { return g.LOGLEVEL.NONE; }
-        setLevel(level: g.LOGLEVEL): void           { }
-        getLevels(): g.LOGLEVEL[]                   { return []; }
         getLevelIndex(): IResult<number, boolean>   { return g.ResultOk(0); }
+        setLevel(level: g.LOGLEVEL): void           { }
         show(message?: any): typeof message         { return message; }
         force(message?: string): void               { }
         error(message?: string): void               { }
