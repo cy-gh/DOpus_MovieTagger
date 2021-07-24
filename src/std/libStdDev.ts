@@ -71,7 +71,9 @@ function fnBuilder(name: string, func: Function) {
 }
 
 /** Showable errors, mainly for Results and Exceptions */
-interface IShowableError<T> {
+interface IShowable<T> {
+    /** String representation of the error */
+    toString(): string;
     /** should show if this is an error and return the same object */
     show(): T;
 }
@@ -177,7 +179,7 @@ interface IShowableError<T> {
  *
  * These are more or less compatible with my implementation as well. Replace if you fancy.
  */
-interface IResult<S, E> extends IShowableError<IResult<S, E>> {
+interface IResult<S, E> extends IShowable<IResult<S, E>> {
     ok: S;
     err: E;
     stack: Array<any>;
@@ -199,7 +201,7 @@ interface IResultMatcher {
     err: Function
 }
 
-interface IOption<S> extends IShowableError<IOption<S>> {
+interface IOption<S> extends IShowable<IOption<S>> {
     some: S;
     none: boolean;
 }
@@ -217,7 +219,7 @@ interface IOptionMatcher {
 
 
 /** Standard logger interface, implemented in libLogger.ts. */
-interface ILogger extends IShowableError<string> {
+interface ILogger extends IShowable<string> {
     getLevel()                  : g.LOGLEVEL;
     setLevel(level: g.LOGLEVEL) : void;
     getLevels()                 : g.LOGLEVEL[];
@@ -266,7 +268,7 @@ interface ILibrary<T> {
  * @param {string|function} where
  * @constructor
  */
-interface IException<T> extends IShowableError<IException<T>> {
+interface IException<T> extends IShowable<IException<T>> {
     /** Internal type number, never use it directly/hard-coded */
     readonly type: T;
     /** Exception name, e.g. 'NotImplementedYetException' */
@@ -278,7 +280,7 @@ interface IException<T> extends IShowableError<IException<T>> {
 }
 
 function Exc(type: ex, where: string | Function, message?: string): IResult<any, IException<ex>> {
-    return new g.Result(false, new g.UserException(type, where, message));
+    return g.ResultErr(new g.UserException(type, where, message));
 }
 
 enum ex {
@@ -340,25 +342,13 @@ interface Error {
 }
 
 interface String {
-    /**
-     * makes sure that the paths always have a trailing backslash but no doubles
-     * this happens mainly because the oItem.path does not return a trailing slash for any directory
-     * other than root dir of a drive, i.e. it returns Y:\Subdir (no BS) but Y:\ (with BS)
-     */
+    /** Makes sure that the paths always have a trailing backslash but no double backslashes, e.g. Y: --> Y:\ */
     normalizeTrailingBackslashes(): string;
 
-    /**
-     * substitutes variables - Only Global ones - in the given string
-     * e.g.
-     * my name is: ${Global.SCRIPT_NAME}
-     */
+    /** substitutes variables, only Global ones, in the given string, e.g. `my name is: ${Global.SCRIPT_NAME}` */
     substituteVars(): string;
 
-    /**
-     * parses string as number in base 10
-     * e.g.
-     * cmdData.func.args.MAXCOUNT.asInt()
-     */
+    /** parses string as number in base 10, e.g. `cmdData.func.args.MAXCOUNT.asInt()` */
     asInt(): IResult<number, IException<ex>>;
 
     normalizeLeadingWhiteSpace(): string;
@@ -705,7 +695,6 @@ namespace g {
      * @type {string}
      */
     export const SCRIPTSDIR: string = DOpus.fsUtil().resolve('/dopusdata/Script AddIns') + '\\';
-
     /**
      * Unique script ID for memory operations via DOpus.vars, Script.Vars and alike
      * @type {string}
@@ -741,21 +730,23 @@ namespace g {
         }
         // note this one does not allow any falsy value for OK at all
         // isOk()     { return !!this.ok; }
-        isOk()      { return typeof this.ok !== 'undefined'; }
         // note this one allows falsy values - '', 0, {}, []... - for OK - USE SPARINGLY
         // isValid()  { return !this.err; }
         // isErr()    { return !!this.err; }
-        isErr()     { return typeof this.err !== 'undefined'; }
-        toString()  { return JSON.stringify(this, null, 4); }
-        toExString() {
-            return (this.err as unknown as UserException).toString();
-        }
+        isOk()       { return typeof this.ok !== 'undefined'; }
+        isErr()      { return typeof this.err !== 'undefined'; }
+        toString()   { return JSON.stringify(this, null, 4); }
+        toExString() { return (this.err as unknown as UserException).toString(); }
+        /** @example
+         * ```
+         * usr.getValue(CfgU.DEBUG_LEVEL).match({
+         *   ok: (dbgLevel: number) => logger.setLevel(dbgLevel),
+         *   err: (ex: IException<ex>) => ex.show()
+         * });
+         * ```
+         */
         match(matcher: IResultMatcher) {
-            if(this.isOk()) {
-                return matcher.ok.apply(matcher.ok);
-            } else {
-                return matcher.err.apply(matcher.err);
-            }
+            return this.isOk() ? matcher.ok(this.ok) : matcher.err(this.err);
         }
         show(): IResult<S, E> {
             if (!this.isErr()) {
@@ -768,7 +759,7 @@ namespace g {
             }
             const err = this.err instanceof UserException ? this.err.toString() : this.toString();
             logger.error(err);
-            g.showMessageDialog(null, err);
+            showMessageDialog(null, err);
             return this;
         }
     }
@@ -793,13 +784,13 @@ namespace g {
             }
             const msg = this.toString();
             logger.error(msg);
-            g.showMessageDialog(null, msg);
+            showMessageDialog(null, msg);
             return this;
         }
 
     }
 
-    export class UserException implements IException<ex>, IShowableError<UserException> {
+    export class UserException implements IException<ex>, IShowable<UserException> {
         public readonly type: ex;
         public readonly name: string;
         public readonly where: string;
@@ -847,7 +838,7 @@ namespace g {
             initData.desc           = scriptMeta.DESC           || '';
             initData.min_version    = scriptMeta.MIN_VERSION    || '';
             initData.group          = scriptMeta.GROUP          || '';
-            initData.log_prefix     = scriptMeta.LOG_PREFIX     || '';
+            initData.log_prefix     = scriptMeta.PREFIX         || '';
             initData.default_enable = scriptMeta.DEFAULT_ENABLE || true;
             initData.early_dblclk   = scriptMeta.EARLY_DBLCLK   || false;
         }
@@ -873,6 +864,7 @@ namespace g {
             isOSP   : (''+oThisScriptsPath.ext).toLowerCase() === '.osp'
         });
     }
+
     export function getScriptUniqueID(): IResult<string, IException<ex>> {
         if (isInitializing()) {
             return Exc(ex.Uninitialized, 'g.getScriptPathVars', 'This method cannot be called during OnInit()').show();
@@ -982,7 +974,7 @@ namespace g {
      * @returns {Result}
      */
     export function ResultOk(okValue?: any, addInfo?: any): IResult<typeof okValue, any> {
-        var res = okValue instanceof Result ? okValue : new Result(okValue !== undefined ? okValue : true, undefined);
+        var res = okValue instanceof Result ? okValue : new Result(typeof okValue !== 'undefined' ? okValue : true, undefined);
         if (addInfo !== undefined && okValue instanceof Result) {
             res.stack.push([okValue.ok, addInfo]);
         } else if (addInfo !== undefined) {
@@ -1000,7 +992,7 @@ namespace g {
      * @returns {Result}
      */
     export function ResultErr(errValue?: any, addInfo?: any): Result<any, typeof errValue> {
-        var res = errValue instanceof Result ? errValue : new Result(undefined, errValue !== undefined ? errValue : true);
+        var res = errValue instanceof Result ? errValue : new Result(undefined, typeof errValue !== 'undefined' ? errValue : true);
         if (addInfo !== undefined && errValue instanceof Result) {
             res.stack.push([errValue.err, addInfo]);
         } else if (addInfo !== undefined) {
