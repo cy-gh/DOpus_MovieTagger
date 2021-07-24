@@ -29,6 +29,9 @@ namespace cache {
         /** Initializes cache if necessary and returns it */
         get(): IOption<DOpusMap>;
 
+        /** Returns the cache keys */
+        getKeys(): IOption<[string|number]>;
+
         /** Clears cache */
         clear(): void;
 
@@ -91,6 +94,10 @@ namespace cache {
             if (!this.getVarsVar().exists(this.id))
                 this.clear();
             return g.OptionSome(this.getVarsVar().get(this.id));
+        }
+
+        getKeys(): IOption<[string|number]> {
+            return g.getEnumerableKeys(this.get().some);
         }
 
         clear() {
@@ -162,9 +169,10 @@ namespace cache {
         disable()                       { }
         isEnabled()                     { return false }
         get()                           { return g.OptionNone() }
+        getKeys()                       { return g.OptionNone() }
         clear()                         { }
         getCount()                      { return g.OptionNone() }
-        getVar()        { return g.OptionNone() }
+        getVar()                        { return g.OptionNone() }
         setVar(k: string|number, v: any){ return this }
         delVar(k: string|number)        { return g.OptionNone() }
 

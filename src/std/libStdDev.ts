@@ -1154,6 +1154,16 @@ namespace g {
         return ResultErr(true);
     }
 
+    /** returns the keys of an en enumerable object */
+    export function getEnumerableKeys(oEnumerable: EnumeratorConstructor): IOption<[string|number]> {
+        try {
+            let out = [] as unknown as [string|number];
+            for (const e = new Enumerator(oEnumerable); !e.atEnd(); e.moveNext())
+                out.push(e.item());
+            return g.OptionSome(out);
+        } catch (e) { return g.OptionNone() }
+    }
+
 
     /**
      * Show a message dialog with message and optional title & buttons
@@ -1216,7 +1226,7 @@ namespace g {
 
 // moved from DOpusHelpers
 namespace g {
-    /** Shortcut for DOpus.output() @param {any} string */
+    /** Shortcut for DOpus.output() */
     export function out (string: any) {
         DOpus.output(string);
     }
@@ -1224,101 +1234,67 @@ namespace g {
     export function clear () {
         DOpus.clearOutput();
     }
-    /** DOpus.Delay wrapper @param {number} millisecs to sleep */
-    export function delay (millisecs: number) {
-        if (!millisecs) return;
-        DOpus.delay(millisecs);
+    /** DOpus.Delay wrapper */
+    export function delay (millisecsToSleep: number) {
+        if (!millisecsToSleep) return;
+        DOpus.delay(millisecsToSleep);
     }
-    /** DOpus.dlg() wrapper @returns {DOpusDialog} */
-    export function dlg () {
+    /** DOpus.dlg() wrapper */
+    export function dlg (): DOpusDialog {
         return DOpus.dlg();
     }
-    /**
-     * util.fu.GetItem wrapper
-     * @param {string} sPath file full path
-     * @returns {DOpusItem} DOpus Item
-     */
-    export function getItem (path: string): DOpusItem {
-        return DOpus.fsUtil().getItem(path);
+    /**  util.fu.GetItem wrapper */
+    export function getItem (fileFullPath: string): DOpusItem {
+        return DOpus.fsUtil().getItem(fileFullPath);
     }
-    /**
-     * @param {DOpusItem} oItem DOpus Item
-     * @returns {boolean} true if DOpus item
-     */
+    /** true if DOpus file, false if dir, reparse, junction, symlink */
+    export function isFile (oItem: DOpusItem): boolean {
+        return (isValidDOItem(oItem) && !oItem.is_dir);
+    }
+    /** true if DOpus directory, false if file */
+    export function isDir (oItem: DOpusItem): boolean {
+        return (isValidDOItem(oItem) && oItem.is_dir);
+    }
+    /** true if DOpus file or directory, false if reparse, junction, symlink */
+    export function isDirOrFile (oItem: DOpusItem): boolean {
+        return (isValidDOItem(oItem) && (!oItem.is_reparse && !oItem.is_junction && !oItem.is_symlink));
+    }
+    /** true if DOpus item */
     export function isValidDOItem (oItem: DOpusItem): boolean {
         return (typeof oItem === 'object' && typeof oItem.realpath !== 'undefined' && typeof oItem.modify !== 'undefined');
     }
-    /**
-     * @param {DOpusItem} oItem DOpus Item
-     * @returns {boolean} true if DOpus file, false if dir, reparse, junction, symlink
-     */
-    export function isFile (oItem: DOpusItem): boolean {
-        // return (typeof oItem === 'object' && oItem.realpath && !oItem.is_dir && !oItem.is_reparse && !oItem.is_junction && !oItem.is_symlink);
-        return (isValidDOItem(oItem) && !oItem.is_dir);
-    }
-    /**
-     * @param {DOpusItem} oItem DOpus Item
-     * @returns {boolean} true if DOpus directory, false if file, reparse, junction, symlink
-     */
-    export function isDir (oItem: DOpusItem): boolean {
-        // return (typeof oItem === 'object' && typeof oItem.realpath !== 'undefined' && oItem.is_dir === true);
-        return (isValidDOItem(oItem) && oItem.is_dir);
-    }
-    /**
-     * @param {DOpusItem} oItem DOpus Item
-     * @returns {boolean} true if DOpus file or directory, false if reparse, junction, symlink
-     */
-    export function isDirOrFile (oItem: DOpusItem): boolean {
-        // return (typeof oItem === 'object' && oItem.realpath && !oItem.is_reparse && !oItem.is_junction && !oItem.is_symlink);
-        return (isValidDOItem(oItem) && (!oItem.is_reparse && !oItem.is_junction && !oItem.is_symlink));
-    }
-    /**
-     * @param {DOpusMap} oMap DOpus Map
-     * @returns {boolean} true if DOpus Map
-     */
-        export function isValidDOMap (oMap: DOpusMap): boolean {
+    /** true if DOpus Map */
+    export function isValidDOMap (oMap: DOpusMap): boolean {
         return (typeof oMap === 'object' && typeof oMap.size === 'undefined' && typeof oMap.count !== 'undefined' && typeof oMap.length !== 'undefined' && oMap.count === oMap.length);
     }
-    /**
-     * @param {DOpusVector} oVector DOpus Vector
-     * @returns {boolean} true if DOpus Vector
-     */
+    /** true if DOpus Vector */
     export function isValidDOVector (oVector: DOpusVector<any>): boolean {
         return (typeof oVector === 'object' && typeof oVector.capacity !== 'undefined' && typeof oVector.count !== 'undefined' && typeof oVector.length !== 'undefined' && oVector.count === oVector.length);
     }
-    /**
-     * @param {object} oAny any enumerable object, e.g. scriptCmdData.func.sourcetab.selected
-     * @returns {boolean}
-     */
+    /** true if object is any enumerable object, e.g. scriptCmdData.func.sourcetab.selected */
     export function isValidDOEnumerable (oAny: object): boolean {
         try {
             var e = new Enumerator(oAny);
             return (e && typeof e.atEnd === 'function' && typeof e.moveNext === 'function');
         } catch(e) { return false; }
     }
-    /**
-     * @param {DOpusScriptCommandData} cmdData
-     * @returns {boolean} true if DOpus command data
-     */
+    /** true if DOpus command data */
     export function isValidDOCommandData (cmdData: DOpusScriptCommandData): boolean {
         return (cmdData.func && typeof cmdData.func.dlg === 'function');
     }
-    /**
-     * @param {DOpusScriptColumnData} oColData DOpus column data
-     * @returns {boolean} true if DOpus column data
-     */
+    /** true if DOpus column data */
     export function isValidDOColumnData (oColData: DOpusScriptColumnData): boolean {
         return (typeof oColData === 'object' && typeof oColData.value !== 'undefined' && typeof oColData.group !== 'undefined');
     }
-    /** gets global (DOpus.Vars) var @param {any} key */
+    /** gets global (DOpus.Vars) var */
     export function getGlobalVar(key: any) {
         return DOpus.vars.get(key);
     }
-    /** sets global (DOpus.Vars) var @param {any} key @param {any} val */
+    /** sets global (DOpus.Vars) var */
     export function setGlobalVar(key: any, val: any) {
         DOpus.vars.set(key, val);
     }
-    /** @param {string} resourceName */
+    /** loads Script resource */
     export function loadResources(resourceName: string) {
         Script.loadResources(resourceName);
     }
