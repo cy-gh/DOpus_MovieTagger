@@ -17,8 +17,8 @@
  * The access to config is restricted to singletons, as each user script
  * can have one instance in DOpus. The singletons are the following:
  *
- * * **config.user**: access to UI-based configuration variables
- * * **config.ext**: access to external, JSON-based variables
+ * * **config.User**: access to UI-based configuration variables
+ * * **config.ScriptExt**: access to external, JSON-based variables
  *
  * The first is probably the one you already know from DOpus User Scripts UI.
  * The latter is for configuring your script during its initialization phase.
@@ -31,50 +31,76 @@
  * Variables added to config.ext will **not** visible in DOpus UI, as explained above.
  *
  *
- * # How to use:
+ * # How to use
  *
- * If you want to use more than just fullpath/path/isOSP variables,
- * but also variables which are user-configurable via DOpus Scripts UI,
- * write any function callable during `OnInit()`, e.g.
+ * ## UI/User variables
+ *
+ * `OnInit()`:
  * ```typescript
- *   function setupConfigVars(initData: DOpusScriptInitData) {
- *     // Top level function.
- *     // More to this below.
- *   }
+ * function OnInit(initData: DOpusScriptInitData) {
+ *     usr = config.User.getInstance(initData);
+ *     // the logger can be combined as well:
+ *     // logger = logger || libLogger.current;
+ *     // usr = config.User.getInstance(initData).setLogger(logger);
+ *     _initConfigDefaults(usr);
+ * }
  * ```
  *
- * in OnInit() call it with the scriptInitData you get automatically from DOpus, e.g.
+ * `_initConfigDefaults()`:
  * ```typescript
- *   setupConfigVars(initData);
- *   // note that this will also call config.user.setInitData(initData)
+ * function _initConfigDefaults(usr: config.User) {
+ *     // UI-configured settings:
+ *     usr.addNumber(...);
+ *     usr.addString(...);
+ *     // or to automatically show errors (depends on IResult implementation):
+ *     usr.addNumber(...).show();
+ *     // to store multi-line strings, you can use normalizeLeadingWhiteSpace() from libStdDev:
+ *     usr.addString(... bigFormattedString.normalizeLeadingWhiteSpace() ...);
+*      // ...
+ *     usr.finalize(); // 👈 call finalize() to set up UI groups & descriptions
+ * }
  * ```
  *
- * Your `setupConfigVars()` method should look like this
- * ```typescript
- *   //
- *   // config.user: UI-configured settings
- *   //
- *   config.user.setInitData(initData); // very important!
- *   // ...
- *   config.user.addNumber(...)
- *   config.user.addString(...)
- *   // ...
- *   // required for setting up the config UI groups & descriptions
- *   // very important - if this is not called, you will not see the groups/descriptions
- *   config.user.finalize(); // will return exception if initData is unset!
+ * ## External variables
  *
- *   //
- *   // config.ext: Externally configured settings
- *   //
- *   config.ext.setInitData(initData); // very important!
- *   config.ext.addPOJO('ext_config_pojo', objYourPOJO);
- *   // or shorter
- *   config.ext.setInitData(initData).addPOJO('ext_config_pojo', objYourPOJO);
- *   // unlike config.user.finalize(), the config.ext.finalize() is unnecessary
- *   // and will return exception if called
+ * This is required for setting up column names or other fields
+ * which can be set up only during initialization.
+ *
+ * `OnInit()`:
+ * ```typescript
+ * function OnInit(initData: DOpusScriptInitData) {
+ *     ext = config.ScriptExt.getInstance(initData);
+ *     _initColumns(initData, ext);
+ * }
  * ```
  *
- * The order in which you call config.user and config.ext methods doesn't matter.
+ * `_initColumns()`:
+ * ```typescript
+ * function _initColumns(initData: DOpusScriptInitData, ext: config.ScriptExt) {
+ *     //...
+ *     const expectedJSONPath = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
+ *     // note that getPOJOFromFile() below requires a type in the call
+ *     // CfgE.EXT_CONFIG_POJO is a any string, preferably a constant or enum
+ *     const extConfig: ExtConfigType =
+ *         ext.getPOJOFromFile<ExtConfigType>(CfgE.EXT_CONFIG_POJO, expectedJSONPath).match({
+ *             ok: (contents: ExtConfigType) => {
+ *                 logger.snormal('%s -- using external JSON: %s', fname, expectedJSONPath);
+ *                 return contents;
+ *             },
+ *             err: (err: IException<ex>) => {
+ *                 err.show();
+ *                 logger.serror('%s -- Error:\n%s', fname, err.toString());
+ *                 return {};
+ *             }
+ *         }); // match()
+ *     //...
+ *     // unlike usr, ext.finalize() is not necessary, as there are no UI groups to configure
+ * }
+ * ```
+ *
+ * The order in which you call usr and ext methods doesn't matter,
+ * but calling usr is highly recommended, so that you can use the default values
+ * immediately while using
  *
  * Of course, you can do it all in your `OnInit()` method directly and the last example above
  * will also give you access to fullpath/path/isOSP variables via `getScriptPathVars()` method
@@ -98,7 +124,7 @@
  *
  * to the enum and in validation method adding a new branch:
  * ```typescript
- *   var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
+ *   const rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
  *   return rePN.test(inputPhoneNum);
  * ```
  *
@@ -113,12 +139,12 @@
  *     export enum TYPE {
  *         PHONENUM = 'PHONENUM'
  *     }
- *     const isValidOrig = user.isValid;
+ *     const isValidOrig = usr.isValid;
  *     user.isValid = function (val: any, type: config.TYPE) {
  *         switch(type) {
  *             case config.TYPE.PHONENUM:
  *                 DOpus.output('running extended method');
- *                 var rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
+ *                 const rePN = /^\d{3}-[\d\-]+$/; // or whatever format you use
  *                 return rePN.test(val);
  *             default:
  *                 return isValidOrig(val, type);
@@ -130,8 +156,8 @@
  * Now you can directly use the existing types plus the new one:
  *
  * ```typescript
- * DOpus.output(config.user.isValid('123-456', config.TYPE.PHONENUM).toString());
- * DOpus.output(config.user.isValid('123-456', config.TYPE.STRING).toString());
+ * DOpus.output(usr.isValid('123-456', config.TYPE.PHONENUM).toString());
+ * DOpus.output(usr.isValid('123-456', config.TYPE.STRING).toString());
  * ```
  */
 namespace config {
@@ -207,7 +233,7 @@ namespace config {
 
         /** helps to formalize the access to DOpusMap fields via known fields */
         createItemMeta(key: string, type: config.TYPE, def?: any, group = '', desc = '', hide = false):DOpusMap {
-            var map = DOpus.create().map();
+            let map = DOpus.create().map();
             map.set(MetaField.KEY,       key);
             map.set(MetaField.TYPE,      type);
             map.set(MetaField.DEFAULT,   def);
@@ -321,15 +347,16 @@ namespace config {
             if (!this.getConfigKeysMetaMap().exists(key)) {
                 return g.ResultErr(Exc(ex.Uninitialized, fname, 'Value of ' + key + ' is not set yet')).show();
             }
-            let currentUserValue = this.getConfig()[key];
-            let keyMeta = this.getConfigKeyMeta(key);
+            const currentUserValue = this.getConfig()[key];
+            const keyMeta = this.getConfigKeyMeta(key);
+            const keyType = keyMeta.get(MetaField.TYPE);
             let retVal;
 
-            if (this.isValid(currentUserValue, keyMeta.get(MetaField.TYPE))) {
-                retVal = this.deserialize(currentUserValue, keyMeta.get(MetaField.TYPE));
+            if (this.isValid(currentUserValue, keyType)) {
+                retVal = this.deserialize(currentUserValue, keyType);
                 logger.sinfo('%s -- User value is valid, returning value: %s', fname, retVal);
             } else if (autoGetDOpusValue) {
-                retVal = this.deserialize(keyMeta.get(MetaField.DEFAULT), keyMeta.get(MetaField.TYPE));
+                retVal = this.deserialize(keyMeta.get(MetaField.DEFAULT), keyType);
                 logger.sinfo('%s -- User value is invalid, returning default: %s', fname, retVal);
             }
             return g.ResultOk(retVal);
@@ -347,19 +374,20 @@ namespace config {
             if (typeof this.initData === 'undefined') {
                 return Exc(ex.Uninitialized, fname, 'InitData has not been set yet, it must be passed from your OnInit() first').show();
             }
-            var config_groups = this.initData.config_groups || DOpus.create().map();
-            var config_desc   = this.initData.config_desc   || DOpus.create().map();
+            let config_groups = this.initData.config_groups || DOpus.create().map();
+            let config_desc   = this.initData.config_desc   || DOpus.create().map();
 
             const keysMetaMap = this.getConfigKeysMetaMap();
-            for (var e = new Enumerator(keysMetaMap); !e.atEnd(); e.moveNext()) {
+            for (const e = new Enumerator(keysMetaMap); !e.atEnd(); e.moveNext()) {
                 const key: string = e.item();
                 const keyMeta = this.getConfigKeyMeta(key);
+                const keyType = keyMeta.get(MetaField.TYPE);
 
                 this.logger.snormal(
                     'FINALIZE -- key: %s, type: %s, default: %s, group: %s, desc: %s',
                     key,
-                    keyMeta.get(MetaField.TYPE),
-                    (keyMeta.get(MetaField.TYPE) !== TYPE.DROPDOWN ? (''+this.serialize(keyMeta.get(MetaField.DEFAULT), keyMeta.get(MetaField.TYPE))).slice(0, 20) : 'Vector Default'),
+                    keyType,
+                    (keyType !== TYPE.DROPDOWN ? (''+this.serialize(keyMeta.get(MetaField.DEFAULT), keyType)).slice(0, 20) : 'Vector Default'),
                     keyMeta.get(MetaField.GROUP),
                     keyMeta.get(MetaField.DESC).replace(/\r|\n/g, ' ')
                 );
@@ -396,21 +424,20 @@ namespace config {
                     if (typeof val !== 'object') {
                         return false;
                     }
-                    for (var k in val) {
-                        if (typeof val[k] === 'function') { return false; }
+                    for (const kp in val) {
+                        if (typeof val[kp] === 'function') { return false; }
                     }
                     return true;
                 case TYPE.DROPDOWN:
                     if (typeof val === 'number') {
-                        // numbers (selected index) in dropdowns are always valid!
+                        // for getValue() - numbers in dropdowns indicate the selected index and are always valid!
                         return true;
                     } else if (!g.isValidDOVector(val)) {
-                        // if not number then it must be DOpus Vector
+                        // for addValue() - if not number then it must be DOpus Vector
                         return false;
                     }
                     try {
-                        var dv: DOpusVector<number>;
-                        dv = DOpus.create().vector(val);
+                        const dv: DOpusVector<any> = DOpus.create().vector(val);
                         if (dv.length < 2) {
                             return false;
                         }
@@ -437,29 +464,34 @@ namespace config {
         }
 
         /** checks all current values, returns true if all are valid, and list of invalid keys if not  */
-        isUserConfigValid(): IResult<true, string[]> {
+        isUserConfigValid(): IResult<true, { [_: string]: string }> {
             const fname = this.isUserConfigValid.fname = nsName + '.isUserConfigValid';
 
-            let invalidKeys: string[] = [];
+            // let invalidKeys: string[] = [];
+            let invalidKeys: { [_: string]: string } = {};
+            let isInvalid = false;
             for (let e = new Enumerator(this.getConfigKeysMetaMap()); !e.atEnd(); e.moveNext()) {
                 const key = e.item();
                 const keyMeta = this.getConfigKeyMeta(key);
-                if (keyMeta.get(MetaField.TYPE) === TYPE.DROPDOWN) {
+                const keyType = keyMeta.get(MetaField.TYPE);
+                if (keyType === TYPE.DROPDOWN) {
                     continue; // dropdowns are always valid, because they cannot be freely-changed
                 }
                 // hidden values cannot be accessed via this.getConfig()[key]
                 let currentValue;
                 if (keyMeta.get(MetaField.HIDE)) {
-                    currentValue = this.getValue(key, keyMeta.get(MetaField.TYPE)).ok;
+                    currentValue = this.getValue(key, keyType).ok;
                 } else {
-                    currentValue = this.deserialize( this.getConfig()[key], keyMeta.get(MetaField.TYPE));
+                    currentValue = this.deserialize( this.getConfig()[key], keyType);
                 }
-                if ( !this.isValid( currentValue, keyMeta.get(MetaField.TYPE) ) ) {
-                    logger.swarn('%s -- ', fname, ('key: ' + key + ', raw val: ' + this.getConfig()[key] + ', typeof deserialize currentValue: ' + typeof currentValue + ', expected: ' + keyMeta.get(MetaField.TYPE)));
-                    invalidKeys.push(key);
+                if ( !this.isValid( currentValue, keyType ) ) {
+                    logger.swarn('%s -- ', fname, ('key: ' + key + ', raw val: ' + this.getConfig()[key] + ', typeof deserialize currentValue: ' + typeof currentValue + ', expected: ' + keyType));
+                    // invalidKeys.push(key);
+                    invalidKeys[key] = keyType;
+                    isInvalid = true;
                 }
             }
-            if (invalidKeys.length) {
+            if (isInvalid) {
                 return g.ResultErr(invalidKeys);
             } else {
                 return g.ResultOk(true);
@@ -472,8 +504,9 @@ namespace config {
             for (let e = new Enumerator(this.getConfigKeysMetaMap()); !e.atEnd(); e.moveNext()) {
                 const key = e.item();
                 const keyMeta = this.getConfigKeyMeta(key);
+                const keyType = keyMeta.get(MetaField.TYPE);
                 // get the current value, and deserialize it using its type
-                vals[key] = this.deserialize(this.getConfig()[key], keyMeta.get(MetaField.TYPE));
+                vals[key] = this.deserialize(this.getConfig()[key], keyType);
             }
             // and now serialize it as a whole -- not the most elegant solution, but eh..
             return JSON.stringify(vals, null, 4);
@@ -561,9 +594,9 @@ namespace config {
                 this.logger.force('Skipping external config, not found: ' + filepath);
                 return g.ResultOk({});
             }
-            this.logger.force('Using external config: ' + filepath);
+            this.logger.normal('Using external config: ' + filepath);
 
-            var resReadFile = fs.readFile(filepath);
+            const resReadFile = fs.readFile(filepath);
             if (resReadFile.isErr()) {
                 return g.ResultErr(Exc(ex.FileRead, fname, resReadFile.err)).show();
             }
@@ -575,9 +608,9 @@ namespace config {
                 parsed = JSON.parse(resReadFile.ok);
                 this.logger.normal('...external config is valid JSON');
             } catch(e) {
-                return g.ResultErr(Exc(ex.FileRead, fname, 'External config exists but is invalid JSON, ignoring file\n\nerror: ' + e.toString() + '\nfile: ' + filepath)).show();
+                return g.ResultErr(Exc(ex.FileRead, fname, 'External config exists but is invalid JSON, ignoring file\n\nerror: ' + e.toString() + '\nfile: ' + filepath));
             }
-            var addRes = super.addValue(key, config.TYPE.POJO, parsed, '', '', true, false);
+            const addRes = super.addValue(key, config.TYPE.POJO, parsed, '', '', true, false);
             if (addRes.isErr()) {
                 return g.ResultErr(addRes.err).show();
             }
