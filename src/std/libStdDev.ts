@@ -72,9 +72,9 @@ function fnBuilder(name: string, func: Function) {
 
 /** Showable errors, mainly for Results and Exceptions */
 interface IShowable<T> {
-    /** String representation of the error */
+    /** String representation of the object */
     toString(): string;
-    /** should show if this is an error and return the same object */
+    /** should show if this is an error/none and return the same object */
     show(): T;
 }
 
@@ -204,6 +204,11 @@ interface IResultMatcher {
 interface IOption<S> extends IShowable<IOption<S>> {
     some: S;
     none: boolean;
+    isSome(): boolean;
+    isNone(): boolean;
+    toString(): string;
+    match(matcher: IOptionMatcher): S|any;
+    orElse(altValue: S): S;
 }
 /** constructor */
 declare var IOption: {
@@ -719,7 +724,7 @@ namespace g {
      * @param {any} okValue value on success
      * @param {any} errValue value on error/failure
      */
-    export class Result<S, E> implements IResult<S, E> {
+    class Result<S, E> implements IResult<S, E> {
         ok   : S;
         err  : E;
         stack: Array<any>;
@@ -764,16 +769,35 @@ namespace g {
         }
     }
 
-    export class Option<S> implements IOption<S> {
+    class Option<S> implements IOption<S> {
         some: S;
         none: boolean;
-        constructor(oSomeValue: S) {
+        constructor(oSomeValue: S, isNone?: boolean) {
             this.some = oSomeValue;
-            this.none = typeof oSomeValue === 'undefined';
+            this.none = typeof isNone !== 'undefined' ? isNone : typeof oSomeValue === 'undefined';
         }
         isSome()    { return typeof this.some !== 'undefined' }
         isNone()    { return this.none }
         toString()  { return JSON.stringify(this, null, 4) }
+        /** @example
+         * ```
+         * let someVal = mem.getCacheVar('someKey').match({
+         *   some: (v) => v,
+         *   none: () => 'defaultValue'
+         * });
+         * ```
+         */
+        match(matcher: IOptionMatcher) {
+            return this.isSome() ? matcher.some(this.some) : matcher.none(this.none);
+        }
+        /** @example
+         * ```
+         * let someVal: string = mem.getCacheVar('someKey').orElse('defaultValue');
+         * ```
+         */
+        orElse(altValue: S): S {
+            return this.isSome() ? this.some : altValue;
+        }
         show(): IOption<S> {
             if (!this.isNone()) {
                 return this;
@@ -787,7 +811,6 @@ namespace g {
             showMessageDialog(null, msg);
             return this;
         }
-
     }
 
     export class UserException implements IException<ex>, IShowable<UserException> {
@@ -1002,6 +1025,15 @@ namespace g {
         }
         return res;
     }
+
+    export function OptionSome(someValue?: any): IOption<typeof someValue> {
+        return new Option(someValue);
+    }
+
+    export function OptionNone(): IOption<any> {
+        return new Option(undefined, true);
+    }
+
 
     export function now() {
         return new Date().getTime();
