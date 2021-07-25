@@ -71,19 +71,28 @@ This file is well-documented.
 ## On Unchecked Exceptions/Errors vs Result & Option
 
 JavaScript exceptions are already ugly to deal with. Unless you put `try-catch` everywhere along the callstack,
-the error.stack is the only way of finding out where it happened. But JScript has no .stack!
+the error.stack is the only way of finding out where it happened. But wait, JScript has no .stack!
 
 Moreover, I unfortunately know of no way to make the IDE to tell me that the method I want to call might throw an exception.
 These are called "checked exceptions." Java and some other languages enforce you to handle these as soon as possible.
-Realizing that if your JS method calls many methods, and those yet other methods, one of which might throw an exception,
-development became very tedious.
+Some people hate them, some don't. Trouble is, JSDoc `@throws` did not help, there is no IDE-debugger, no stack... Nothing!
+Realizing that this would become a serious problem, development became very tedious.
 
-Solution: IException and Result, inspired by Rust.
+This forced me to get inspirations from error-code based languages a la C and functional/multi-paradigm languages,
+especially Rust, and the following article:
 
-All exceptions have been replaced with IException and these exceptions never thrown directly but wrapped in Result.
-Basically only handful methods in the whole codebase have a `throw` statement and have been replaced by these 2.
+http://joeduffyblog.com/2016/02/07/the-error-model/ (Highly recommended read!)
 
-Example:
+Solution: My `IException` concoction and Rust's `IResult`. (Rust's `IOption` is also available but that's topic for another day).
+These extend the interface `IShowable`, which only requires 2 methods: `toString()` and `show()`.
+
+99.9% of exceptions have been replaced with `IException` and these are never thrown directly but wrapped in an `IResult`.
+
+The only remaining `throw` statements are the following:
+* Polyfills from MDN
+* sprintf.js - which I might replace very soon
+* A single `throw` of my own in `g.abortWith()`, which is called very sparingly and meant to abort the script
+  for obvious bugs which should have been caught by developer (me) before deployment.
 
 ### IException
 To raise an exception you would normally do this:
@@ -102,8 +111,9 @@ if (!this.getConfigKeysMetaMap().exists(key)) {
 ```
 `Exc()` is a global method and `ex.Uninitialized` is from the global enum `ex`.
 `g.ResultErr()` is a convenience method which creates a new `Result<_, ErrorType>`, in this case the ErrorType is `IException<ex>`.
+`g.ResultErr(Exc(...))` could be combined via a convenience method but I decided against it.
 
-The caller can easily distinguish between different exceptions types by comparing it to the same enum,
+The caller can easily distinguish between different exceptions types by comparing it to `ex` enum members,
 and choose to handle or ignore it and return the same Result to the caller.
 
 ### IResult
@@ -144,6 +154,7 @@ logger.setLevel(res.show().ok || defaultVal);
 // or even shorter
 logger.setLevel(usr.getValue(CfgU.DEBUG_LEVEL).show().ok || defaultVal);
 ```
+
 The IResult's `show()` is a convenience method which checks if .err is defined,
 automatically shows it if it's an error, and returns the Results back if it's not an error.
 
@@ -155,10 +166,18 @@ but that's stupidity from that point on.
 ## Will I develop medium/large scripts again?
 
 Definitely, although I'm also ogling DOpus plugin development, but to take up a challenge, not with C++,
-but Rust and Sciter, to experiment with cross-platform
+but Rust and Sciter, to experiment with Rust-to-C++ bindings (only C-bindings are well-supported by Rust)
+and cross-platform UIs simultaneously. Besides, I'm neither a C++ guru nor remotely a fan of it.
 
-Leaving that aside, scripts still have many advantages: faster prototyping, much easier changes without firing up your IDE, etc.
-And now that I have tasted TypeScript's advantages and built a couple reusable libraries, expect improvements and other scripts.
+As DOpus dev Leo suggested, a plugin would be more suitable for large-ish developments, and he's right.
+JScript/WSH is clearly not up to such tasks. Everything you read here is a hack after all.
+I am unsure that if switching to Rust or C++ development would allow me debug the plugin live,
+but it would definitely ease up the coding part and also make unit tests possible.
+
+Leaving plugins aside, scripts still have one major advantage of all script languages:
+faster prototyping, much easier changes without firing up your IDE, etc.
+And now that I have dined on honeydew... wait... TypeScript's niceities and
+built a couple reusable libraries, expect improvements and other scripts.
 
 
 
