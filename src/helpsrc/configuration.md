@@ -219,13 +219,16 @@ Fields for **audios** are first upper-cased and probed in the following order to
 11. AUDIO_CODEC
 12. AUDIO_FORMAT - AUDIO_FORMAT_PROFILE  (mainly for MP3)
 
+
+**❗ Important:**
+
 The more specific items, i.e. items near the top, should be preferred,
-but they should be non-specific enough in case they are embedded in a movie file.
+but they also should be non-specific enough in case they are embedded in a movie file.
 
 This is why you should prefer AAC-MP4A-40-2 or AAC to MKA-AAC-MP4A-40-2 or MP4-AAC-MP4A-40-2
-otherwise you would have to re-declare the same codecs over and over for every movie container
-use one of the helper columns if you find something which is not shown to your liking.
-
+(note the containers MKA and MP4 in the front, respectively)
+otherwise you would have to re-declare the same codecs over and over for every movie container,
+as an example below tries to demonstrate.
 
 
 ## Example
@@ -254,10 +257,10 @@ The script will:
 * ...#2, 3, #4, #5, #6...
 * proceed to Check #7, i.e. "`AVC-AVC1`" and find "H264" and stop checking.
 
-If the same file had an ENCLIB_NAME "x264" it would match this line from Check #3:
+If the same file had an ENCLIB_NAME "x264" it would match this line from Check #6 `VIDEO_FORMAT - VIDEO_CODEC - ENC_LIBNAME`:
 
 ```json
-"AVC-AVC1-X264"            : ["H264 (x264)", "H264"]
+"AVC-AVC1-X264"            : ["H264 (x264)", "H264"],
 ```
 
 On the right hand-side there's an array: 1st one is the long name, 2nd one the short.
@@ -266,6 +269,22 @@ Defining both, where possible, seemed more reasonable because having the informa
 and losing it is worse than having the information and make it user-configurable.
 However, you can *"simplify"* this lookup table of course by only using short versions and using only VIDEO_CODEC or alike.
 
+
+To demonstrate the warning why definitions should be specific enough but not too specific.
+
+Assume the same file. If the CONTAINER_FORMAT was available, e.g. "MPEG-4" instead of ENCLIB_NAME, the script will:
+
+* do the same upper-casing & concatenation
+* skip #1 as there is no ENC_LIBNAME
+* skip #2 `CONTAINER_FORMAT - VIDEO_FORMAT - VIDEO_CODEC` because even though all fields are available, no match is found
+* proceed with #3, #4, #5, #6
+* match the rule #7 with "AVC-AVC1" and find "H264" and stop checking.
+
+```json
+"AVC-AVC1"                 : "H264",
+```
+
+To be able to use Check #1 and find a match, you would have to define the same codec for all possible container formats.
 
 
 ## Thoughts on FourCC
