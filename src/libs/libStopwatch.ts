@@ -11,11 +11,16 @@
      "Y8888P"     888      "Y88888P"  888        888P     Y888 d88P     888     888      "Y8888P"  888    888
 */
 
-namespace SW {
-    const myName = 'sw';
+namespace stopwatch {
 
-    class Stopwatch {
-        private myName = myName + '.Stopwatch';
+    export class SW {
+        private static instance: SW;
+
+        private constructor() { }
+
+        public static getInstance(): SW {
+            return SW.instance || (SW.instance = new this());
+        };
 
         /**
          * Mapping between id and start timestamp,
@@ -26,39 +31,31 @@ namespace SW {
         private _running: { [s: string]: number; } = {};
 
         private ensureExists(id: string | number, action: string) {
-            const fname = this.ensureExists.fname = myName + '.ensureExists';
+            const fname = this.ensureExists.fname = 'ensureExists';
             if(this._running[id]) return;
             var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must exist)', fname, id, action);
             g.abortWith(Exc(ex.InvalidParameterValue, fname, msg).err);
         }
 
         private ensureNotExists(id: string | number, action: string) {
-            const fname = this.ensureNotExists.fname = myName + '.ensureNotExists';
+            const fname = this.ensureNotExists.fname = 'ensureNotExists';
             if(!this._running[id]) return;
             var msg = g.sprintf('%s -- Given stopwatch name %s is invalid for action %s (must not exist)', fname, id, action);
             g.abortWith(Exc(ex.InvalidParameterValue, fname, msg).err);
         }
 
-        /**
-         * starts a stopwatch
-         * @param {string} id any unique name
-         * @returns {number} current timestamp in millisecs
-         */
+        /** starts a stopwatch */
         public start(id: string): number {
-            const fname = this.start.fname = myName + '.start';
+            const fname = this.start.fname = 'start';
             this.ensureNotExists(id, 'start');
             var _now = g.now();
             this._running[id] = _now;
             return _now;
         }
 
-        /**
-         * resets the stopwatch to current time and returns elapsed time since original start
-         * @param {string} id any unique name
-         * @returns {number} elapsed time in millisecs
-         */
+        /** resets the stopwatch to current time and returns elapsed time since original start */
         public reset(id: string): number {
-            const fname = this.reset.fname = myName + '.reset';
+            const fname = this.reset.fname = 'reset';
             this.ensureExists(id, 'reset');
             var _now = g.now();
             var _elapsed = _now - this._running[id];
@@ -66,41 +63,26 @@ namespace SW {
             return _elapsed;
         }
 
-        /**
-         * returns elapsed time
-         * @param {string} id any unique name
-         * @returns {number} elapsed time in millisecs
-         */
+        /** returns elapsed time */
         public getElapsed(id: string): number {
-            const fname = this.getElapsed.fname = myName + '.getElapsed';
+            const fname = this.getElapsed.fname = 'getElapsed';
             this.ensureExists(id, 'getElapsed');
             var _elapsed =  g.now() - this._running[id];
             return _elapsed;
         }
 
-        /**
-         * stops the stopwatch and returns elapsed time
-         * @param {string} id any unique name
-         * @returns {number} elapsed time in millisecs
-         */
+        /** stops the stopwatch and returns elapsed time */
         public stop(id: string): number {
-            const fname = this.stop.fname = myName + '.stop';
+            const fname = this.stop.fname = 'stop';
             this.ensureExists(id, 'stop');
             var _elapsed = g.now() - this._running[id];
             delete this._running[id];
             return _elapsed;
         }
 
-        /**
-         * starts a stopwatch and returns a formatted string
-         * @param {string} id any unique name
-         * @param {any=} prefix prefix in output
-         * @param {any=} suffix suffix in output
-         * @returns {string} formatted string
-         * @see start
-         */
+        /** starts a stopwatch and returns a formatted string */
         public startAndPrint(id: string, prefix?: any, suffix?: any): string {
-            const fname = this.startAndPrint.fname = myName + '.startAndPrint';
+            const fname = this.startAndPrint.fname = 'startAndPrint';
             this.start(id);
             return g.sprintf(
                 '%s -- %s Started @%d %s',
@@ -111,16 +93,9 @@ namespace SW {
             );
         }
 
-        /**
-         * resets the stopwatch and returns a formatted string
-         * @param {string} id any unique name
-         * @param {any=} prefix prefix in output
-         * @param {any=} suffix suffix in output
-         * @returns {string} formatted string
-         * @see reset
-         */
+        /** resets the stopwatch and returns a formatted string */
         public resetAndPrint(id: string, prefix?: any, suffix?: any): string {
-            const fname = this.resetAndPrint.fname = myName + '.resetAndPrint';
+            const fname = this.resetAndPrint.fname = 'resetAndPrint';
             var _elapsed = this.reset(id);
             return g.sprintf(
                 '%s -- %s Reset @%d, Elapsed so far: %d ms (%s s) %s',
@@ -133,16 +108,9 @@ namespace SW {
             );
         }
 
-        /**
-         * returns elapsed time as a formatted string
-         * @param {string} id any unique name
-         * @param {any=} prefix prefix in output
-         * @param {any=} suffix suffix in output
-         * @returns {string} formatted string
-         * @see getElapsed
-         */
+        /** returns elapsed time as a formatted string */
         public getElapsedAndPrint(id: string, prefix?: any, suffix?: any): string {
-            const fname = this.getElapsedAndPrint.fname = myName + '.getElapsedAndPrint';
+            const fname = this.getElapsedAndPrint.fname = 'getElapsedAndPrint';
             var _elapsed =  this.getElapsed(id);
             return g.sprintf(
                 '%s -- %s Elapsed so far: %d ms (%s s) %s',
@@ -154,16 +122,9 @@ namespace SW {
             );
         }
 
-        /**
-         * stops a stopwatch and returns elapsed time as a formatted string
-         * @param {string} id any unique name
-         * @param {any=} prefix prefix in output
-         * @param {any=} suffix suffix in output
-         * @returns {string} formatted string
-         * @see stop
-         */
+        /** stops a stopwatch and returns elapsed time as a formatted string */
         public stopAndPrint(id: string, prefix?: any, suffix?: any): string {
-            const fname = this.stopAndPrint.fname = myName + '.stopAndPrint';
+            const fname = this.stopAndPrint.fname = 'stopAndPrint';
             var _elapsed = this.stop(id);
             return g.sprintf(
                 '%s -- %s Finished @%d, Elapsed: %d ms (%s s) %s',
@@ -175,9 +136,7 @@ namespace SW {
                 (suffix ? '- ' + suffix : '')
             );
         }
-
     }
-
-    export const stopwatch = new Stopwatch();
-
 }
+
+const sw = stopwatch.SW.getInstance();
