@@ -33,7 +33,7 @@ namespace cache {
         getKeys(): IOption<[string|number]>;
 
         /** Clears cache */
-        clear(): void;
+        clear(): IMemCache;
 
         /** Returns the number of items in the cache */
         getCount(): IOption<number>;
@@ -103,6 +103,7 @@ namespace cache {
         clear() {
             if (this.isEnabled())
                 this.getVarsVar().set(this.id, DOpus.create().map());
+            return this;
         }
 
         getCount() {
@@ -170,7 +171,7 @@ namespace cache {
         isEnabled()                     { return false }
         get()                           { return g.OptionNone() }
         getKeys()                       { return g.OptionNone() }
-        clear()                         { }
+        clear()                         { return this }
         getCount()                      { return g.OptionNone() }
         getVar()                        { return g.OptionNone() }
         setVar(k: string|number, v: any){ return this }
