@@ -70,11 +70,11 @@ function fnBuilder(name: string, func: Function) {
     return func;
 }
 
-/** Showable errors, mainly for Results and Exceptions */
-interface IShowable<T> {
+/** Displayable objects, mainly for Results and Exceptions */
+interface IDisplay<T> {
     /** String representation of the object */
     toString(): string;
-    /** should show if this is an error/none and return the same object */
+    /** Should show if this is an error/none and return the same object */
     show(): T;
 }
 
@@ -179,7 +179,7 @@ interface IShowable<T> {
  *
  * These are more or less compatible with my implementation as well. Replace if you fancy.
  */
-interface IResult<S, E> extends IShowable<IResult<S, E>> {
+interface IResult<S, E> extends IDisplay<IResult<S, E>> {
     ok: S;
     err: E;
     stack: Array<any>;
@@ -201,7 +201,7 @@ interface IResultMatcher {
     err: Function
 }
 
-interface IOption<S> extends IShowable<IOption<S>> {
+interface IOption<S> extends IDisplay<IOption<S>> {
     some: S;
     none: boolean;
     isSome(): boolean;
@@ -224,7 +224,7 @@ interface IOptionMatcher {
 
 
 /** Standard logger interface, implemented in libLogger.ts. */
-interface ILogger extends IShowable<string> {
+interface ILogger extends IDisplay<string> {
     getLevel()                  : g.LOGLEVEL;
     setLevel(level: g.LOGLEVEL) : void;
     getLevels()                 : g.LOGLEVEL[];
@@ -267,13 +267,8 @@ interface ILibrary<T> {
 */
 
 
-/**
- * @param {function} fnCaller
- * @param {string} message
- * @param {string|function} where
- * @constructor
- */
-interface IException<T> extends IShowable<IException<T>> {
+/** Exception/Error wrapper */
+interface IException<T> extends IDisplay<IException<T>> {
     /** Internal type number, never use it directly/hard-coded */
     readonly type: T;
     /** Exception name, e.g. 'NotImplementedYetException' */
@@ -284,10 +279,12 @@ interface IException<T> extends IShowable<IException<T>> {
     readonly where: string;
 }
 
+/** this function is kept in global namespace only for brevity reasons */
 function Exc(type: ex, where: string | Function, message?: string): IResult<any, IException<ex>> {
     return g.ResultErr(new g.UserException(type, where, message));
 }
 
+/** this enum is kept in global namespace only for brevity reasons */
 enum ex {
     /** Method/function not implemented yet */
     NotImplementedYet,
@@ -311,7 +308,17 @@ enum ex {
     FileCreate,
     /** File could not be read */
     FileRead,
+    /** File could not be written into */
+    FileWrite,
+    /* File does not exist */
+    FileNotFound,
+    /** File cannot be read into blob */
+    BlobReadInto,
+    /** StringTools cannot decode input to requested format */
+    StringDecode,
 
+    /** The called method is obsolete and should not be used anyymore */
+    ObsoleteMethod,
 
     InvalidFormat,
     UnsupportedFormat,
@@ -340,7 +347,7 @@ enum ex {
                                                             888P"
 */
 
-
+/** extend standard JS error with 'where' field */
 interface Error {
     // add where for custom exceptions
     where: string;
@@ -405,11 +412,13 @@ String.prototype.asInt = function () : IResult<number, IException<ex>> {
     return g.ResultOk(num);
 };
 
+/** calculate a fixed-length hash for strings, md5 is marginally slower than sha1 but the string length is significantly shorter */
 String.prototype.toHash = function () : string {
     let blob = DOpus.create().blob();
     blob.copyFrom(this.valueOf());
     return <string> DOpus.fsUtil().hash(blob, 'md5');
 };
+
 
 
 
@@ -655,14 +664,17 @@ namespace g {
     export const dopusrt    = 'dopusrt /acmd';
 
 
+    /** helper enum to be used by IShowable.show() implementers */
     export enum ERROR_MODES {
+        /** show only exceptions */
         ONLY_EXCEPTIONS = 'ONLY_EXCEPTIONS',
+        /** show all error results, incl. non-exception errors, should be used only temporarily and only during development */
         ALL_RESULTS     = 'ALL_RESULTS',
     }
+    /** default error showing mode - should be execptions only */
     export var ERROR_MODE:ERROR_MODES = ERROR_MODES.ONLY_EXCEPTIONS;
 
     export enum LOGLEVEL {
-        // FORCE   = 0,
         NONE    = 0,
         ERROR   = 1,
         WARN    = 2,
@@ -690,20 +702,11 @@ namespace g {
                     Y8P   d88P     888 888   T88b  "Y8888P"
     */
 
-    /**
-     * System temp directory, resolved from *%TEMP%*
-     * @type {string}
-     */
+    /** System temp directory, resolved from *%TEMP%* */
     export const SYSTEMP: string    = ''+DOpus.fsUtil().resolve('%TEMP%');
-    /**
-     * DOpus scripts directory, resolved from *dopusdata/Script AddIns* -- has a trailing backslash
-     * @type {string}
-     */
+    /** DOpus scripts directory, resolved from *dopusdata/Script AddIns* -- has a trailing backslash */
     export const SCRIPTSDIR: string = DOpus.fsUtil().resolve('/dopusdata/Script AddIns') + '\\';
-    /**
-     * Unique script ID for memory operations via DOpus.vars, Script.Vars and alike
-     * @type {string}
-     */
+    /** Unique script ID for memory operations via DOpus.vars, Script.Vars and alike */
     export let SCRIPT_UNIQUE_ID: string;
 
     /*
@@ -813,7 +816,7 @@ namespace g {
         }
     }
 
-    export class UserException implements IException<ex>, IShowable<UserException> {
+    export class UserException implements IException<ex> {
         public readonly type: ex;
         public readonly name: string;
         public readonly where: string;
@@ -1201,16 +1204,20 @@ namespace g {
     }
 
     export function getUniqueID(simple = true):string {
-        // Believe it or not
-        // on a fast CPU, if this method and random() method are called very frequently
-        // the milliseconds we get from now() from 2 successive calls are usually the same
-        // and random(), although rarely but not never, returns the same value twice
-        // in the very exact milliseconds!
-        // Using DOpus.delay(1) unfortunately did not help, because I suspect,
-        // once DOpus executes delay() the OS sends the script to a much longer sleep
-        // than we intend, only 1 millisecs.
-        // The md5 calculation keeps the CPU just enough occupied
-        // to make it wait longer than 1 ms, so that the generated number is guaranteed to be unique.
+        /*
+            Believe it or not
+            on a fast CPU, if this method and random() method are called very frequently,
+            the milliseconds we get from now() from 2 successive calls are usually the same
+            and random(), although rarely but not never, returns the same value twice
+            in the very exact milliseconds!
+
+            Using DOpus.delay(1) unfortunately did not help, because I suspect,
+            once DOpus executes delay() the OS sends the script to a much longer sleep
+            than we intend, only 1 millisecs.
+
+            The md5 calculation keeps the CPU just enough occupied
+            to make it wait longer than 1 ms, so that the generated number is guaranteed to be unique.
+        */
         var _now = now();
         if (simple) {
             // now() + '_' + Math.floor(1000 + Math.random() * 8999);
@@ -1301,8 +1308,73 @@ namespace g {
 }
 
 
+// https://github.com/joseluisq/sprintfit
+namespace g2 {
+    /**
+     * Return a formatted string using an array of arguments
+     *
+     * @param args array of arguments
+     * @returns a formatted string
+     */
+    function sprintfv (args: any[]): string {
+        const argsLen = args.length
+        const formatv: string = (args[0] || "").toString()
+        const argv: any[] = []
+        const argvLen = argsLen > 0 ? argsLen - 1 : 0
 
-namespace g {
+        // Note: type specifier '%s' is only supported
+        const formats: string[] = formatv.split("%s")
+        const formatsLen = formats.length
+        if (formatsLen <= 0) {
+            return formatv
+        }
+        const formatLen = formatsLen - 1
+        if (formatLen > argvLen) {
+            throw new Error("Too few arguments supplied.")
+        }
+        for (let i = 0; i < argsLen - 1; ++i) {
+            argv.push(
+                // (args[i + 1] || "").toString() // this does not print out number 0!
+                // (typeof args[i + 1] !=='undefined' && args[i + 1] !== null ? args[i + 1] : "").toString()
+                (typeof args[i + 1] !=='undefined' ? args[i + 1] : "").toString()
+            )
+        }
+        let str = ""
+        for (let i = 0; i < formatsLen; i++) {
+            str += formats[i] || ""
+            if (i < formatLen) {
+                str += argv[i] || ""
+            }
+        }
+        return str
+    }
+
+    /**
+     * Return a formatted string and accepts a variable number of arguments
+     * whose first argument correspond to string format
+     *
+     * @returns a formatted string
+     */
+    export function sprintf (...args: any[]): string {
+        return sprintfv(args)
+    }
+
+    /**
+     * Operates as `sprintf()` but accepts an array of arguments
+     *
+     * @param format string format
+     * @param argsv an array of arguments
+     * @returns a formatted string
+     */
+    export function vsprintf (format: any = "", argsv: any[] = []): string {
+        const args = [ format ]
+        Array.prototype.push.apply(args, argsv)
+        return sprintfv(args)
+    }
+}
+
+
+namespace g_Old {
     // this namespace  wraps the sprintf.js as a TS namespace
     // it's possible thanks to the genius solution from https://stackoverflow.com/a/54946767
     const wrap = <T extends Array<any>, U>(fn: (...args: T) => U) => {
