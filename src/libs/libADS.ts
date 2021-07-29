@@ -48,39 +48,19 @@ namespace ads {
         /**
          * ADS-Cached Item
          * modify date & size are optional, if not given the DOpusItem will be used
-         *
-         * @param {DOpusItem} oItem DOpus Item object
-         * @param {Date=} modify file mod date
-         * @param {number=} size file size
-         * @param {...any}
-         * @constructor
          */
         new (oItem: DOpusItem, modify?: Date, size?: number, ...args: any): ICachedItem;
     }
 
 
     interface IADS {
-        /**
-         * @param {DOpusItem} oItem
-         * @returns {IADSFileAttr} strings to restore previous file attributes
-         */
+        /** returns strings to restore previous file attributes */
         getFileAttributes(oItem: DOpusItem): IADSFileAttr;
 
-
-        /**
-         * checks if given item has a hash stream
-         * @param {DOpusItem} oItem DOpus Item object
-         * @returns {boolean} true if file has a hash stream
-         */
+        /** checks if given item has a hash stream, returns true if file has a hash stream */
         hasHashStream(oItem: DOpusItem): boolean;
 
-        /**
-         * returns the stored ADS data as POJO
-         * uses cache if enabled and possible
-         * @param {DOpusItem} oItem DOpus Item object
-         * @returns {Result.<ICachedItem, string>} CachedItem on success, error string on error
-         * @see fs.readFile()
-         */
+        /** Returns the stored ADS data as POJO, uses cache if enabled and possible */
         read(oItem: DOpusItem): IResult<ICachedItem, string>;
 
         /**
@@ -94,19 +74,12 @@ namespace ads {
          */
         save(oItemOrItems: DOpusItem|DOpusVector<DOpusMap>, oCachedItemOrNull: ICachedItem|null): IResult<number, string>;
 
-        /**
-         * deletes ADS data, directly deletes "file:stream"
-         * removes item from cache if enabled
-         * @param {DOpusItem|ICustomDOpusVector<DOpusItem>} oItemOrItems DOpus Item object or Items Vector
-         */
+        /** Deletes ADS data, directly deletes "file:stream", removes item from cache if enabled */
         remove(oItemOrItems: DOpusItem|DOpusVector<DOpusItem>): void;
 
     }
     declare var IADS: {
-        /**
-         * @param {string} streamName name to use, no : or $DATA necessary
-         * @constructor
-         */
+        /** @param {string} streamName name to use, no : or $DATA necessary @constructor */
         new(streamName: string): IADS;
     }
 
@@ -146,18 +119,11 @@ namespace ads {
         constructor () {
             this.items = DOpus.create().vector();
         }
-        /**
-         * @param {DOpusItem} oItem
-         * @returns {DOpusItemsVector}
-         */
         addItem (oItem: DOpusItem): DOpusItemsVector {
             this.items.push_back(oItem);
             return this;
         };
-        /**
-         * @returns {DOpusVector.<DOpusItem>}
-         */
-        getItems () {
+        getItems (): DOpusVector<DOpusItem> {
             return this.items;
         };
     }
@@ -167,20 +133,12 @@ namespace ads {
         constructor() {
             this.items = DOpus.create().vector();
         }
-        /**
-         * @param {DOpusItem} oItem
-         * @param {any} oValue usually a CachedItem
-         * @returns {DOpusItemsVectorOfMaps}
-         * @see {CachedItem}
-         */
         addItem (oItem: DOpusItem, oValue: ICachedItem | null): DOpusItemsVectorOfMaps {
             this.items.push_back(DOpus.create().map('key', oItem, 'val', oValue));
             return this;
         };
-        /**
-         * @returns {DOpusVector}
-         */
-        getItems () {
+
+        getItems (): DOpusVector<DOpusMap> {
             return this.items;
         };
     }
@@ -200,13 +158,12 @@ namespace ads {
         private streamName: string;
         private cache: cache.IMemCache;
         private cmd: DOpusCommand;
-        private logger: ILogger;
+        private logger: ILogger = libLogger.current;
 
         constructor(streamName: string, cacheImpl?: cache.IMemCache) {
             this.streamName = streamName;
-            this.cache = cacheImpl || cache.NullCache.getInstance();
-            this.cmd = DOpus.create().command();
-            this.logger = libLogger.current;
+            this.cache      = cacheImpl || cache.NullCache.getInstance();
+            this.cmd        = DOpus.create().command();
         }
 
         // interface implementation
@@ -270,8 +227,7 @@ namespace ads {
 
             var totalBytesWritten = 0;
 
-            /** @type {DOpusVector} */
-            var vec;
+            var vec: DOpusVector<DOpusMap>;
             if(oItemOrItems instanceof DOpusItemsVectorOfMaps) {
                 vec = oItemOrItems.getItems();
             } else {
@@ -280,7 +236,6 @@ namespace ads {
 
             this.cmd.clearFiles();
             for(var i = 0; i < vec.length; i++) {
-                /** @type {DOpusItem} */
                 var oItem: DOpusItem        = vec[i].get('key');
                 var oCachedItem:ICachedItem = vec[i].get('val');
 
@@ -291,13 +246,11 @@ namespace ads {
                 // check the file attributes: Read-Only & System
                 var oFileAttrib = this.getFileAttributes(oItem);
 
-                if (filePath.length > 240 ) {
-                    filePath   = '\\\\?\\' + filePath;
-                    targetPath = '\\\\?\\' + targetPath;
-                }
+                filePath = fs.makeLongSafe(filePath);
+                targetPath = fs.makeLongSafe(targetPath);
 
                 var resSaveFile = fs.saveFile(targetPath, JSON.stringify(oCachedItem));
-                if (resSaveFile.isErr()) return g.ResultErr(g.sprintf('%s -- Cannot save to %s', fname, targetPath));
+                if (resSaveFile.isErr()) return g.ResultErr(g2.sprintf('%s -- Cannot save to %s', fname, targetPath));
 
                 // reset the file date & attributes
                 // cmd.runCommand('SetAttr FILE="' + filePath + '" MODIFIED "' + origModDate + '" ATTR ' + oFileAttrib.setAttr + ' CLEARATTR ' + oFileAttrib.clearAttr);
@@ -325,13 +278,11 @@ namespace ads {
 
             this.cmd.clearFiles();
             for(var i = 0; i < vec.length; i++) {
-                /** @type {DOpusItem} */
                 var oItem: DOpusItem = vec[i];
 
                 var filePath    = ''+oItem.realpath,
                     targetPath  = filePath + ':' + this.streamName,
                     origModDate = DateToDOpusFormat(oItem.modify);
-                    // origModDate = oItem.modify.formatAsDateDOpus();
                 this.logger.sverbose('%s -- Deleting %s and resetting modification date to: %s', fname, oItem.realpath, origModDate);
 
                 // get the current file attributes: Read-Only, System, Archive, Hidden
@@ -340,10 +291,9 @@ namespace ads {
                 // use the original path without \\?\
                 this.cache.delVar(filePath);
 
-                if (filePath.length > 240 ) {
-                    filePath   = '\\\\?\\' + filePath;
-                    targetPath = '\\\\?\\' + targetPath;
-                }
+                filePath   = fs.makeLongSafe(filePath);
+                targetPath = fs.makeLongSafe(targetPath);
+
                 // delete the ADS stream, reset the modification date & file attributes
                 this.cmd.addLine('Delete /quiet /norecycle "' + targetPath + '"');
                 this.cmd.addLine('SetAttr FILE="' + filePath + '" MODIFIED "' + origModDate + '" ATTR ' + oFileAttrib.setAttr + ' CLEARATTR ' + oFileAttrib.clearAttr);
