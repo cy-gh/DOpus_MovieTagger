@@ -21,7 +21,7 @@ namespace fs {
     }
 
     /** Checks if given path is valid */
-    function isValidPath(path: string) {
+    export function isValidPath(path: string) {
         return g.fsu.exists(makeLongSafe(path));
     }
 

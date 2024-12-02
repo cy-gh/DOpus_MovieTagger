@@ -5,36 +5,18 @@
 /* eslint indent: [2, 4, {"SwitchCase": 1}] */
 ///<reference path='./std/libStdDev.ts' />
 ///<reference path='./libs/formatters.ts' />
+///<reference path='./libs/libConfigAccess.ts' />
+///<reference path='./libs/libLogger.ts' />
 ///<reference path='./libs/libCache.ts' />
 ///<reference path='./libs/libDOpusHelper.ts' />
-///<reference path='./libs/libLogger.ts' />
 ///<reference path='./libs/libURLHelpers.ts' />
 ///<reference path='./libs/libFS.ts' />
 ///<reference path='./libs/libADS.ts' />
-///<reference path='./libs/libConfigAccess.ts' />
 
 // use CTRL-SHIFT-B to build - you must have npx.cmd in your path
 
 // DOpus.output('<b>Script parsing started</b>');
 
-var logger: ILogger;
-var usr: config.User;
-var ext: config.ScriptExt;
-
-function _reinitGlobalVars(initData?: DOpusScriptInitData) {
-    logger  = logger || libLogger.current;
-    usr     = usr || config.User.getInstance(initData).setLogger(logger);
-    ext     = ext || config.ScriptExt.getInstance(initData).setLogger(logger);
-
-    // configuration must have been finalized before continuing
-    if (initData) return;
-
-    let dbgLevelRes = config.User.getInstance(initData).getValue(CfgU.DEBUG_LEVEL).show();
-    if (dbgLevelRes.isOk()) {
-        logger.force('Switching to debug level: ' + dbgLevelRes.ok);
-        logger.setLevel(dbgLevelRes.ok);
-    }
-} // _reinitGlobalVars
 
 
 interface ScriptMeta extends g.ScriptMetaKnown {
@@ -49,12 +31,12 @@ interface ScriptMeta extends g.ScriptMetaKnown {
 const scriptMeta: ScriptMeta = {
     NAME                    : 'CuMediaExtenders',
     NAME_SHORT              : 'MExt',
-    VERSION                 : '0.93',
+    VERSION                 : '1.0.0',
     COPYRIGHT               : '© 2021 cuneytyilmaz.com',
     URL                     : 'https://github.com/cy-gh/DOpus_CuMediaExtenders/',
     DESC                    : 'Extended fields for multimedia files (movie & audio) with the help of MediaInfo & NTFS ADS\nSee Help for more info.',
     MIN_VERSION             : '12.24.1',
-    DATE                    : '20210714',
+    DATE                    : '20210724',
     GROUP                   : 'cuneytyilmaz.com',
     PREFIX                  : 'MExt', // prefix for field checks, log outputs, progress windows, etc. - do not touch
     LICENSE                 : 'Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)',
@@ -214,7 +196,7 @@ type CommandTemplate = {
     hide? : boolean
 }
 /** command definitions */
-const AllCommands: { [key: string]: CommandTemplate } = {
+const AllCommands: { [_: string]: CommandTemplate } = {
     /*
         Available icon names, used by GetIcon()
             Calculate
@@ -340,6 +322,15 @@ const AllCommands: { [key: string]: CommandTemplate } = {
         desc: 'Validate current configuration'
     },
 
+    'ME_ShowHelp': {
+        func: OnME_ShowHelp,
+        tmpl: '',
+        icon: 'Info',
+        label: 'Help',
+        desc: 'Show Help'
+    },
+
+
     'ME_TestMethod1': {
         func: OnME_TestMethod1,
         tmpl: '',
@@ -376,16 +367,7 @@ type ColumnTemplate = {
     multiCol   : boolean
 }
 /** column definitions */
-const AllColumns: { [key: string]: ColumnTemplate } = {
-    // 'DMT_HasMetadata': {
-    //     // func: OnMExt_HasMetadata,
-    //     func: CustomCommand,
-    //     label: 'Available',
-    //     justify: ColumnJustify.Right,
-    //     autoGroup: false,
-    //     autoRefresh: true,
-    //     multiCol: false
-    // },
+const AllColumns: { [_: string]: ColumnTemplate } = {
     'MExt_HasMetadata': {
         func: OnMExt_HasMetadata,
         label: 'Available',
@@ -760,17 +742,43 @@ const AllColumns: { [key: string]: ColumnTemplate } = {
 
 /** allowed fields user-customizable JSON file*/
 type ExtConfigType = {
-    colPrefix?: string,
-    colRepl?  : { [key: string]: string },
-    colExtra? : { [key: string]: string }
+    colPrefix?      : string,
+    colRepl?        : { [key: string]: string },
+    colExtra?       : { [key: string]: string },
+    colExtraVideo?  : { [key: string]: string },
+    colExtraAudio?  : { [key: string]: string },
 }
 
-// CONFIG - DEFAULT VALUES
-function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
-    _initConfigDefaults.fname = 'setupConfigVars';
 
-    // cfg.setInitData(initData).setLogger(logger);
-    // ext.setInitData(initData).setLogger(logger);
+
+
+
+var logger: ILogger;
+var usr: config.User;
+var ext: config.ScriptExt;
+var mem: cache.IMemCache;
+var nil: cache.IMemCache;
+
+/** ❗ Do not clear cache vars here, otherwise they will be called every time the script is invoked! */
+function _reinitGlobalVars(initData?: DOpusScriptInitData) {
+    logger = logger || libLogger.std;
+    usr    = usr || config.User.getInstance(initData).setLogger(logger);
+    ext    = ext || config.ScriptExt.getInstance(initData).setLogger(logger);
+    mem    = mem || cache.MemCache.getInstance(initData).setLogger(logger);
+    nil    = nil || cache.NullCache.getInstance().setLogger(logger);
+
+    // configuration must have been finalized before continuing
+    if (initData) return;
+    usr.getValue(CfgU.DEBUG_LEVEL).match({
+        ok: (dbgLevel: number) => logger.setLevel(dbgLevel),
+        err: (ex: IException<ex>) => ex.show()
+    });
+} // _reinitGlobalVars
+
+
+/* Set up default config values - ❗ Do not forget to call usr.finalize() */
+function _initConfigDefaults(usr: config.User) {
+    _initConfigDefaults.fname = 'setupConfigVars';
 
     /**
      * Name of the ADS stream, can be also used via "dir /:" or "type file:stream_name" commands
@@ -783,8 +791,7 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
      * and an army of thousands ghosts will haunt you for the rest of your life, you wouldn't like that mess
      *
      */
-    usr.addValue(
-        CfgU.META_STREAM_NAME,
+    usr.addValue(CfgU.META_STREAM_NAME,
         config.TYPE.STRING,
         'MExt_MediaInfo',
         CfgVGroups[CfgU.META_STREAM_NAME],
@@ -792,28 +799,25 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
     ).show();
 
 
-    usr.addValue(
-        CfgU.MEDIAINFO_PATH,
+    usr.addValue(CfgU.MEDIAINFO_PATH,
         config.TYPE.PATH,
-        // '%gvdTool%\\MMedia\\MediaInfo\\MediaInfo.exe',
         '/programfiles/MediaInfo/MediaInfo.exe',
         CfgVGroups[CfgU.MEDIAINFO_PATH],
         CfgVDescs[CfgU.MEDIAINFO_PATH],
         false, // hide=false
         true // bypass=true - otherwise people will get an error on initial installation
-    );
+    ).show();
 
 
     var _vDebugLevels = DOpus.create().vector();
     _vDebugLevels.push_back(logger.getLevelIndex().show().ok); // try to ignore Error in this case, we know logger is safe
     _vDebugLevels.append(logger.getLevels());
-    usr.addValue(
-        CfgU.DEBUG_LEVEL,
+    usr.addValue(CfgU.DEBUG_LEVEL,
         config.TYPE.DROPDOWN,
         _vDebugLevels,
         CfgVGroups[CfgU.DEBUG_LEVEL],
         CfgVDescs[CfgU.DEBUG_LEVEL]
-    );
+    ).show();
 
 
     /**
@@ -827,24 +831,22 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
      * however, also keep in mind the read time per size DOES NOT DEPEND ON THE FILE SIZE
      * the refresh time is relational to the NUMBER OF FILES and speed of your hdd/sdd/nvme/ramdisk/potato
      */
-     usr.addValue(
-        CfgU.FORCE_REFRESH_AFTER_UPDATE,
+     usr.addValue(CfgU.FORCE_REFRESH_AFTER_UPDATE,
         config.TYPE.BOOLEAN,
         true,
         CfgVGroups[CfgU.FORCE_REFRESH_AFTER_UPDATE],
         CfgVDescs[CfgU.FORCE_REFRESH_AFTER_UPDATE]
-    );
+    ).show();
 
 
 
     /** keep the original "last modified timestamp" after updating/deleting ADS; TRUE highly recommended */
-    usr.addValue(
-        CfgU.KEEP_ORIG_MODTS,
+    usr.addValue(CfgU.KEEP_ORIG_MODTS,
         config.TYPE.BOOLEAN,
         true,
         CfgVGroups[CfgU.KEEP_ORIG_MODTS],
         CfgVDescs[CfgU.KEEP_ORIG_MODTS]
-    );
+    ).show();
 
     /**
      * cache metadata JS objects in memory for unchanged files to speed up process (the gain remains questionable IMO)
@@ -870,13 +872,12 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
      *
      * to avoid high mem usage you can manually call the CLEARCACHE command via button, menu...
      */
-    usr.addValue(
-        CfgU.CACHE_ENABLED,
+    usr.addValue(CfgU.CACHE_ENABLED,
         config.TYPE.BOOLEAN,
         true,
         CfgVGroups[CfgU.CACHE_ENABLED],
         CfgVDescs[CfgU.CACHE_ENABLED]
-    );
+    ).show();
 
 
 
@@ -941,12 +942,11 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
         "MExt_ADSDataFormatted"           : "verbose",
         "MExt_ADSDataRaw"                 : "verbose"
     }`;
-    usr.addValue(
-        CfgU.REF_ALL_AVAILABLE_FIELDS,
+    usr.addValue(CfgU.REF_ALL_AVAILABLE_FIELDS,
         config.TYPE.STRING,
         fields_base_reference.normalizeLeadingWhiteSpace(),
         CfgVGroups[CfgU.REF_ALL_AVAILABLE_FIELDS]
-    );
+    ).show();
 
     fields_base_reference = JSON.parse(fields_base_reference);
     for (var f in fields_base_reference) {
@@ -958,66 +958,57 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
         }
     };
 
-    usr.addValue(
-        CfgU.TOGGLEABLE_FIELDS_ESSENTIAL,
+    usr.addValue(CfgU.TOGGLEABLE_FIELDS_ESSENTIAL,
         config.TYPE.ARRAY,
         fields_essential,
         CfgVGroups[CfgU.TOGGLEABLE_FIELDS_ESSENTIAL],
         CfgVDescs[CfgU.TOGGLEABLE_FIELDS_ESSENTIAL]
-    );
-    usr.addValue(
-        CfgU.TOGGLEABLE_FIELDS_OPTIONAL,
+    ).show();
+    usr.addValue(CfgU.TOGGLEABLE_FIELDS_OPTIONAL,
         config.TYPE.ARRAY,
         fields_optional,
         CfgVGroups[CfgU.TOGGLEABLE_FIELDS_OPTIONAL],
         CfgVDescs[CfgU.TOGGLEABLE_FIELDS_OPTIONAL]
-    );
-    usr.addValue(
-        CfgU.TOGGLEABLE_FIELDS_OTHER,
+    ).show();
+    usr.addValue(CfgU.TOGGLEABLE_FIELDS_OTHER,
         config.TYPE.ARRAY,
         fields_other,
         CfgVGroups[CfgU.TOGGLEABLE_FIELDS_OTHER],
         CfgVDescs[CfgU.TOGGLEABLE_FIELDS_OTHER]
-    );
-    usr.addValue(
-        CfgU.TOGGLEABLE_FIELDS_VERBOSE,
+    ).show();
+    usr.addValue(CfgU.TOGGLEABLE_FIELDS_VERBOSE,
         config.TYPE.ARRAY,
         fields_verbose,
         CfgVGroups[CfgU.TOGGLEABLE_FIELDS_VERBOSE],
         CfgVDescs[CfgU.TOGGLEABLE_FIELDS_VERBOSE]
-    );
-    usr.addValue(
-        CfgU.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER,
+    ).show();
+    usr.addValue(CfgU.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER,
         config.TYPE.STRING,
         'Comments',
         CfgVGroups[CfgU.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER],
         CfgVDescs[CfgU.TOGGLEABLE_FIELDS_ESSENTIAL_AFTER]
-    );
-    usr.addValue(
-        CfgU.TOGGLEABLE_FIELDS_OPTIONAL_AFTER,
+    ).show();
+    usr.addValue(CfgU.TOGGLEABLE_FIELDS_OPTIONAL_AFTER,
         config.TYPE.STRING,
         'MExt_SubtitleLang',
         CfgVGroups[CfgU.TOGGLEABLE_FIELDS_OPTIONAL_AFTER],
         CfgVDescs[CfgU.TOGGLEABLE_FIELDS_OPTIONAL_AFTER]
-    );
-    usr.addValue(
-        CfgU.TOGGLEABLE_FIELDS_OTHER_AFTER,
+    ).show();
+    usr.addValue(CfgU.TOGGLEABLE_FIELDS_OTHER_AFTER,
         config.TYPE.STRING,
         '',
         CfgVGroups[CfgU.TOGGLEABLE_FIELDS_OTHER_AFTER],
         CfgVDescs[CfgU.TOGGLEABLE_FIELDS_OTHER_AFTER]
-    );
-    usr.addValue(
-        CfgU.TOGGLEABLE_FIELDS_VERBOSE_AFTER,
+    ).show();
+    usr.addValue(CfgU.TOGGLEABLE_FIELDS_VERBOSE_AFTER,
         config.TYPE.STRING,
         '',
         CfgVGroups[CfgU.TOGGLEABLE_FIELDS_VERBOSE_AFTER],
         CfgVDescs[CfgU.TOGGLEABLE_FIELDS_VERBOSE_AFTER]
-    );
+    ).show();
 
 
-    /**
-     * video resolution translation hash, use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like */
+    /** video resolution translation hash, use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like */
     var lookup_resolutions = `
     {
         // This is just the help variable for your reference
@@ -1038,19 +1029,12 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
 
         // do not put , in the last line
     }`;
-    // cfg.addValue(
-    //     CfgV.REF_LOOKUP_RESOLUTIONS,
-    //     config.TYPE.STRING,
-    //     lookup_resolutions.normalizeLeadingWhiteSpace(),
-    //     CfgVGroups[CfgV.REF_LOOKUP_RESOLUTIONS]
-    // );
-    usr.addValue(
-        CfgU.LOOKUP_RESOLUTIONS,
+    usr.addValue(CfgU.LOOKUP_RESOLUTIONS,
         config.TYPE.POJO,
         JSON.parse(lookup_resolutions),
         CfgVGroups[CfgU.LOOKUP_RESOLUTIONS],
         CfgVDescs[CfgU.LOOKUP_RESOLUTIONS]
-    );
+    ).show();
 
 
     var lookup_duration_groups = `
@@ -1083,19 +1067,12 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
         "999999":   "Over 3h"
         // do not put , in the last line
     }`;
-    // cfg.addValue(
-    //     CfgV.REF_LOOKUP_DURATION_GROUPS,
-    //     config.TYPE.STRING,
-    //     lookup_duration_groups.normalizeLeadingWhiteSpace(),
-    //     CfgVGroups[CfgV.REF_LOOKUP_DURATION_GROUPS]
-    // );
-    usr.addValue(
-        CfgU.LOOKUP_DURATION_GROUPS,
+    usr.addValue(CfgU.LOOKUP_DURATION_GROUPS,
         config.TYPE.POJO,
         JSON.parse(lookup_duration_groups),
         CfgVGroups[CfgU.LOOKUP_DURATION_GROUPS],
         CfgVDescs[CfgU.LOOKUP_DURATION_GROUPS]
-    );
+    ).show();
 
     /**
      * video & audio codecs translation hash
@@ -1317,75 +1294,67 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
 
         // do not put , in the last line
     }`;
-    usr.addValue(
-        CfgU.REF_LOOKUP_CODECS,
+    usr.addValue(CfgU.REF_LOOKUP_CODECS,
         config.TYPE.STRING,
         lookup_codecs.normalizeLeadingWhiteSpace(),
         CfgVGroups[CfgU.REF_LOOKUP_CODECS],
         CfgVDescs[CfgU.REF_LOOKUP_CODECS]
-    );
-    usr.addValue(
-        CfgU.LOOKUP_CODECS,
+    ).show();
+    usr.addValue(CfgU.LOOKUP_CODECS,
         config.TYPE.POJO,
         JSON.parse(lookup_codecs),
         CfgVGroups[CfgU.LOOKUP_CODECS],
         CfgVDescs[CfgU.LOOKUP_CODECS]
-    );
+    ).show();
 
     /** use short variants of codecs, found via LOOKUP_CODECS */
-    usr.addValue(
-        CfgU.CODEC_USE_SHORT_VARIANT,
+    usr.addValue(CfgU.CODEC_USE_SHORT_VARIANT,
         config.TYPE.BOOLEAN,
         false,
         CfgVGroups[CfgU.CODEC_USE_SHORT_VARIANT],
         CfgVDescs[CfgU.CODEC_USE_SHORT_VARIANT]
-    );
+    ).show();
 
     /**
      * add container or codec-specific information to the container/video/audio codec fields automatically
      * e.g. if an AAC file is encoded with 'LC SBR' it is shown as 'AAC (LC SPR)'
      */
-    usr.addValue(
-        CfgU.CODEC_APPEND_ADDINFO,
+    usr.addValue(CfgU.CODEC_APPEND_ADDINFO,
         config.TYPE.BOOLEAN,
         true,
         CfgVGroups[CfgU.CODEC_APPEND_ADDINFO],
         CfgVDescs[CfgU.CODEC_APPEND_ADDINFO]
-    );
+    ).show();
 
-    /** append '(Vertical)' to vertical  video resolutions */
-    usr.addValue(
-        CfgU.RESOLUTION_APPEND_VERTICAL,
-        config.TYPE.BOOLEAN,
-        true,
+    /** append custom string '(Vertical)' to vertical  video resolutions */
+    usr.addValue(CfgU.RESOLUTION_APPEND_VERTICAL,
+        config.TYPE.STRING,
+        ' (Vertical)',
         CfgVGroups[CfgU.RESOLUTION_APPEND_VERTICAL],
         CfgVDescs[CfgU.RESOLUTION_APPEND_VERTICAL]
-    );
+    ).show();
 
     /** Audio formats which do not store a VBR/CBR/ABR information separately but are VBR by definition */
-    usr.addValue(
-        CfgU.FORMATS_REGEX_VBR,
+    usr.addValue(CfgU.FORMATS_REGEX_VBR,
         config.TYPE.REGEXP,
         '/ALAC|Monkey\'s Audio|TAK|DSD/',
         CfgVGroups[CfgU.FORMATS_REGEX_VBR],
         CfgVDescs[CfgU.FORMATS_REGEX_VBR]
-    );
+    ).show();
 
     /** Audio formats which do not store a lossy/lossless information separately but are lossless by definition */
-    usr.addValue(
-        CfgU.FORMATS_REGEX_LOSSLESS,
+    usr.addValue(CfgU.FORMATS_REGEX_LOSSLESS,
         config.TYPE.REGEXP,
         '/ALAC|PCM|TTA|DSD/',
         CfgVGroups[CfgU.FORMATS_REGEX_LOSSLESS],
         CfgVDescs[CfgU.FORMATS_REGEX_LOSSLESS]
-    );
-    usr.addValue(
-        CfgU.FORMATS_REGEX_LOSSY,
+    ).show();
+    usr.addValue(CfgU.FORMATS_REGEX_LOSSY,
         config.TYPE.REGEXP,
         '/AMR/',
         CfgVGroups[CfgU.FORMATS_REGEX_LOSSY],
         CfgVDescs[CfgU.FORMATS_REGEX_LOSSY]
-    );
+    ).show();
 
     /** audio channels translation hash */
     var lookup_channels = `
@@ -1418,30 +1387,27 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
 
         // do not put , in the last line
     }`;
-    usr.addValue(
-        CfgU.REF_LOOKUP_CHANNELS,
+    usr.addValue(CfgU.REF_LOOKUP_CHANNELS,
         config.TYPE.STRING,
         lookup_channels.normalizeLeadingWhiteSpace(),
         CfgVGroups[CfgU.REF_LOOKUP_CHANNELS],
         CfgVDescs[CfgU.REF_LOOKUP_CHANNELS]
-    );
-    usr.addValue(
-        CfgU.LOOKUP_CHANNELS,
+    ).show();
+    usr.addValue(CfgU.LOOKUP_CHANNELS,
         config.TYPE.POJO,
         JSON.parse(lookup_channels),
         CfgVGroups[CfgU.LOOKUP_CHANNELS],
         CfgVDescs[CfgU.LOOKUP_CHANNELS]
-    );
+    ).show();
 
 
     /** directory in which temporary files (selected_files_name.JSON) are created */
-    usr.addValue(
-        CfgU.TEMP_FILES_DIR,
+    usr.addValue(CfgU.TEMP_FILES_DIR,
         config.TYPE.PATH,
         '%TEMP%',
         CfgVGroups[CfgU.TEMP_FILES_DIR],
         CfgVDescs[CfgU.TEMP_FILES_DIR]
-    );
+    ).show();
 
 
     /** external configuration file to adjust column headers */
@@ -1481,13 +1447,12 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
         }
         // do not put , in the last line
     }`.substituteVars();
-    usr.addValue(
-        CfgU.REF_CONFIG_FILE,
+    usr.addValue(CfgU.REF_CONFIG_FILE,
         config.TYPE.STRING,
         config_file_contents.normalizeLeadingWhiteSpace(),
         CfgVGroups[CfgU.REF_CONFIG_FILE],
         CfgVDescs[CfgU.REF_CONFIG_FILE]
-    );
+    ).show();
 
 
     /** name cleanup array; use SD, HD-Ready, HD, UHD, 4K, 8K, etc. if you like */
@@ -1517,29 +1482,19 @@ function _initConfigDefaults(usr: config.User, ext: config.ScriptExt) {
         ]
         // do not put , in the last line
     }`;
-    // cfg.addValue(CfgV.REF_NAME_CLEANUP, config.TYPE.STRING, name_cleanup.normalizeLeadingWhiteSpace(), CfgVGroups[CfgV.REF_NAME_CLEANUP]);
-    usr.addValue(
-        CfgU.NAME_CLEANUP,
+    usr.addValue(CfgU.NAME_CLEANUP,
         config.TYPE.POJO,
         JSON.parse(name_cleanup),
         CfgVGroups[CfgU.NAME_CLEANUP],
         CfgVDescs[CfgU.NAME_CLEANUP]
-    );
-
-
-
-    // ext.addValue(CfgE.EXT_CONFIG_POJO, config.TYPE.POJO, {}, '', '', true, false);
-    // var ext_config_file = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
-    // var res = ext.addPOJOFromFile(CfgE.EXT_CONFIG_POJO, ext_config_file);
+    ).show();
 
     usr.finalize();
-    // ext.finalize();
 
 } // _initConfigDefaults
 
 
-
-// internal method called by OnInit()
+/** Set up script commands */
 function _initCommands(initData: DOpusScriptInitData) {
     const fname = _initCommands.fname = '_initCommands';
 
@@ -1571,25 +1526,26 @@ function _initCommands(initData: DOpusScriptInitData) {
 } // _initCommands
 
 
-
-// internal method called by OnInit()
-function _initColumns(initData: DOpusScriptInitData) {
+/** Set up script columns, including user columns */
+function _initColumns(initData: DOpusScriptInitData, ext: config.ScriptExt) {
     const fname = _initColumns.fname = '_initColumns';
 
     logger.snormal('%s -- started', fname);
 
     const colPrefix = scriptMeta.CUSTCOL_LABEL_PREFIX;
 
-    var extConfig: ExtConfigType;
     const expectedJSONPath = g.SCRIPTSDIR + scriptMeta.NAME + '.json';
-    let extConfigRes = config.ScriptExt.getInstance(initData).getPOJOFromFile<ExtConfigType>(CfgE.EXT_CONFIG_POJO, expectedJSONPath);
-    if (extConfigRes.isErr()) {
-        logger.swarn('%s -- ignoring invalid external JSON: %s', fname, expectedJSONPath);
-        extConfig = {};
-    } else {
-        logger.snormal('%s -- using external JSON: %s', fname, expectedJSONPath);
-        extConfig = extConfigRes.ok;
-    }
+    const extConfig: ExtConfigType = ext.getPOJOFromFile<ExtConfigType>(CfgE.EXT_CONFIG_POJO, expectedJSONPath).match({
+        ok: (contents: ExtConfigType) => {
+            logger.snormal('%s -- using external JSON: %s', fname, expectedJSONPath);
+            return contents;
+        },
+        err: (err: IException<ex>) => {
+            err.show();
+            logger.serror('%s -- Error:\n%s', fname, err.toString());
+            return {};
+        }
+    });
 
     for (const columnName in AllColumns) {
         if (Object.prototype.hasOwnProperty.call(AllColumns, columnName)) {
@@ -1640,19 +1596,46 @@ function _initColumns(initData: DOpusScriptInitData) {
 
 
 
+
+
 function OnInit(initData: DOpusScriptInitData) {
-    DOpus.clearOutput();
+    // DOpus.clearOutput();
+    DOpus.output('\n------------------------------------\n');
     DOpus.output('<b>Script initialization started</b>');
 
     g.init(initData, scriptMeta);   // set up script meta data for UI and misc script variables, such as script name, isOSP...
     _reinitGlobalVars(initData);    // (re)initialize logger, usr, ext
-    _initConfigDefaults(usr, ext);  // user-configurable parameters & defaults
+    _initConfigDefaults(usr);       // user-configurable parameters & defaults
     _initCommands(initData);        // commands available to user
-    _initColumns(initData);         // columns available to user
+    _initColumns(initData, ext);         // columns available to user
+
+    // initData.vars.set(g.VAR_NAMES.SCRIPT_CONFIG_VALID, usr.isUserConfigValid().isOk());
+    // validateConfigAndCache(initData.vars);
+    mem.clear();
+    nil.clear()
+
+    // DOpus.output('OnInit() before - mem.id: ' + mem.id);
+    // DOpus.output('OnInit() before - mem.isEnabled(): ' + mem.isEnabled());
+    // DOpus.output('OnInit() before - mem.getCount(): ' + mem.getCount());
+    mem.setVar('foo', 'bar -- set in OnInit()');
+    // DOpus.output('OnInit() after - mem.id: ' + mem.id);
+    // DOpus.output('OnInit() after - mem.isEnabled(): ' + mem.isEnabled());
+    // DOpus.output('OnInit() after - mem.getCount(): ' + mem.getCount());
+
 
     DOpus.output('<b>Script initialization finished</b>');
 }
 
+
+
+
+
+
+
+
+
+
+// 32k limit workaround? https://github.com/pieroxy/lz-string/ (4.6k minified) - https://pieroxy.net/blog/pages/lz-string/index.html
 function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
 //     const fname = OnGetHelpContent.fname = 'OnGetHelpContent';
 //     DOpus.output(fname + ' started');
@@ -1673,7 +1656,40 @@ function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
 // DOpus.output('cfgopt: ' + cfgopt.length);
 
 //     helpData.addHelpPage('configOptions.html', 'Configuration', cfgopt);
+}
 
+function OnME_ShowHelp(scriptCmdData: DOpusScriptCommandData) {
+    Script.showHelp();
+}
+
+function OnScriptConfigChange(_cfgChangeData: DOpusConfigChangeData) {
+    validateConfig(undefined);
+}
+
+function OnME_ConfigValidate(scriptCmdData: DOpusScriptCommandData) {
+    validateConfig(scriptCmdData.func.dlg());
+}
+
+/** ERROR: always shown -- OK: only shown if a dialog is passed */
+function validateConfig(dialog?: DOpusDialog): IResult<true, any> {
+    // const resValidation = validateConfigAndCache(Script.vars);
+    const resValidation = usr.isUserConfigValid();
+    const title = 'Validation results';
+    resValidation.match({
+        ok : () => dialog && g.showMessageDialog(dialog, 'Great! Configuration is valid.', title),
+        err: () => {
+            logger.sverbose('%s -- %s', 'validateConfig', JSON.stringify(resValidation.err, null, 4));
+            let msg = 'Configuration is invalid:\n\n';
+            for (const invalidKey in resValidation.err) {
+                if (Object.prototype.hasOwnProperty.call(resValidation.err, invalidKey)) {
+                    const invalidKeyType = resValidation.err[invalidKey];
+                    msg += invalidKey + ' is invalid ' + invalidKeyType + '\n';
+                }
+            }
+            g.showMessageDialog(dialog||null, msg, title);
+        }
+    });
+    return resValidation;
 }
 
 
@@ -1683,11 +1699,13 @@ function OnGetHelpContent(helpData: DOpusGetHelpContentData) {
 
 
 
-
-DOpus.output('is this running every time the script is run?');
-
-function CustomCommand() {
+function CustomCommand(scriptCmdData: DOpusScriptCommandData) {
     const fname = CustomCommand.fname = 'CustomCommand';
+
+
+    // hashTest(scriptCmdData);
+    // return;
+
 
     // _reinitGlobalVars();
 
@@ -1728,17 +1746,99 @@ function CustomCommand() {
     // const isExtConfigValid = config.ScriptExt.getInstance().isUserConfigValid();
     // DOpus.output('isExtConfigValid: ' + isExtConfigValid);
 
-    logger.sforce('%s -- debug level: %s', fname, config.User.getInstance().getValue(CfgU.DEBUG_LEVEL));
+    // logger.sforce('%s -- debug level: %s', fname, config.User.getInstance().getValue(CfgU.DEBUG_LEVEL));
 
     // logger.sforce('%s -- ext pojo: %s', fname, config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO));
     // logger.sforce('%s -- ext pojo2: %s', fname, JSON.stringify(config.ScriptExt.getInstance().getValue(CfgE.EXT_CONFIG_POJO), null, 4));
 
-    logger.sforce('This should be visible in none');
-    logger.serror('This should be visible in error');
-    logger.swarn('This should be visible in warn');
-    logger.snormal('This should be visible in normal');
-    logger.sinfo('This should be visible in info');
-    logger.sverbose('This should be visible in verbose');
+    // logger.sforce('This should be visible in none');
+    // logger.serror('This should be visible in error');
+    // logger.swarn('This should be visible in warn');
+    // logger.snormal('This should be visible in normal');
+    // logger.sinfo('This should be visible in info');
+    // logger.sverbose('This should be visible in verbose');
+
+    // validateConfig(scriptCmdData);
+    // OnME_ConfigValidate(scriptCmdData);
+
+    DOpus.output('before mem.id: ' + mem.id);
+    DOpus.output('before mem.isEnabled(): ' + mem.isEnabled());
+    DOpus.output('before mem.getCount(): ' + mem.getCount());
+
+    DOpus.output('mem.getVar("foo"): ' + mem.getVar('foo'));
+    DOpus.output('mem.getVar("nonexisting"): ' + mem.getVar('nonexisting').isNone());
+    DOpus.output('mem.getVar("nonexisting"): ' + mem.getVar('nonexisting').orElse('default value'));
+    mem.setVar('hello', 'world');
+
+    DOpus.output('after mem.id: ' + mem.id);
+    DOpus.output('after mem.isEnabled(): ' + mem.isEnabled());
+    DOpus.output('after mem.getCount(): ' + mem.getCount());
+
+    mem.disable();
+    DOpus.output('mem.isEnabled(): ' + mem.isEnabled());
+    mem.enable();
+    DOpus.output('mem.isEnabled(): ' + mem.isEnabled());
+
+    DOpus.output('mem.getKeys(): ' + mem.getKeys());
+
+    g.ResultErr('error').show();
+    g.ResultOk('ok').show();
+
+    // DOpus.output('sw.myName: ' + sw.startAndPrint('foo'));
+    // DOpus.output('sw.myName: ' + sw.getElapsedAndPrint('foo'));
+    // DOpus.output('sw.myName: ' + sw.stopAndPrint('foo'));
+
+    // DOpus.output('sw.myName: ' + sw.start('foo'));
+    // DOpus.output('sw.myName: ' + sw.getElapsed('foo'));
+    // DOpus.output('sw.myName: ' + sw.reset('foo'));
+    // DOpus.output('sw.myName: ' + sw.stop('foo'));
+
+    // DOpus.output('sw.myName: ' + sw.start('foo').print());
+    // g.delay(100);
+    // DOpus.output('sw.myName: ' + sw.getElapsed('foo').print());
+    // g.delay(100);
+    // // DOpus.output('sw.myName: ' + sw.reset('foo').print());
+    // g.delay(100);
+    // DOpus.output('sw.myName: ' + sw.stop('foo').print());
+
+
+    // try {
+    //     var fh = g.fsu.openFile('Y:\\foo.txt');
+    //     DOpus.output('bam 1!');
+    //     var blob = fh.read();
+    //     DOpus.output('bam 2!');
+    // } catch (e) {
+    //     DOpus.output('e occurred: ' + e.description);
+    //     return;
+    // } finally {
+    //     DOpus.output('this is finally');
+    // }
+    // var str = fs.readFile('Y:\\foo.txt');
+    // DOpus.output('str: ' + str);
+
+    // var num = 12345678901234567890 + 40000;
+    // DOpus.output(g2.sprintf('%s -- %s', Math.pow(2,10), num ));
+
+
+    var vic = g.getItem('Y:\\foo.txt');
+    // var st = new ads.Stream('Test');
+    var st = new ads.Stream('This is another stream');
+    st.setLogger(logger);
+    var resSave = st.save(vic, new ads.CachedItem(vic));
+    logger.sforce('%s -- resSve: %s', fname, JSON.stringify(resSave, null, 4));
+
+    resSave.show();
+
+    var resCachedItem = st.read(vic);
+    if (resCachedItem.isErr()) {
+        DOpus.output('resCachedItem.err: ' + resCachedItem.err);
+        return;
+    }
+    DOpus.output('resCachedItem.ok: ' + resCachedItem.ok);
+
+
+
+
 
     logger.sforce('%s -- finished', fname);
 }
@@ -1753,22 +1853,21 @@ function CustomCommand() {
 
 
 // called by 'Has Metadata' column
-function OnMExt_HasMetadata(scriptColData: DOpusScriptColumnData) {
+function OnMExt_HasMetadata(colData: DOpusScriptColumnData) {
     const fname = OnMExt_HasMetadata.fname = 'OnMExt_HasMetadata';
-    logger.sforce('%s -- running', fname);
+    // logger.sforce('%s -- running', fname);
 
-    // var selected_item = scriptColData.item;
-    // if (selected_item.is_dir || selected_item.is_reparse || selected_item.is_junction || selected_item.is_symlink) {
-    //     return;
-    // }
-    // logger.normal("...Processing " + selected_item.name);
-    // // var fh = DOpus.FSUtil.OpenFile(selected_item.realpath + ':' + config.get('MetaStreamName')); // default read mode
-    // // var res = fh.error !== 0 ? false : true;
-    // // fh.Close();
-    // var res = DOpus.FSUtil.Exists(selected_item.realpath + ':' + config.get('MetaStreamName'));
-    // scriptColData.value = res ? 'Yes' : 'No';
-    // scriptColData.group = 'Has Metadata: ' + scriptColData.value;
-    // return res;
+    var selected_item = colData.item;
+    if (selected_item.is_dir || selected_item.is_reparse || selected_item.is_junction || selected_item.is_symlink) {
+        return;
+    }
+    logger.normal('Checking ' + selected_item.realpath + ':' + usr.getValue(CfgU.META_STREAM_NAME).show().ok);
+
+    var exists = DOpus.fsUtil().exists(selected_item.realpath + ':' + usr.getValue(CfgU.META_STREAM_NAME).show().ok);
+
+    colData.value = exists ? 'Yes' : 'No';
+    colData.group = 'Has Metadata: ' + colData.value;
+    // return exists;
 }
 
 // called by all other columns than 'Has Metadata'
@@ -2859,116 +2958,6 @@ function _toggleColumnGroup(groupName: string, columnsArray: string[], columnAft
 }
 
 
-// VALIDATE CONFIG
-function OnME_ConfigValidate(scriptCmdData: DOpusScriptCommandData) {
-    const fname = OnME_ConfigValidate.fname = 'OnME_ConfigValidate';
-    var debug = scriptCmdData.func.args.got_arg.DEBUG;
-    var showValues = scriptCmdData.func.args.got_arg.SHOWVALUES;
-    validateConfigAndShowResult(debug, showValues, scriptCmdData.func.dlg(), false);
-}
-
-// internal wrapper method called by most methods
-// optionally shows a user dialog if configuration is invalid
-function validateConfigAndShowResult(debug: boolean, showValues: boolean, dialog: DOpusDialog, skipIfValid: boolean, validateDefaultValues = true): boolean {
-    // const fname = validateConfigAndShowResult.fname = 'validateConfigAndShowResult';
-    // var isValid = validateConfig(debug, showValues, validateDefaultValues);
-    // if (!skipIfValid) {
-    //     var dlgConfirm		= dialog;
-    //     dlgConfirm.message  = scriptMeta.NAME + ' configuration is ' + (isValid ? 'valid' : 'invalid');
-    //     dlgConfirm.title	= scriptMeta.NAME + ' - Configuration Validation' ;
-    //     dlgConfirm.buttons	= 'OK';
-    //     // var ret =
-    //     dlgConfirm.show();
-    // }
-    // return isValid;
-    return true;
-}
-
-// internal method to validate the config - optionally validates script default values as well
-function validateConfig(debug: boolean, showValues: boolean, validateDefaultValues = true) {
-    // const fname = validateConfig.fname = 'validateConfig';
-    // if (debug) {
-    //     logger.force('validateConfig started - debug: ' + debug + ', showValues: ' + showValues);
-    // } else {
-    //     logger.normal('validateConfig started - debug: ' + debug + ', showValues: ' + showValues);
-    // }
-
-    // // config.setErrorMode(config.modes.DIALOG); // TODO
-
-    // var configIsValid = true;
-    // var alternativeValue = 'value not shown for brevity';
-
-    // var cfgkeys = config.user.getKeys();
-
-    // if(validateDefaultValues) {
-    //     if(debug) {
-    //         logger.force('Number of items: ' + config.user.getCount() + ', matches actual keys count: ' + (config.user.getCount() == cfgkeys.length));
-    //         logger.force('');
-    //         logger.force('Dumping current config as string');
-    //     }
-    //     for (var i = 0; i < cfgkeys.length; i++) {
-    //         var k = cfgkeys[i],
-    //             t = config.user.getType(k),
-    //             // b = config.user.getBinding(k), // TODO
-    //             v = config.user.getValue(k, false),
-    //             iv= config.user.isValid(v, t);
-    //         configIsValid = configIsValid && iv;
-    //         if (debug) {
-    //             logger.force(
-    //                 g.sprintf(
-    //                     '#%02d key: %-30s type: %-15s bindTo: %-40s valid: %s  --  value: %s\n',
-    //                     i+1,
-    //                     k,
-    //                     t,
-    //                     // b,
-    //                     (iv ? iv : iv + ', expected: ' + t + ', found: ' + typeof v),
-    //                     (!!showValues ? v : alternativeValue)
-    //                 )
-    //             );
-    //         }
-    //     }
-    // }
-
-
-    // if (debug) {
-    //     logger.force('');
-    //     logger.force('');
-    //     logger.force('');
-    //     logger.force('Checking bound values');
-    // }
-    // for (var i = 0; i < cfgkeys.length; i++) {
-    //     var k = cfgkeys[i],
-    //         t = config.user.getType(k),
-    //         // b = config.user.getBinding(k),
-    //         v = config.user.getValue(k, true),
-    //         iv= config.user.isValid(v, t);
-    //     configIsValid = configIsValid && iv;
-    //     if (debug) {
-    //         logger.force(
-    //             g.sprintf(
-    //                 '#%02d key: %-30s type: %-15s boundTo: %-40s valid: %s  --  bound value: %s\n',
-    //                 i+1,
-    //                 k,
-    //                 t,
-    //                 // b,
-    //                 (iv ? iv : iv + ', expected: ' + t + ', found: ' + typeof v + ' (boolean false is standard for invalid values)'),
-    //                 (showValues ? v : alternativeValue)
-    //             )
-    //         );
-    //     }
-    // }
-    // if (debug) {
-    //     logger.force('');
-    //     logger.force('');
-    //     logger.force('');
-    //     logger.force('validateConfig finished - config valid: ' + configIsValid);
-    // } else {
-    //     logger.normal('validateConfig finished - config valid: ' + configIsValid);
-    // }
-
-    // return configIsValid;
-}
-
 
 // DEVELOPER HELPER METHOD
 function OnME_TestMethod1(scriptCmdData: DOpusScriptCommandData) {
@@ -3102,10 +3091,72 @@ function OnME_TestMethod2(scriptCmdData: DOpusScriptCommandData) {
 }
 
 
+
+/*
+           d8888 888     888 88888888888  .d88888b.         8888888b.  8888888888 8888888 888b    888 8888888 88888888888
+          d88888 888     888     888     d88P" "Y88b        888   Y88b 888          888   8888b   888   888       888
+         d88P888 888     888     888     888     888        888    888 888          888   88888b  888   888       888
+        d88P 888 888     888     888     888     888        888   d88P 8888888      888   888Y88b 888   888       888
+       d88P  888 888     888     888     888     888        8888888P"  888          888   888 Y88b888   888       888
+      d88P   888 888     888     888     888     888 888888 888 T88b   888          888   888  Y88888   888       888
+     d8888888888 Y88b. .d88P     888     Y88b. .d88P        888  T88b  888          888   888   Y8888   888       888
+    d88P     888  "Y88888P"      888      "Y88888P"         888   T88b 8888888888 8888888 888    Y888 8888888     888
+*/
 // auto-initalize global vars every time the script is run
 if (typeof Script !== 'undefined' && typeof Script.vars !== 'undefined') {
     _reinitGlobalVars();
 }
-
-
 // DOpus.output('<b>Script parsing finished</b>');
+
+
+
+
+
+
+/*
+function hashTest(cmdData: DOpusScriptCommandData) {
+    // var selCount = cmdData.func.sourceTab.selstats.files;
+    // var vec      = DOpus.create().vector(selCount);
+    var vec      = DOpus.create().vector();
+    var mapLong  = DOpus.create().map();
+    var mapShort = DOpus.create().map();
+
+
+    for (const ev = new Enumerator(cmdData.func.sourceTab.selected); !ev.atEnd(); ev.moveNext()) {
+        vec.push_back(ev.item());
+    }
+
+
+
+    DOpus.output(sw.start('long strings').print());
+    for (const ev1 = new Enumerator(vec); !ev1.atEnd(); ev1.moveNext()) {
+        const im1: DOpusItem = ev1.item();
+        mapLong.set(im1.realpath, g.now());
+    }
+    DOpus.output(sw.getElapsed('long strings').print());
+    for (const em1 = new Enumerator(mapLong); !em1.atEnd(); em1.moveNext()) {
+        const im1: string = em1.item();
+        // DOpus.output(im1 + ': ' + mapLong.get(im1));
+    }
+    DOpus.output(sw.stop('long strings').print());
+
+
+    // var blob = DOpus.create().blob();
+    // blob.copyFrom('' + _now + Math.floor(1000000000 + Math.random() * 8999999999));
+    // var _nowMD5 = DOpus.fsUtil().hash(blob, 'md5');
+
+    var blob = DOpus.create().blob();
+    DOpus.output(sw.start('md5 strings').print());
+    for (const ev2 = new Enumerator(vec); !ev2.atEnd(); ev2.moveNext()) {
+        const im2: DOpusItem = ev2.item();
+        blob.copyFrom('' + im2.realpath);
+        mapShort.set(DOpus.fsUtil().hash(blob, 'crc32'), g.now());
+    }
+    DOpus.output(sw.getElapsed('md5 strings').print());
+    for (const em2 = new Enumerator(mapShort); !em2.atEnd(); em2.moveNext()) {
+        const im2: string = em2.item();
+        // DOpus.output(im2 + ': ' + mapShort.get(im2));
+    }
+    DOpus.output(sw.stop('md5 strings').print());
+}
+*/

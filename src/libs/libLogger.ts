@@ -22,12 +22,12 @@ namespace libLogger {
         normal(message?: string): void              { this._baseout(g.LOGLEVEL.NORMAL,    message); }
         info(message?: string): void                { this._baseout(g.LOGLEVEL.INFO,      message); }
         verbose(message?: string): void             { this._baseout(g.LOGLEVEL.VERBOSE,   message); }
-        sforce(...args: any): void                  { this._baseout(g.LOGLEVEL.NONE,      '<b>' + g.sprintf.apply(g.sprintf, args) + '</b>'); }
-        serror(...args: any): void                  { this._baseout(g.LOGLEVEL.ERROR,     g.sprintf.apply(g.sprintf, args), true); }
-        swarn(...args: any): void                   { this._baseout(g.LOGLEVEL.WARN,      '<i>' + g.sprintf.apply(g.sprintf, args) + '</i>'); }
-        snormal(...args: any): void                 { this._baseout(g.LOGLEVEL.NORMAL,    g.sprintf.apply(g.sprintf, args)); }
-        sinfo(...args: any): void                   { this._baseout(g.LOGLEVEL.INFO,      g.sprintf.apply(g.sprintf, args)); }
-        sverbose(...args: any): void                { this._baseout(g.LOGLEVEL.VERBOSE,   g.sprintf.apply(g.sprintf, args)); }
+        sforce(...args: any): void                  { this._baseout(g.LOGLEVEL.NONE,      '<b>' + g2.sprintf.apply(g2.sprintf, args) + '</b>'); }
+        serror(...args: any): void                  { this._baseout(g.LOGLEVEL.ERROR,     g2.sprintf.apply(g2.sprintf, args), true); }
+        swarn(...args: any): void                   { this._baseout(g.LOGLEVEL.WARN,      '<i>' + g2.sprintf.apply(g2.sprintf, args) + '</i>'); }
+        snormal(...args: any): void                 { this._baseout(g.LOGLEVEL.NORMAL,    g2.sprintf.apply(g2.sprintf, args)); }
+        sinfo(...args: any): void                   { this._baseout(g.LOGLEVEL.INFO,      g2.sprintf.apply(g2.sprintf, args)); }
+        sverbose(...args: any): void                { this._baseout(g.LOGLEVEL.VERBOSE,   g2.sprintf.apply(g2.sprintf, args)); }
     }
 
     class NullLogger implements ILogger {
@@ -57,5 +57,5 @@ namespace libLogger {
     export const nil = new NullLogger();
 
     /** current logger, can be set externally, ALWAYS prefer this */
-    export var current = std;
+    export const current = std;
 }

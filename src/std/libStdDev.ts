@@ -521,7 +521,7 @@ if (!Array.prototype.filter) {
 // Production steps of ECMA-262, Edition 5, 15.4.4.19
 // Reference: https://es5.github.io/#x15.4.4.19
 if (!Array.prototype.map) {
-    Array.prototype.map = function (callback/*, thisArg*/) {
+    Array.prototype.map = function (callback: Function/*, thisArg*/) {
         var T, A, k;
         if (this == null) {
             throw new TypeError('this is null or not defined');
@@ -853,7 +853,7 @@ namespace g {
                 888         "Y88888P"  888    Y888  "Y8888P"     888     8888888  "Y88888P"  888    Y888  "Y8888P"
     */
 
-    export function init(initData: DOpusScriptInitData, scriptMeta?: ScriptMeta) {
+    export function init(initData: DOpusScriptInitData, scriptMeta?: ScriptMetaKnown) {
         initData.vars.set(VAR_NAMES.SCRIPT_FILE_PATH, initData.file);
         initData.vars.set(VAR_NAMES.SCRIPT_UNIQUE_ID, initData.file.toHash());
         if (scriptMeta) {
@@ -864,7 +864,7 @@ namespace g {
             initData.desc           = scriptMeta.DESC           || '';
             initData.min_version    = scriptMeta.MIN_VERSION    || '';
             initData.group          = scriptMeta.GROUP          || '';
-            initData.log_prefix     = scriptMeta.PREFIX         || '';
+            initData.log_prefix     = scriptMeta.LOG_PREFIX     || '';
             initData.default_enable = scriptMeta.DEFAULT_ENABLE || true;
             initData.early_dblclk   = scriptMeta.EARLY_DBLCLK   || false;
         }
@@ -1136,7 +1136,7 @@ namespace g {
         if (!keys.length) {
             abortWith(Exc(ex.DeveloperStupidity, 'splitEnum()', 'empty or unknown enum passed, cannot continue!').err);
         }
-        const vals = keys.map(k => enumObject[k as any]);
+        const vals = keys.map((k: any) => enumObject[k as any]);
         // @ts-ignore
         return { keys: keys, vals: vals};
     }
